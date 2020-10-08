@@ -1,6 +1,6 @@
 # Light Face Detector
 
-Face detection implementation using pytorch-lightning
+Face detection implementation using [pytorch-lightning](https://www.pytorchlightning.ai/)
 
 ## TODO
 - [ ] build LFFD model
