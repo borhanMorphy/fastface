@@ -7,5 +7,5 @@ Face detection implementation using pytorch-lightning
 - [] run LFFD inference
 - [] add test loop
 - [] add train loop
-- [] suport onnx deploy 
-- [] suport torchscript deploy
+- [] support onnx deploy 
+- [] support torchscript deploy
