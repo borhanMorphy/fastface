@@ -1,26 +1,32 @@
-index   kernel  stride  padding     subsample_ratio     output_feature_map  short_cut   head
-0       3       2       0           1/2                 c1                  -           -
-1       3       2       0           1/2                 c2                  c4          -
-2       3       1       1           1                   c3                  -           -
-3       3       1       1           1                   c4                  c6          -
-4       3       1       1           1                   c5                  -           -
-5       3       1       1           1                   c6                  c8          -
-6       3       1       1           1                   c7                  -           -
-7       3       1       1           1                   c8                  c10         x
-8       3       1       1           1                   c9                  -           -
-9       3       1       1           1                   c10                 -           x
-10      3       2       0           1/2                 c11                 c13         -
-11      3       1       1           1                   c12                 -           -
-12      3       1       1           1                   c13                 c15         x
-13      3       1       1           1                   c14                 -           -
-14      3       1       1           1                   c15                 -           x
-15      3       2       0           1/2                 c16                 c18         -
-16      3       1       1           1                   c17                 -           -
-17      3       1       1           1                   c18                 -           x
-18      3       2       0           1/2                 c19                 c21         -
-19      3       1       1           1                   c20                 -           -
-20      3       1       1           1                   c21                 c23         x
-21      3       1       1           1                   c22                 -           -
-22      3       1       1           1                   c23                 c25         x
-23      3       1       1           1                   c24                 -           -
-24      3       1       1           1                   c25                 -           x
+index   kernel  stride  padding     subsample_ratio     output_feature_map  short_cut   head    part
+0       3       2       0           1/2                 c1                  -           -       tiny part
+1       3       2       0           1/2                 c2                  c4          -       tiny part
+2       3       1       1           1                   c3                  -           -       tiny part
+3       3       1       1           1                   c4                  c6          -       tiny part
+4       3       1       1           1                   c5                  -           -       tiny part
+5       3       1       1           1                   c6                  c8          -       tiny part
+6       3       1       1           1                   c7                  -           -       tiny part
+7       3       1       1           1                   c8                  c10         x       tiny part
+8       3       1       1           1                   c9                  -           -       tiny part
+9       3       1       1           1                   c10                 -           x       tiny part
+
+
+10      3       2       0           1/2                 c11                 c13         -       small part
+11      3       1       1           1                   c12                 -           -       small part
+12      3       1       1           1                   c13                 c15         x       small part
+13      3       1       1           1                   c14                 -           -       small part
+14      3       1       1           1                   c15                 -           x       small part
+
+
+15      3       2       0           1/2                 c16                 c18         -       medium part
+16      3       1       1           1                   c17                 -           -       medium part
+17      3       1       1           1                   c18                 -           x       medium part
+
+
+18      3       2       0           1/2                 c19                 c21         -       large part
+19      3       1       1           1                   c20                 -           -       large part
+20      3       1       1           1                   c21                 c23         x       large part
+21      3       1       1           1                   c22                 -           -       large part
+22      3       1       1           1                   c23                 c25         x       large part
+23      3       1       1           1                   c24                 -           -       large part
+24      3       1       1           1                   c25                 -           x       large part
