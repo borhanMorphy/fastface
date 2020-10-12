@@ -1,4 +1,5 @@
 import pytorch_lightning as pl
+from models import get_detector_by_name
 
 class LightFaceDetector(pl.LightningModule):
     def __init__(self, model):
@@ -14,3 +15,7 @@ class LightFaceDetector(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
+
+def build_detector(model_name:str) -> pl.LightningModule:
+    model = get_detector_by_name(model_name)
+    return LightFaceDetector(model)
