@@ -80,6 +80,7 @@ class LFFD(nn.Module):
 
             # *large heads
             DetectionHead(128),
+            DetectionHead(128),
             DetectionHead(128)
         ])
 
