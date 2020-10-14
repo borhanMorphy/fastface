@@ -6,7 +6,7 @@ if __name__ == "__main__":
     from cv2 import cv2
     import numpy as np
 
-    ds = get_dataset("widerface")
+    ds = get_dataset("widerface",phase='val',partitions=['easy','hard'])
 
     for img,boxes in ds:
         img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
