@@ -1,12 +1,17 @@
 
 from datasets import get_dataset
+from transforms import LFFDRandomSample
 
 
 if __name__ == "__main__":
     from cv2 import cv2
     import numpy as np
 
-    ds = get_dataset("widerface",phase='val',partitions=['easy','hard'])
+    scales = [(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)]
+
+    transforms = LFFDRandomSample(scales)
+
+    ds = get_dataset("widerface",phase='val',partitions=['easy','hard'], transforms=transforms)
 
     for img,boxes in ds:
         img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
