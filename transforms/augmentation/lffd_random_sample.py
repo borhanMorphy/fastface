@@ -30,12 +30,29 @@ class LFFDRandomSample():
         if num_faces == 0: return img,boxes
 
         # select one face
-
         selected_face_idx = random.randint(0, num_faces-1)
 
         selected_face_scale_idx = random.randint(0, self.scales.shape[0]-1)
         scale_lower,scale_higher = self.scales[selected_face_scale_idx]
         scale_size = random.randint(scale_lower,scale_higher)
+
+        x1,y1,x2,y2 = boxes[selected_face_idx]
+        target_center_x,target_center_y = (x2+x1) // 2, (y2+y1) // 2
+        current_center_x,current_center_y = img.shape[1] // 2, img.shape[0] // 2
+
+        delta_x = int(current_center_x - target_center_x)
+        delta_y = int(current_center_y - target_center_y)
+
+        boxes[:, [0,2]] = boxes[:, [0,2]] - delta_x
+        boxes[:, [1,3]] = boxes[:, [1,3]] - delta_y
+
+        new_img = np.zeros((img.shape[0]+abs(delta_y), img.shape[1]+abs(delta_x), 3), dtype=np.uint8)
+        if delta_x >= 0:
+            new_img[delta_y:, delta_x:] = img
+        else:
+            new_img[delta_y:, :delta_x] = img
+        return new_img,boxes
+
         sf = scale_size / (boxes[selected_face_idx][2]-boxes[selected_face_idx][0])
         nimg = cv2.resize(img, None, fx=sf, fy=sf)
         nboxes = boxes * sf
@@ -44,37 +61,29 @@ class LFFDRandomSample():
         center_y = int((nboxes[selected_face_idx][3] + nboxes[selected_face_idx][1]) / 2)
 
         timg = np.zeros((*self.target_size,3), dtype=np.uint8)
-        crop_xmin = max((center_x-self.target_size[0])//2,0)
-        crop_ymin = max((center_y-self.target_size[1])//2,0)
-        crop_xmax = min((center_x+self.target_size[0])//2,nimg.shape[1])
-        crop_ymax = min((center_y+self.target_size[1])//2,nimg.shape[0])
 
-        leftover_x = self.target_size[0]-(crop_xmax-crop_xmin)
+        left_x = center_x - self.target_size[0] // 2
+        right_x = center_x + self.target_size[0] // 2
+        up_y = center_y - self.target_size[1] // 2
+        down_y = center_y + self.target_size[1] // 2
 
-        offset_x_left = leftover_x // 2 + leftover_x % 2
-        offset_x_right = leftover_x // 2
+        crop_left = max(0,left_x)
+        crop_right = min(nimg.shape[1],right_x)
+        crop_up = max(0,up_y)
+        crop_down = min(nimg.shape[0],down_y)
 
-        leftover_y = self.target_size[1]-(crop_ymax-crop_ymin)
-        offset_y_up = leftover_y // 2 + leftover_y % 2
-        offset_y_down = leftover_y // 2
+        offset_left =  self.target_size[0] // 2 - ((crop_right - crop_left) // 2 + (crop_right - crop_left) % 2)
+        offset_right = self.target_size[0] // 2 - ((crop_right - crop_left) // 2)
+        offset_up = self.target_size[1] // 2 - ((crop_down - crop_up) // 2 + (crop_down - crop_up) % 2)
+        offset_down = self.target_size[1] // 2 - ((crop_down - crop_up) // 2)
+        print("shift: ",left_x,up_y)
+        print("offset: ",offset_left,offset_up)
+        nboxes[:,[0,2]] = nboxes[:,[0,2]] - max(left_x,0) + offset_left
+        nboxes[:,[1,3]] = nboxes[:,[1,3]] - max(up_y,0) + offset_up
 
-        timg[offset_y_up:self.target_size[1]-offset_y_down, offset_x_left:self.target_size[0]-offset_x_right] = \
-            nimg[crop_ymin:crop_ymax, crop_xmin:crop_xmax, :]
-
-        center_shift_x = center_x - nimg.shape[1] // 2 
-        center_shift_y = center_y - nimg.shape[0] // 2
-
-        nboxes[:,[0,2]] = nboxes[:,[0,2]] + center_shift_x
-        nboxes[:,[1,3]] = nboxes[:,[1,3]] + center_shift_y
-
-        nboxes[:,[0,2]] = np.clip(nboxes[:,[0,2]], 0, self.target_size[0])
-        nboxes[:,[1,3]] = np.clip(nboxes[:,[1,3]], 0, self.target_size[1])
-        wh = np.zeros((nboxes.shape[0], 2), dtype=nboxes.dtype)
-
-        wh[:,0] = nboxes[:, 2] - nboxes[:, 0]
-        wh[:,1] = nboxes[:, 3] - nboxes[:, 1]
-        min_dims = wh.min(axis=1)
         
-        nboxes = nboxes[min_dims >= self.min_dim]
+        print(timg[offset_up:self.target_size[1]-offset_down, offset_left:self.target_size[0]-offset_right].shape)
+        print(nimg[crop_up:crop_down,crop_left:crop_right].shape)
+        timg[offset_up:self.target_size[1]-offset_down, offset_left:self.target_size[0]-offset_right] = nimg[crop_up:crop_down,crop_left:crop_right]
 
         return timg,nboxes
