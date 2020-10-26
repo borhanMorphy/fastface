@@ -23,11 +23,19 @@ class LFFDRandomSample():
 
         if boxes.shape[0] == 0: return img,boxes
 
+        # TODO move this to dataset
         mask = np.bitwise_and((boxes[:, 2] - boxes[:, 0] >= self.min_dim), (boxes[:, 3] - boxes[:, 1] >= self.min_dim))
         boxes = boxes[mask]
 
         num_faces = boxes.shape[0]
-        if num_faces == 0: return img,boxes
+        if num_faces == 0:
+            h,w = img.shape[:2]
+            target_w,target_h = self.target_size
+            cx,cy = w//2,h//2
+            offset_x = int(w//2 - target_w//2)
+            offset_y = int(h//2 - target_h//2)
+            aimg = img[offset_y:offset_y+target_h, offset_x:offset_x+target_w]
+            return aimg,boxes
 
         # select one face
         selected_face_idx = random.randint(0, num_faces-1)
@@ -36,78 +44,81 @@ class LFFDRandomSample():
         scale_lower,scale_higher = self.scales[selected_face_scale_idx]
         scale_size = random.randint(scale_lower,scale_higher)
 
-        x1,y1,x2,y2 = boxes[selected_face_idx]
+        x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
         h,w = img.shape[:2]
 
-        aimg = img.copy()
-        cx,cy = w//2, h//2
-        tcx,tcy = (x1+x2) // 2, (y1+y2) // 2
-        delta_x = (tcx - cx) * 2
-        delta_y = (tcy - cy) * 2
+        sf = scale_size / (((y2-y1) + (x2-x1) / 2))
 
-        if delta_x < 0:
+        aboxes = boxes * sf
+        sx1,sy1,sx2,sy2 = aboxes[selected_face_idx].astype(np.int32)
+
+        offset_w_1 = (self.target_size[0] - (sx2-sx1)) // 2
+        offset_w_2 = offset_w_1 + (self.target_size[0] - (sx2-sx1)) % 2
+
+        offset_w_1 //= sf
+        offset_w_2 //= sf
+
+        offset_h_1 = (self.target_size[1] - (sy2-sy1)) // 2
+        offset_h_2 = offset_h_1 + (self.target_size[1] - (sy2-sy1)) % 2
+
+        offset_h_1 //= sf
+        offset_h_2 //= sf
+
+        offset_w_1 = int(min(x1,offset_w_1))
+        offset_w_2 = int(min(w-x2,offset_w_2))
+
+        offset_h_1 = int(min(y1,offset_h_1))
+        offset_h_2 = int(min(h-y2,offset_h_2))
+        aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
+        aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
+
+        boxes[:, [0,2]] = boxes[:, [0,2]] - (x1 - offset_w_1)
+        boxes[:, [1,3]] = boxes[:, [1,3]] - (y1 - offset_h_1)
+        boxes *= sf
+        
+        x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
+        cx = (x1+x2) // 2
+        cy = (y1+y2) // 2
+
+        img = np.zeros((self.target_size[1],self.target_size[0],3), dtype=np.uint8)
+        tcx = img.shape[1] // 2
+        tcy = img.shape[0] // 2
+
+        offset_x = int(tcx - cx)
+        offset_y = int(tcy - cy)
+
+        if offset_x >= 0:
             # pad left
-            aimg = pad_image(aimg, int(abs(delta_x)), axis=1, first=True)
+            left_index_x = offset_x
+            right_index_x = offset_x+aimg.shape[1]
         else:
-            # pad right
-            aimg = pad_image(aimg, int(abs(delta_x)), axis=1, first=False)
-        if delta_y < 0:
+            # pad_right
+            left_index_x = 0
+            right_index_x = aimg.shape[1]
+        if offset_y >= 0:
             # pad up
-            aimg = pad_image(aimg, int(abs(delta_y)), axis=0, first=True)
+            up_index_y = offset_y
+            down_index_y = offset_y+aimg.shape[0]
         else:
             # pad down
-            aimg = pad_image(aimg, int(abs(delta_y)), axis=0, first=False)
+            up_index_y = 0
+            down_index_y = aimg.shape[0]
 
-        new_h,new_w = aimg.shape[:2]
+        target_h,target_w = img[up_index_y:down_index_y, left_index_x:right_index_x].shape[:2]
+        source_h,source_w = aimg.shape[:2]
 
-        boxes[:,[0,2]] = boxes[:,[0,2]] + max(-1*delta_x,0)
-        boxes[:,[1,3]] = boxes[:,[1,3]] + max(-1*delta_y,0)
+        up_index_y = up_index_y + target_h - source_h
+        down_index_y = down_index_y + target_h - source_h
+        left_index_x = left_index_x + target_w - source_w
+        right_index_x = right_index_x + target_w - source_w
 
-        boxes[:, [0,2]] = boxes[:, [0,2]].clip(0,new_w)
-        boxes[:, [1,3]] = boxes[:, [1,3]].clip(0,new_h)
+        img[up_index_y:down_index_y, left_index_x:right_index_x] = aimg
 
-        x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
+        boxes[:, [0,2]] += left_index_x
+        boxes[:, [1,3]] += up_index_y
 
-        target_w,target_h = self.target_size
 
-        clip_left = (new_w - target_w) // 2 + (new_w - target_w) % 2
-        clip_right = clip_left - (new_w - target_w) % 2
-
-        clip_up = (new_h - target_h) // 2 + (new_h - target_h) % 2
-        clip_down = clip_up - (new_h - target_h) % 2
-
-        aimg  = aimg[clip_up: new_h-clip_down, clip_left: new_w-clip_right]
-
-        boxes[:, [0,2]] = boxes[:, [0,2]] - clip_left
-        boxes[:, [1,3]] = boxes[:, [1,3]] - clip_up
-
-        boxes[:, [0,2]] = boxes[:, [0,2]].clip(0,target_w)
-        boxes[:, [1,3]] = boxes[:, [1,3]].clip(0,target_h)
-
-        # TODO this might be not needed
         mask = np.bitwise_and((boxes[:, 2] - boxes[:, 0] >= self.min_dim), (boxes[:, 3] - boxes[:, 1] >= self.min_dim))
         boxes = boxes[mask]
 
-        return aimg,boxes
-
-
-def pad_image(img:np.ndarray, pad_size:int, axis:int, pad_value:int=0, first:bool=True):
-    h,w,c = img.shape
-    if axis == 0:
-        # pad up or down
-        val = np.ones((pad_size,w,c), dtype=np.uint8)
-    else:
-        # pad left or right
-        val = np.ones((h,pad_size,c), dtype=np.uint8)
-    
-    val *= pad_value
-
-    if first:
-        nimg = np.concatenate([val,img], axis=axis)
-    else:
-        nimg = np.concatenate([img,val], axis=axis)
-
-    return nimg
-
-
-
+        return img,boxes
