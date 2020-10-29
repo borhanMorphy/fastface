@@ -47,7 +47,7 @@ class LFFDRandomSample():
         x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
         h,w = img.shape[:2]
 
-        sf = scale_size / (((y2-y1) + (x2-x1) / 2))
+        sf = scale_size / (min(y2-y1,x2-x1))
 
         aboxes = boxes * sf
         sx1,sy1,sx2,sy2 = aboxes[selected_face_idx].astype(np.int32)
@@ -69,8 +69,20 @@ class LFFDRandomSample():
 
         offset_h_1 = int(min(y1,offset_h_1))
         offset_h_2 = int(min(h-y2,offset_h_2))
+
+        # select faces that center's lie between cropped region
+        low_h,high_h = y1-offset_h_1,y2+offset_h_2
+        low_w,high_w = x1-offset_w_1,x2+offset_w_2
+        cboxes_x = (boxes[:, 0] + boxes[:, 2]) // 2
+        cboxes_y = (boxes[:, 1] + boxes[:, 3]) // 2
+
+        center_mask = np.bitwise_and(
+            np.bitwise_and(cboxes_x > low_w, cboxes_x < high_w),
+            np.bitwise_and(cboxes_y > low_h, cboxes_y < high_h))
+
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
         aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
+        aimg = aimg[:self.target_size[1], : self.target_size[0]]
 
         boxes[:, [0,2]] = boxes[:, [0,2]] - (x1 - offset_w_1)
         boxes[:, [1,3]] = boxes[:, [1,3]] - (y1 - offset_h_1)
@@ -114,11 +126,15 @@ class LFFDRandomSample():
 
         img[up_index_y:down_index_y, left_index_x:right_index_x] = aimg
 
+        
         boxes[:, [0,2]] += left_index_x
         boxes[:, [1,3]] += up_index_y
 
-
         mask = np.bitwise_and((boxes[:, 2] - boxes[:, 0] >= self.min_dim), (boxes[:, 3] - boxes[:, 1] >= self.min_dim))
-        boxes = boxes[mask]
+        boxes = boxes[np.bitwise_and(mask,center_mask)]
+        boxes[:, 0] = boxes[:, 0].clip(0,self.target_size[0])
+        boxes[:, 1] = boxes[:, 1].clip(0,self.target_size[1])
+        boxes[:, 2] = boxes[:, 2].clip(0,self.target_size[0])
+        boxes[:, 3] = boxes[:, 3].clip(0,self.target_size[1])
 
         return img,boxes
