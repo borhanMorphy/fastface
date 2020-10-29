@@ -2,10 +2,13 @@
 from datasets import get_dataset
 from transforms import LFFDRandomSample
 from tqdm import tqdm
+from detector import build_detector
 
 if __name__ == "__main__":
     from cv2 import cv2
     import numpy as np
+
+    detector = build_detector("lffd")
 
     scales = [(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)]
 

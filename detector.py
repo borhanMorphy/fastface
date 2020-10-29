@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 from models import get_detector_by_name
+import torch
 
 class LightFaceDetector(pl.LightningModule):
     def __init__(self, model):
