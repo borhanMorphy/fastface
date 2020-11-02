@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from typing import Tuple,List
 
+from utils.matcher import LFFDMatcher
+
 def conv_layer(in_channels:int, out_channels:int,
         kernel_size:int=3, stride:int=1, padding:int=1, bias:bool=True) -> nn.Module:
     return nn.Sequential(
@@ -25,7 +27,8 @@ class ResBlock(nn.Module):
 
 class DetectionHead(nn.Module):
     def __init__(self, features:int, rf_size:int, rf_stride:int,
-            num_classes:int=1, num_target_reg:int=4):
+            lower_scale:int, upper_scale:int, num_classes:int=1, num_target_reg:int=4):
+
         super(DetectionHead,self).__init__()
 
         self.rf_size = rf_size
@@ -41,7 +44,9 @@ class DetectionHead(nn.Module):
             conv_layer(features,features,kernel_size=1,padding=0),
             conv_layer(features,num_target_reg,kernel_size=1,padding=0))
 
-    def gen_rf_centers(self, fmaph:int, fmapw:int) -> torch.Tensor:
+        self.matcher = LFFDMatcher(lower_scale, upper_scale)
+
+    def gen_rf_centers(self, fmaph:int, fmapw:int, device:str='cpu') -> torch.Tensor:
         """takes feature map h and w and reconstructs rf centers as tensor
 
         Args:
@@ -49,7 +54,7 @@ class DetectionHead(nn.Module):
             fmapw (int): featuremap width
 
         Returns:
-            torch.Tensor: rf centers as 2 x fmaph x fmapw (x, y order)
+            torch.Tensor: rf centers as fmaph x fmapw x 2 (x, y order)
         """
 
         # y: fmaph x fmapw
@@ -57,12 +62,12 @@ class DetectionHead(nn.Module):
         y,x = torch.meshgrid(
             torch.arange(fmaph, dtype=torch.float32), torch.arange(fmapw, dtype=torch.float32))
 
-        # rfs: 2 x fmaph x fmapw
-        rfs = torch.stack([x,y], dim=0) + 0.5
+        # rfs: fmaph x fmapw x 2
+        rfs = torch.stack([x,y], dim=-1) + 0.5
 
         rfs *= self.rf_stride
 
-        return rfs
+        return rfs.to(device)
 
     def forward(self, input:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         pred_cls = self.cls_head(input)
@@ -74,14 +79,16 @@ class LFFD(nn.Module):
     __FILTERS__ = [64,64,64,64,128,128,128,128]
     __RF_SIZES__ = [55,71,111,143,223,383,511,639]
     __RF_STRIDES__ = [4,4,8,8,16,32,32,32]
+    __SCALES__ = [(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)] # calculated for 640 image input
 
     def __init__(self, in_channels:int=3, filters:List[int]=None,
-            rf_sizes:List[int]=None, rf_strides:List[int]=None):
+            rf_sizes:List[int]=None, rf_strides:List[int]=None, scales:List[int]=None):
         super(LFFD,self).__init__()
 
         if filters is None: filters = LFFD.__FILTERS__
         if rf_sizes is None: rf_sizes = LFFD.__RF_SIZES__
         if rf_strides is None: rf_strides = LFFD.__RF_STRIDES__
+        if scales is None: scales = LFFD.__SCALES__
 
         # TODO check if list lenghts are matched
 
@@ -109,8 +116,8 @@ class LFFD(nn.Module):
         self.res_block9 = ResBlock(128)
 
         self.heads = nn.ModuleList([
-            DetectionHead(num_of_filters,rf_size,rf_stride)
-            for num_of_filters, rf_size, rf_stride in zip(filters,rf_sizes,rf_strides)
+            DetectionHead(num_of_filters,rf_size,rf_stride,lower_scale,upper_scale)
+            for num_of_filters, rf_size, rf_stride, (lower_scale,upper_scale) in zip(filters,rf_sizes,rf_strides,scales)
         ])
 
     def forward(self, input:torch.Tensor) -> List[torch.Tensor]:

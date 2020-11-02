@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     transforms = LFFDRandomSample(scales)
 
-    ds = get_dataset("widerface", phase='val', partitions=['easy',"hard"], transforms=transforms)
+    ds = get_dataset("widerface", phase='val', partitions=['easy'], transforms=transforms)
 
     for img,boxes in tqdm(ds):
         img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
