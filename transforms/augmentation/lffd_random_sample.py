@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List,Tuple
 import random
+import math
 from cv2 import cv2
 
 class LFFDRandomSample():
@@ -47,7 +48,7 @@ class LFFDRandomSample():
         x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
         h,w = img.shape[:2]
 
-        sf = scale_size / (min(y2-y1,x2-x1))
+        sf = scale_size / (math.sqrt((y2-y1) * (x2-x1)) + 1e-16)
 
         aboxes = boxes * sf
         sx1,sy1,sx2,sy2 = aboxes[selected_face_idx].astype(np.int32)
@@ -87,7 +88,7 @@ class LFFDRandomSample():
         boxes[:, [0,2]] = boxes[:, [0,2]] - (x1 - offset_w_1)
         boxes[:, [1,3]] = boxes[:, [1,3]] - (y1 - offset_h_1)
         boxes *= sf
-        
+
         x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
         cx = (x1+x2) // 2
         cy = (y1+y2) // 2
@@ -126,7 +127,6 @@ class LFFDRandomSample():
 
         img[up_index_y:down_index_y, left_index_x:right_index_x] = aimg
 
-        
         boxes[:, [0,2]] += left_index_x
         boxes[:, [1,3]] += up_index_y
 
