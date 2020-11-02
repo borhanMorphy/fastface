@@ -86,24 +86,24 @@ class LFFD(nn.Module):
         # TODO check if list lenghts are matched
 
         # *tiny part
-        self.downsample_conv1 = conv_layer(in_channels,64,stride=2,padding=0)
-        self.downsample_conv2 = conv_layer(64,64,stride=2,padding=0)
+        self.downsample_conv1 = conv_layer(in_channels,64,stride=2,padding=1)
+        self.downsample_conv2 = conv_layer(64,64,stride=2,padding=1)
         self.res_block1 = ResBlock(64)
         self.res_block2 = ResBlock(64)
         self.res_block3 = ResBlock(64)
         self.res_block4 = ResBlock(64)
 
         # *small part
-        self.downsample_conv3 = conv_layer(64,64,stride=2,padding=0)
+        self.downsample_conv3 = conv_layer(64,64,stride=2,padding=1)
         self.res_block4 = ResBlock(64)
         self.res_block5 = ResBlock(64)
 
         # *medium part
-        self.downsample_conv4 = conv_layer(64,128,stride=2,padding=0)
+        self.downsample_conv4 = conv_layer(64,128,stride=2,padding=1)
         self.res_block6 = ResBlock(128)
 
         # *large part
-        self.downsample_conv5 = conv_layer(128,128,stride=2,padding=0)
+        self.downsample_conv5 = conv_layer(128,128,stride=2,padding=1)
         self.res_block7 = ResBlock(128)
         self.res_block8 = ResBlock(128)
         self.res_block9 = ResBlock(128)
