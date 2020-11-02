@@ -43,7 +43,8 @@ class LFFDRandomSample():
 
         selected_face_scale_idx = random.randint(0, self.scales.shape[0]-1)
         scale_lower,scale_higher = self.scales[selected_face_scale_idx]
-        scale_size = random.randint(scale_lower,scale_higher)
+
+        scale_size = random.uniform(scale_lower,scale_higher)
 
         x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
         h,w = img.shape[:2]
