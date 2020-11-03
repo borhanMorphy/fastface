@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 if __name__ == "__main__":
-    # TODO concat head results
+    # TODO make sure this works correctly
 
     model = get_detector_by_name("lffd")
 
@@ -28,8 +28,8 @@ if __name__ == "__main__":
 
     img_batch = []
     gt_boxes_batch = []
-    imgs = []
 
+    head_pos_counter = [0,0,0,0,0,0,0,0]
 
     for img,boxes in tqdm(ds):
 
@@ -39,7 +39,6 @@ if __name__ == "__main__":
         if batch_counter < batch_size:
             img_batch.append(batch)
             gt_boxes_batch.append(gt_boxes)
-            imgs.append(img)
             batch_counter += 1
             continue
         else:
@@ -56,23 +55,7 @@ if __name__ == "__main__":
             head = model.heads[head_index]
 
             cls_logits, reg_logits, cls_targets, reg_targets, debug_info = head.build_targets(logits[head_index], gt_boxes, debug=True)
+            head_pos_counter[head_index] += reg_targets.size(0)
 
-            for batch_index in range(batch_size):
-                for selected_rfs,(x1,y1,x2,y2) in debug_info[batch_index]:
-                    timg = imgs[batch_index].copy()
-                    timg = cv2.cvtColor(timg,cv2.COLOR_RGB2BGR)
-                    x1 = int(x1)
-                    y1 = int(y1)
-                    x2 = int(x2)
-                    y2 = int(y2)
-
-                    timg = cv2.rectangle(timg,(x1,y1),(x2,y2),(255,0,0))
-
-                    for x,y in selected_rfs:
-                        x = int(x)
-                        y = int(y)
-                        timg = cv2.circle(timg, (x,y), 5, (0,255,0))
-
-                    cv2.imshow("",timg)
-                    if cv2.waitKey(0) == 27: exit(0)
-        imgs = []
+    for idx,pos_count in enumerate(head_pos_counter):
+        print(f"head {idx+1} total positive sample signals: ",pos_count)

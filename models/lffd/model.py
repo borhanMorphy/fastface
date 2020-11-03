@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from typing import Tuple,List
 
 from utils.matcher import LFFDMatcher
+from utils.utils import random_sample_selection
 
 def conv_layer(in_channels:int, out_channels:int,
         kernel_size:int=3, stride:int=1, padding:int=1, bias:bool=True) -> nn.Module:
@@ -88,7 +89,7 @@ class DetectionHead(nn.Module):
 
         """
 
-        debug_information = []
+        batched_debug_information = []
 
         cls_logits,reg_logits = logits
 
@@ -106,6 +107,7 @@ class DetectionHead(nn.Module):
         batched_reg_targets = torch.zeros((batch_size,fh,fw,reg_logits.size(-1)), dtype=reg_logits.dtype, device=device)
 
         for i in range(batch_size):
+            debug_information = []
             gt_boxes = batch_gt_boxes[i]
 
             # move to same device if not
@@ -150,6 +152,9 @@ class DetectionHead(nn.Module):
 
                 batched_reg_targets[i][reg_selected_ids == j] = t_regs
 
+            if debug:
+                batched_debug_information.append(debug_information)
+
         cls_cond = torch.bitwise_or(batched_cls_mask==1, batched_cls_mask==0)
         reg_cond = batched_reg_mask == 1
 
@@ -160,7 +165,7 @@ class DetectionHead(nn.Module):
         reg_targets = batched_reg_targets[reg_cond]
 
         if debug:
-            return cls_logits, reg_logits, cls_targets, reg_targets, debug_information
+            return cls_logits, reg_logits, cls_targets, reg_targets, batched_debug_information
 
         return cls_logits, reg_logits, cls_targets, reg_targets
 
@@ -254,6 +259,42 @@ class LFFD(nn.Module):
             branch_out.append( self.heads[i]( branch_in[i] ) )
 
         return branch_out
+
+    def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]], batch_idx:int):
+        imgs, gt_boxes = batch
+        logits = self(imgs)
+
+        loss = 0
+
+        for i in range(len(logits)):
+            cls_logits, reg_logits, cls_targets, reg_targets = self.heads[i].build_targets(logits[i], gt_boxes)
+
+            # TODO apply online hard negative mining instead of random selection
+            # positive/negative ratio is 1:10
+            ratio = 10
+
+            pos_mask = (cls_targets == 1).squeeze()
+            select_n = pos_mask.sum() * ratio
+            if select_n == 0:
+                #print(f"head {i+1} cls_loss: ",0)
+                #print(f"head {i+1} reg_loss: ",0,"\n")
+                continue
+            mask = torch.zeros((cls_targets.size(0)), dtype=torch.bool, device=cls_targets.device)
+            population, = torch.where(~pos_mask)
+
+            selections = random_sample_selection(population.cpu().numpy().tolist(), min(select_n,population.size(0)))
+            mask[selections] = True
+            mask[pos_mask] = True
+
+            cls_loss = F.binary_cross_entropy_with_logits(cls_logits[mask], cls_targets[mask])
+            reg_loss = F.mse_loss(reg_logits,reg_targets) # L2 loss
+
+            #print(f"head {i+1} cls_loss: ",cls_loss)
+            #print(f"head {i+1} reg_loss: ",reg_loss,"\n")
+
+            loss += ((cls_loss + reg_loss) / 2)
+
+        return loss
 
 
 if __name__ == "__main__":

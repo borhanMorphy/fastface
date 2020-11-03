@@ -17,6 +17,8 @@ if __name__ == "__main__":
 
     model.cuda()
 
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-5)
+
     scales = [(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)]
 
     transforms = LFFDRandomSample(scales)
@@ -28,7 +30,6 @@ if __name__ == "__main__":
 
     img_batch = []
     gt_boxes_batch = []
-    imgs = []
 
 
     for img,boxes in tqdm(ds):
@@ -39,7 +40,6 @@ if __name__ == "__main__":
         if batch_counter < batch_size:
             img_batch.append(batch)
             gt_boxes_batch.append(gt_boxes)
-            imgs.append(img)
             batch_counter += 1
             continue
         else:
@@ -48,31 +48,9 @@ if __name__ == "__main__":
             img_batch = []
             gt_boxes = gt_boxes_batch
             gt_boxes_batch = []
+        optimizer.zero_grad()
+        loss = model.training_step((batch,gt_boxes),0)
+        loss.backward()
+        optimizer.step()
+        print(loss)
 
-        logits = model(batch)
-
-        for head_index in range(len(logits)):
-
-            head = model.heads[head_index]
-
-            cls_logits, reg_logits, cls_targets, reg_targets, debug_info = head.build_targets(logits[head_index], gt_boxes, debug=True)
-
-            for batch_index in range(batch_size):
-                for selected_rfs,(x1,y1,x2,y2) in debug_info[batch_index]:
-                    timg = imgs[batch_index].copy()
-                    timg = cv2.cvtColor(timg,cv2.COLOR_RGB2BGR)
-                    x1 = int(x1)
-                    y1 = int(y1)
-                    x2 = int(x2)
-                    y2 = int(y2)
-
-                    timg = cv2.rectangle(timg,(x1,y1),(x2,y2),(255,0,0))
-
-                    for x,y in selected_rfs:
-                        x = int(x)
-                        y = int(y)
-                        timg = cv2.circle(timg, (x,y), 5, (0,255,0))
-
-                    cv2.imshow("",timg)
-                    if cv2.waitKey(0) == 27: exit(0)
-        imgs = []
