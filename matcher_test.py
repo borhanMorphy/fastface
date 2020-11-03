@@ -36,29 +36,23 @@ if __name__ == "__main__":
 
             head = model.heads[head_index]
 
-            cls_logits, reg_logits, cls_targets, reg_targets = head.build_targets(logits[head_index], [gt_boxes])
-            print("cls_logits: ",cls_logits.shape)
-            print("reg_logits: ",reg_logits.shape)
-            print("cls_targets: ",cls_targets.shape)
-            print("reg_targets: ",reg_targets.shape)
-            """
-                cls_logits  : N x 1
-                reg_logits  : N x 4
-                cls_targets : N x 1
-                reg_targets : N x 4
+            cls_logits, reg_logits, cls_targets, reg_targets, debug_info = head.build_targets(logits[head_index], [gt_boxes], debug=True)
 
-            timg = cv2.cvtColor(timg,cv2.COLOR_RGB2BGR)
 
-            for x1,y1,x2,y2 in boxes.astype(np.int32):
-                timg = cv2.rectangle(timg,(x1,y1),(x2,y2),(255,0,0))
+            for selected_rfs,(x1,y1,x2,y2) in debug_info:
+                iimg = timg.copy()
+                iimg = cv2.cvtColor(iimg,cv2.COLOR_RGB2BGR)
+                x1 = int(x1)
+                y1 = int(y1)
+                x2 = int(x2)
+                y2 = int(y2)
 
-            for x,y in rfs[cls_mask >= 0]:
-                timg = cv2.circle(timg, (x,y), 5, (0,255,0))
+                iimg = cv2.rectangle(iimg,(x1,y1),(x2,y2),(255,0,0))
 
-            for x,y in rfs[cls_mask == -1]:
-                timg = cv2.circle(timg, (x,y), 5, (0,0,255))
+                for x,y in selected_rfs:
+                    x = int(x)
+                    y = int(y)
+                    iimg = cv2.circle(iimg, (x,y), 5, (0,255,0))
 
-            cv2.imshow("",timg)
-            """
-            if cv2.waitKey(0) == 27: exit(0)
-        exit(0)
+                cv2.imshow("",iimg)
+                if cv2.waitKey(0) == 27: exit(0)

@@ -70,7 +70,7 @@ class DetectionHead(nn.Module):
         return rfs.to(device)
 
     def build_targets(self, logits:Tuple[torch.Tensor,torch.Tensor],
-            batch_gt_boxes:List[torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+            batch_gt_boxes:List[torch.Tensor], debug:bool=False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Builds targets with given logits and ground truth boxes.
 
         Args:
@@ -87,6 +87,8 @@ class DetectionHead(nn.Module):
                 reg_targets : N x 4
 
         """
+
+        debug_information = []
 
         cls_logits,reg_logits = logits
 
@@ -133,7 +135,20 @@ class DetectionHead(nn.Module):
             for j in range(len(gt_boxes)):
                 # TODO convert to regression target
                 if batched_reg_targets[i][reg_selected_ids == j].size(0) == 0: continue
-                batched_reg_targets[i][reg_selected_ids == j] = gt_boxes[j]
+                x1,y1,x2,y2 = gt_boxes[j]
+                selected_rfs = rfs[reg_selected_ids == j]
+                # M,2 as cx,cy
+                t_regs = torch.zeros((selected_rfs.size(0),4), dtype=gt_boxes.dtype, device=gt_boxes.device)
+                norm_const = self.rf_size / 2
+                if debug:
+                    debug_information.append((selected_rfs,(x1,y1,x2,y2)))
+
+                t_regs[:, 0] = (selected_rfs[:, 0] - x1) / norm_const
+                t_regs[:, 1] = (selected_rfs[:, 1] - y1) / norm_const
+                t_regs[:, 2] = (selected_rfs[:, 0] - x2) / norm_const
+                t_regs[:, 3] = (selected_rfs[:, 1] - y2) / norm_const
+
+                batched_reg_targets[i][reg_selected_ids == j] = t_regs
 
         cls_cond = torch.bitwise_or(batched_cls_mask==1, batched_cls_mask==0)
         reg_cond = batched_reg_mask == 1
@@ -143,6 +158,9 @@ class DetectionHead(nn.Module):
 
         cls_targets = batched_cls_targets[cls_cond]
         reg_targets = batched_reg_targets[reg_cond]
+
+        if debug:
+            return cls_logits, reg_logits, cls_targets, reg_targets, debug_information
 
         return cls_logits, reg_logits, cls_targets, reg_targets
 
