@@ -69,6 +69,83 @@ class DetectionHead(nn.Module):
 
         return rfs.to(device)
 
+    def build_targets(self, logits:Tuple[torch.Tensor,torch.Tensor],
+            batch_gt_boxes:List[torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Builds targets with given logits and ground truth boxes.
+
+        Args:
+            logits (Tuple(torch.Tensor,torch.Tensor)):
+                cls_logits: b x 1 x fh x fw
+                reg_logits: b x 4 x fh x fw
+            batch_gt_boxes (List[torch.Tensor]): list of tensors :,4 as x1,y1,x2,y2
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+                cls_logits  : N x 1
+                reg_logits  : N x 4
+                cls_targets : N x 1
+                reg_targets : N x 4
+
+        """
+
+        cls_logits,reg_logits = logits
+
+        batch_size,_,fh,fw = cls_logits.shape
+
+        cls_logits = cls_logits.permute(0,2,3,1) # b x c x fh x fw => b x fh x fw x c
+        reg_logits = reg_logits.permute(0,2,3,1) # b x c x fh x fw => b x fh x fw x c
+
+        device = cls_logits.device
+
+        batched_cls_mask = torch.zeros((batch_size,fh,fw), dtype=torch.int32, device=device) - 2 # default is `ignore`
+        batched_reg_mask = torch.zeros((batch_size,fh,fw), dtype=torch.int32, device=device) - 2 # default is `ignore`
+
+        batched_cls_targets = torch.zeros((batch_size,fh,fw,cls_logits.size(-1)), dtype=cls_logits.dtype, device=device)
+        batched_reg_targets = torch.zeros((batch_size,fh,fw,reg_logits.size(-1)), dtype=reg_logits.dtype, device=device)
+
+        for i in range(batch_size):
+            gt_boxes = batch_gt_boxes[i]
+
+            # move to same device if not
+            if gt_boxes.device == device: gt_boxes = gt_boxes.to(device)
+
+            # TODO cache rfs
+            rfs = self.gen_rf_centers(fh,fw,device=device)
+            # torch.Tensor: rf centers as fh x fw x 2 (x, y order)
+            cls_selected_ids,reg_selected_ids = self.matcher(rfs,gt_boxes)
+            """
+            cls_selected_ids: fh x fw
+            reg_selected_ids: fh x fw
+
+            -1   : negative
+            >= 0 : positive index
+            -2   : ignored
+            """
+            batched_cls_mask[i][cls_selected_ids >= 0] = 1
+            batched_cls_mask[i][cls_selected_ids == -1] = 0
+
+            batched_reg_mask[i][reg_selected_ids >= 0] = 1
+            batched_reg_mask[i][reg_selected_ids == -1] = 0
+
+            batched_cls_targets[i][cls_selected_ids >= 0] = 1
+            batched_cls_targets[i][cls_selected_ids == -1] = 0
+
+            for j in range(len(gt_boxes)):
+                # TODO convert to regression target
+                if batched_reg_targets[i][reg_selected_ids == j].size(0) == 0: continue
+                batched_reg_targets[i][reg_selected_ids == j] = gt_boxes[j]
+
+        cls_cond = torch.bitwise_or(batched_cls_mask==1, batched_cls_mask==0)
+        reg_cond = batched_reg_mask == 1
+
+        cls_logits = cls_logits[cls_cond]
+        reg_logits = reg_logits[reg_cond]
+
+        cls_targets = batched_cls_targets[cls_cond]
+        reg_targets = batched_reg_targets[reg_cond]
+
+        return cls_logits, reg_logits, cls_targets, reg_targets
+
     def forward(self, input:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         pred_cls = self.cls_head(input)
         reg_cls = self.reg_head(input)

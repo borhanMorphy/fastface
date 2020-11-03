@@ -35,7 +35,7 @@ class LFFDMatcher():
                 torch.Tensor: cls_logit_mask gt box index as fh x fw (ps: -1 means negative >= 0 means positive and -2 means ignored)
                 torch.Tensor: reg_logit_mask gt box index as fh x fw (ps: -1 means negative >= 0 means positive and -2 means ignored)
         """
-
+        # TODO fix naming `mask`
         cls_logit_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone())
         reg_logit_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone())
 

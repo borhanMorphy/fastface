@@ -28,24 +28,24 @@ if __name__ == "__main__":
 
         logits = model(batch)
 
-        positive_rf_centers = []
-        negative_rf_centers = []
-
 
         for head_index in range(len(logits)):
             timg = img.copy()
 
             print("processing head: ",head_index)
 
-            cls_logits,reg_logits = logits[head_index]
-            _,_,fh,fw = cls_logits.shape
-
             head = model.heads[head_index]
 
-            rfs = head.gen_rf_centers(fh,fw,gt_boxes.device)
-            # torch.Tensor: rf centers as fh x fw x 2 (x, y order)
-
-            cls_mask,reg_mask = head.matcher(rfs,gt_boxes)
+            cls_logits, reg_logits, cls_targets, reg_targets = head.build_targets(logits[head_index], [gt_boxes])
+            print("cls_logits: ",cls_logits.shape)
+            print("reg_logits: ",reg_logits.shape)
+            print("cls_targets: ",cls_targets.shape)
+            print("reg_targets: ",reg_targets.shape)
+            """
+                cls_logits  : N x 1
+                reg_logits  : N x 4
+                cls_targets : N x 1
+                reg_targets : N x 4
 
             timg = cv2.cvtColor(timg,cv2.COLOR_RGB2BGR)
 
@@ -59,4 +59,6 @@ if __name__ == "__main__":
                 timg = cv2.circle(timg, (x,y), 5, (0,0,255))
 
             cv2.imshow("",timg)
+            """
             if cv2.waitKey(0) == 27: exit(0)
+        exit(0)
