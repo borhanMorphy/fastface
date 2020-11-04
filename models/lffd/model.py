@@ -70,6 +70,25 @@ class DetectionHead(nn.Module):
 
         return rfs.to(device)
 
+    def gen_rf_anchors(self, fmaph:int, fmapw:int, device:str='cpu') -> torch.Tensor:
+        """takes feature map h and w and reconstructs rf anchors as tensor
+
+        Args:
+            fmaph (int): featuremap hight
+            fmapw (int): featuremap width
+
+        Returns:
+            torch.Tensor: rf anchors as fmaph x fmapw x 4 (xmin, ymin, xmax, ymax)
+        """
+
+        rfs = self.gen_rf_centers(fmaph, fmapw, device=device)
+        # rfs: fh x fw x 2 as x,y
+        rfs = rfs.repeat(1,1,2) # fh x fw x 2 => fh x fw x 4
+        rfs[:,:,:2] = rfs[:,:,:2] - self.rf_size/2
+        rfs[:,:,2:] = rfs[:,:,2:] + self.rf_size/2
+
+        return rfs
+
     def build_targets(self, logits:Tuple[torch.Tensor,torch.Tensor],
             batch_gt_boxes:List[torch.Tensor], debug:bool=False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Builds targets with given logits and ground truth boxes.
@@ -95,8 +114,8 @@ class DetectionHead(nn.Module):
 
         batch_size,_,fh,fw = cls_logits.shape
 
-        cls_logits = cls_logits.permute(0,2,3,1) # b x c x fh x fw => b x fh x fw x c
-        reg_logits = reg_logits.permute(0,2,3,1) # b x c x fh x fw => b x fh x fw x c
+        cls_logits = cls_logits.permute(0,2,3,1).contiguous() # b x c x fh x fw => b x fh x fw x c
+        reg_logits = reg_logits.permute(0,2,3,1).contiguous() # b x c x fh x fw => b x fh x fw x c
 
         device = cls_logits.device
 
@@ -115,6 +134,8 @@ class DetectionHead(nn.Module):
 
             # TODO cache rfs
             rfs = self.gen_rf_centers(fh,fw,device=device)
+            rf_anchors = self.gen_rf_anchors(fh,fw,device=device)
+
             # torch.Tensor: rf centers as fh x fw x 2 (x, y order)
             cls_selected_ids,reg_selected_ids = self.matcher(rfs,gt_boxes)
             """
@@ -139,11 +160,13 @@ class DetectionHead(nn.Module):
                 if batched_reg_targets[i][reg_selected_ids == j].size(0) == 0: continue
                 x1,y1,x2,y2 = gt_boxes[j]
                 selected_rfs = rfs[reg_selected_ids == j]
+                selected_rf_anchors = rf_anchors[reg_selected_ids == j]
+
                 # M,2 as cx,cy
                 t_regs = torch.zeros((selected_rfs.size(0),4), dtype=gt_boxes.dtype, device=gt_boxes.device)
                 norm_const = self.rf_size / 2
                 if debug:
-                    debug_information.append((selected_rfs,(x1,y1,x2,y2)))
+                    debug_information.append((selected_rf_anchors,(x1,y1,x2,y2)))
 
                 t_regs[:, 0] = (selected_rfs[:, 0] - x1) / norm_const
                 t_regs[:, 1] = (selected_rfs[:, 1] - y1) / norm_const
@@ -261,6 +284,7 @@ class LFFD(nn.Module):
         return branch_out
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]], batch_idx:int):
+
         imgs, gt_boxes = batch
         logits = self(imgs)
 
@@ -276,8 +300,6 @@ class LFFD(nn.Module):
             pos_mask = (cls_targets == 1).squeeze()
             select_n = pos_mask.sum() * ratio
             if select_n == 0:
-                #print(f"head {i+1} cls_loss: ",0)
-                #print(f"head {i+1} reg_loss: ",0,"\n")
                 continue
             mask = torch.zeros((cls_targets.size(0)), dtype=torch.bool, device=cls_targets.device)
             population, = torch.where(~pos_mask)
@@ -288,9 +310,6 @@ class LFFD(nn.Module):
 
             cls_loss = F.binary_cross_entropy_with_logits(cls_logits[mask], cls_targets[mask])
             reg_loss = F.mse_loss(reg_logits,reg_targets) # L2 loss
-
-            #print(f"head {i+1} cls_loss: ",cls_loss)
-            #print(f"head {i+1} reg_loss: ",reg_loss,"\n")
 
             loss += ((cls_loss + reg_loss) / 2)
 

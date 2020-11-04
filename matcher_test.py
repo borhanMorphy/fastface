@@ -30,7 +30,6 @@ if __name__ == "__main__":
     gt_boxes_batch = []
     imgs = []
 
-
     for img,boxes in tqdm(ds):
 
         batch = (torch.from_numpy(img).float() / 255).permute(2,0,1).unsqueeze(0).cuda()
@@ -68,10 +67,12 @@ if __name__ == "__main__":
 
                     timg = cv2.rectangle(timg,(x1,y1),(x2,y2),(255,0,0))
 
-                    for x,y in selected_rfs:
-                        x = int(x)
-                        y = int(y)
-                        timg = cv2.circle(timg, (x,y), 5, (0,255,0))
+                    for x1,y1,x2,y2 in selected_rfs:
+                        x1 = int(x1)
+                        y1 = int(y1)
+                        x2 = int(x2)
+                        y2 = int(y2)
+                        timg = cv2.rectangle(timg, (x1,y1), (x2,y2), (0,255,0))
 
                     cv2.imshow("",timg)
                     if cv2.waitKey(0) == 27: exit(0)
