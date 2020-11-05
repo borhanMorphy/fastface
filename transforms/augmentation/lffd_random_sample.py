@@ -41,6 +41,7 @@ class LFFDRandomSample():
         # select one face
         selected_face_idx = random.randint(0, num_faces-1)
 
+        # !Warning maybe select with order not random ? Lookup the paper to make sure this is correct
         selected_face_scale_idx = random.randint(0, self.scales.shape[0]-1)
         scale_lower,scale_higher = self.scales[selected_face_scale_idx]
 
