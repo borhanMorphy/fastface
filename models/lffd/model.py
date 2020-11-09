@@ -96,34 +96,14 @@ class LFFD(nn.Module):
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]], batch_idx:int):
 
         imgs, gt_boxes = batch
-        logits = self(imgs)
+        head_logits = self(imgs)
+        losses = []
 
-        loss = 0
+        for logits,head in zip(head_logits,self.heads):
+            loss = head.compute_loss(logits, gt_boxes)
+            losses.append(loss)
 
-        for i in range(len(logits)):
-            cls_logits, reg_logits, cls_targets, reg_targets = self.heads[i].build_targets(logits[i], gt_boxes)
-
-            # TODO apply online hard negative mining instead of random selection
-            # positive/negative ratio is 1:10
-            ratio = 10
-
-            pos_mask = (cls_targets == 1).squeeze()
-            select_n = pos_mask.sum() * ratio
-            if select_n == 0:
-                continue
-            mask = torch.zeros((cls_targets.size(0)), dtype=torch.bool, device=cls_targets.device)
-            population, = torch.where(~pos_mask)
-
-            selections = random_sample_selection(population.cpu().numpy().tolist(), min(select_n,population.size(0)))
-            mask[selections] = True
-            mask[pos_mask] = True
-
-            cls_loss = F.binary_cross_entropy_with_logits(cls_logits[mask], cls_targets[mask])
-            reg_loss = F.mse_loss(reg_logits,reg_targets) # L2 loss
-
-            loss += ((cls_loss + reg_loss) / 2)
-
-        return loss
+        return sum(losses)
 
 
 if __name__ == "__main__":

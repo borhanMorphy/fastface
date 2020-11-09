@@ -23,11 +23,11 @@ class LFFDMatcher():
 
         return sl_range,su_range
 
-    def __call__(self, rf_centers:torch.Tensor, gt_boxes:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+    def __call__(self, rf_anchors:torch.Tensor, gt_boxes:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         """Matches given receptive field centers and ground truth boxes
 
         Args:
-            rf_centers (torch.Tensor): fh,fw,2 as center x and center y
+            rf_anchors (torch.Tensor): fh,fw,4 as x1,y1,x2,y2
             gt_boxes (torch.Tensor): N,4 as x1,y1,x2,y2
 
         Returns:
@@ -36,6 +36,10 @@ class LFFDMatcher():
                 torch.Tensor: reg_logit_mask gt box index as fh x fw (ps: -1 means negative >= 0 means positive and -2 means ignored)
         """
         # TODO fix naming `mask`
+        rf_centers = rf_anchors[:,:,:2]
+        rf_centers[:, :, 0] = (rf_anchors[:,:,2] + rf_anchors[:,:,0]) / 2
+        rf_centers[:, :, 1] = (rf_anchors[:,:,3] + rf_anchors[:,:,1]) / 2
+
         cls_logit_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone())
         reg_logit_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone())
 
