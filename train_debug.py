@@ -9,6 +9,14 @@ from cv2 import cv2
 import numpy as np
 import torch
 
+def prep_batch(img:np.ndarray, gt_boxes:np.ndarray) -> Tuple[torch.Tensor,List]:
+    batch = torch.from_numpy(img.astype(np.float32) / 255)
+    batch = batch.permute(2,0,1).unsqueeze(0).contiguous()
+
+    batched_gt_boxes = [torch.from_numpy(gt_boxes)]
+
+    return batch,batched_gt_boxes
+
 class Transforms():
     def __init__(self, *ts):
         self.ts = ts
@@ -38,5 +46,9 @@ if __name__ == "__main__":
         for x1,y1,x2,y2 in boxes.astype(np.int32):
             img = cv2.rectangle(img, (x1,y1), (x2,y2), (0,0,255))
         cv2.imshow("",img)
+
+        batch,gt_boxes = prep_batch(img,boxes)
+        loss = model.training_step(batch,gt_boxes)
+        print(loss)
         if cv2.waitKey(0) == 27:
             break
