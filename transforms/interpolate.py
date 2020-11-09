@@ -18,5 +18,5 @@ class Interpolate():
 
         nimg = cv2.resize(img, (nw,nh), cv2.INTER_AREA)
         nboxes = boxes * sf
-        return nimg,boxes
+        return nimg,nboxes
 
