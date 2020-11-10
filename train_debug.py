@@ -32,7 +32,6 @@ def collate_fn(data):
         imgs.append(img)
         gt_boxes.append(gt_box)
 
-    # !RuntimeError: Sizes of tensors must match except in dimension 0. Got 640 and 1024 in dimension 3 (The offending index is 2)
     batch = torch.cat(imgs, dim=0)
     return batch,gt_boxes
 
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     model = get_detector_by_name("lffd").train()
     model.to(device)
 
-    seed_everything(42)
+    #seed_everything(42)
 
     val_transforms = Transforms(
         Interpolate(max_dim=target_size[0]),
@@ -55,28 +54,31 @@ if __name__ == "__main__":
     )
 
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-5, weight_decay=0)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, weight_decay=0)
 
-    ds = get_dataset("widerface", phase='train', partitions=['easy'], transforms=train_transforms)
-    batch_size = 8
-    optimizer.zero_grad()
+    ds = get_dataset("widerface", phase='train', partitions=['easy'], transforms=val_transforms)
+    #val_ds = get_dataset("widerface", phase='val', partitions=['easy'], transforms=val_transforms)
+
+    batch_size = 16
 
     val_holder = []
-    verbose = 20
-    accumulation = 4
-    accumulation_counter = 0
-    epochs = 20
+    verbose = 8
+    epochs = 50
 
     dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True,
-        num_workers=2, collate_fn=collate_fn)
+        num_workers=4, collate_fn=collate_fn)
+
+    #val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size, shuffle=False,
+    #    num_workers=2, collate_fn=collate_fn)
 
     for epoch in range(epochs):
         for i,(batch,gt_boxes) in enumerate(tqdm(dl)):
+            optimizer.zero_grad()
 
             loss = model.training_step((batch.to(device),[box.to(device) for box in gt_boxes]),i)
 
-            loss /= accumulation
             loss.backward()
+            optimizer.step()
 
             val_holder.append(loss.item())
 
@@ -84,11 +86,3 @@ if __name__ == "__main__":
                 print(f"epoch [{epoch+1}/{epochs}] loss: {sum(val_holder)/verbose}")
                 val_holder = []
 
-            accumulation_counter += 1
-
-            if accumulation_counter == accumulation:
-                optimizer.step()
-                optimizer.zero_grad()
-                accumulation_counter = 0
-            else:
-                accumulation_counter += 1

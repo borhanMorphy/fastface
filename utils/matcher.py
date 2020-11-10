@@ -65,6 +65,17 @@ class LFFDMatcher():
         # areas: N,
 
         accepted_box_mask = torch.bitwise_and(areas >= self.min_scale, areas < self.max_scale)
+        w_cond = torch.bitwise_and(
+            wh[:, 0] > self.gsl_range[1],
+            wh[:, 0] < self.gsu_range[0])
+
+        h_cond = torch.bitwise_and(
+            wh[:, 1] > self.gsl_range[1],
+            wh[:, 1] < self.gsu_range[0])
+
+        accepted_box_mask = torch.bitwise_and(torch.bitwise_and(w_cond,h_cond),accepted_box_mask)
+
+
         gt_box_ids = torch.arange(0, gt_boxes.size(0), dtype=torch.int32, device=gt_boxes.device)[accepted_box_mask]
         gt_boxes = gt_boxes[accepted_box_mask]
 
@@ -77,8 +88,8 @@ class LFFDMatcher():
         for i in range(N):
             x1,y1,x2,y2 = gt_boxes[i]
             matches = torch.bitwise_and(
-                torch.bitwise_and(rf_centers[:, 0] > x1, rf_centers[:, 0] < x2),
-                torch.bitwise_and(rf_centers[:, 1] > y1, rf_centers[:, 1] < y2)
+                torch.bitwise_and(rf_centers[:, 0] >= x1, rf_centers[:, 0] <= x2),
+                torch.bitwise_and(rf_centers[:, 1] >= y1, rf_centers[:, 1] <= y2)
             )
 
             not_assigned = mask == -1

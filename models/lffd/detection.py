@@ -8,11 +8,11 @@ from utils.matcher import LFFDMatcher
 from utils.utils import random_sample_selection
 
 class DetectionHead(nn.Module):
-    def __init__(self, features:int, rf_size:int, rf_stride:int,
+    def __init__(self, head_idx:int, features:int, rf_size:int, rf_stride:int,
             lower_scale:int, upper_scale:int, num_classes:int=1, num_target_reg:int=4):
 
         super(DetectionHead,self).__init__()
-
+        self.head_idx = head_idx
         self.rf_size = rf_size
         self.rf_stride = rf_stride
 
@@ -25,8 +25,6 @@ class DetectionHead(nn.Module):
             conv_layer(features,num_target_reg,kernel_size=1,padding=0))
 
         self.matcher = LFFDMatcher(lower_scale,upper_scale)
-        self.temp_cache = []
-        self.verbose = 20
 
     def gen_rf_anchors(self, fmaph:int, fmapw:int, device:str='cpu') -> torch.Tensor:
         """takes feature map h and w and reconstructs rf anchors as tensor
@@ -96,36 +94,41 @@ class DetectionHead(nn.Module):
         pos_sample_count = batched_cls_targets[batched_cls_targets==1].shape[0]
         neg_sample_count = ratio*pos_sample_count
 
-
-        self.temp_cache.append((pos_sample_count,neg_sample_count))
-        if len(self.temp_cache) == self.verbose:
-            pos_count = 0
-            neg_count = 0
-            for pos,neg in self.temp_cache:
-                pos_count += pos
-                neg_count += neg
-            print(f"head with rf size: {self.rf_size} positive: {pos_count} negative: {neg_count}")
-            self.temp_cache = []
-            #if pos_count == 0:
-            #    for params in self.cls_head.parameters():
-            #        print(params.grad)
         batched_cls_targets = batched_cls_targets.reshape(-1)
         cls_logits = cls_logits.reshape(-1)
 
-        selectable_cls_targets, = torch.where(batched_cls_targets==0)
-        selectable_cls_targets = selectable_cls_targets.cpu().numpy().tolist()
-        selections = random_sample_selection(selectable_cls_targets, min(neg_sample_count,len(selectable_cls_targets)))
+        batched_cls_mask = batched_cls_mask.reshape(-1)
 
-        if len(selections) == 0:
-            return torch.tensor(0, dtype=cls_logits.dtype, requires_grad=True, device=cls_logits.device)
+        neg_sample_count = min(neg_sample_count, batched_cls_mask[batched_cls_mask==-1].shape[0])
+        if neg_sample_count == 0:
+            return torch.tensor(0, dtype=cls_logits.dtype, requires_grad=True, device=cls_logits.device), None
 
-        mask = torch.zeros(batched_cls_targets.size(0), dtype=torch.bool)
-        mask[selections] = True
-        mask[batched_cls_targets == 1] = True
-        ss, = torch.where(mask)
+        with torch.no_grad():
+            loss = F.binary_cross_entropy_with_logits(
+                cls_logits,
+                batched_cls_targets,
+                reduction='none')
 
-        loss = F.binary_cross_entropy_with_logits(cls_logits[ss], batched_cls_targets[ss])
-        return loss
+        selectables, = torch.where(batched_cls_mask==-1)
+        sorted_selections = loss.argsort(descending=True)
+        neg_selections = []
+        for candidate in sorted_selections:
+            if candidate in selectables:
+                neg_selections.append(candidate)
+            if len(neg_selections) == neg_sample_count:
+                break
+
+        neg_selections = torch.tensor(neg_selections, dtype=torch.long, device=cls_logits.device)
+
+
+        pos_selections, = torch.where(batched_cls_targets==1)
+
+        selections = torch.cat([pos_selections,neg_selections], dim=0)
+        loss = F.binary_cross_entropy_with_logits(cls_logits[selections],batched_cls_targets[selections])
+
+        debug_data = (pos_selections, neg_selections, fh, fw, self.head_idx)
+
+        return loss,debug_data
 
     def forward(self, input:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         cls_logits = self.cls_head(input).permute(0,2,3,1).contiguous()

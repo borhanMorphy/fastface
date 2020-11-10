@@ -3,12 +3,16 @@ from typing import List,Tuple
 import random
 import math
 from cv2 import cv2
+from ..pad import Padding
+from ..interpolate import Interpolate
 
 class LFFDRandomSample():
     def __init__(self, scales:List[List], target_size:Tuple[int,int]=(640,640), min_dim:int=10):
         self.scales = np.array(scales, dtype=np.float32) # N,2
         self.target_size = target_size # W,H
         self.min_dim = min_dim
+        self.padding = Padding(target_size=target_size, pad_value=0)
+        self.interpolate = Interpolate(max_dim=target_size[0])
 
     def __call__(self, img:np.ndarray, boxes:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Randomly samples faces using given scales. All scales represents branches and
@@ -22,7 +26,10 @@ class LFFDRandomSample():
             Tuple[np.ndarray, np.ndarray]: transformed image and transformed boxes
         """
 
-        if boxes.shape[0] == 0: return img,boxes
+        if boxes.shape[0] == 0:
+            img,boxes = self.interpolate(img,boxes)
+            img,boxes = self.padding(img,boxes)
+            return img,boxes
 
         # TODO move this to dataset
         mask = np.bitwise_and((boxes[:, 2] - boxes[:, 0] >= self.min_dim), (boxes[:, 3] - boxes[:, 1] >= self.min_dim))

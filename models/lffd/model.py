@@ -49,66 +49,103 @@ class LFFD(nn.Module):
         self.res_block9 = ResBlock(128)
 
         self.heads = nn.ModuleList([
-            DetectionHead(num_of_filters,rf_size,rf_stride,lower_scale,upper_scale)
-            for num_of_filters, rf_size, rf_stride, (lower_scale,upper_scale) in zip(filters,rf_sizes,rf_strides,scales)
+            DetectionHead(idx+1,num_of_filters,rf_size,rf_stride,lower_scale,upper_scale)
+            for idx,(num_of_filters, rf_size, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(filters,rf_sizes,rf_strides,scales))
         ])
 
-    def forward(self, input:torch.Tensor) -> List[torch.Tensor]:
-        branch_in:List = []
+    def forward(self, x:torch.Tensor) -> List[torch.Tensor]:
+        logits:List = []
         # *tiny part
-        input = self.downsample_conv1(input)
-        input = self.downsample_conv2(input)
-        input = self.res_block1(input)
-        input = self.res_block2(input)
-        input = self.res_block3(input)
-        branch_in.append(input.clone())
-        input = self.res_block4(input)
-        branch_in.append(input.clone())
+        c1 = self.downsample_conv1(x)
+        c2 = self.downsample_conv2(c1)
+        c4 = self.res_block1(c2)
+        c6 = self.res_block2(c4)
+        c8 = self.res_block3(c6)
+        logits.append( self.heads[0](c8))
+
+        c10 = self.res_block4(c8)
+        logits.append( self.heads[1](c10))
 
         # *small part
-        input = self.downsample_conv3(input)
-        input = self.res_block4(input)
-        branch_in.append(input.clone())
-        input = self.res_block5(input)
-        branch_in.append(input.clone())
+        c11 = self.downsample_conv3(c10)
+        c13 = self.res_block4(c11)
+        logits.append( self.heads[2](c13))
+
+        c15 = self.res_block5(c13)
+        logits.append( self.heads[3](c15))
+
+        return logits
 
         # *medium part
-        input = self.downsample_conv4(input)
-        input = self.res_block6(input)
-        branch_in.append(input.clone())
+        c16 = self.downsample_conv4(c15)
+        c18 = self.res_block6(c16)
+        logits.append( self.heads[4](c18))
 
         # *large part
-        input = self.downsample_conv5(input)
-        input = self.res_block7(input)
-        branch_in.append(input.clone())
-        input = self.res_block8(input)
-        branch_in.append(input.clone())
-        input = self.res_block9(input)
-        branch_in.append(input.clone())
+        c19 = self.downsample_conv5(c18)
+        c21 = self.res_block7(c19)
+        logits.append( self.heads[5](c21))
 
-        # *heads forward
-        branch_out:List = []
-        for i in range(len(branch_in)):
-            branch_out.append( self.heads[i]( branch_in[i] ) )
+        c23 = self.res_block8(c21)
+        logits.append( self.heads[6](c23))
 
-        return branch_out
+        c25 = self.res_block9(c23)
+        logits.append( self.heads[7](c25))
+
+        return logits
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]], batch_idx:int):
 
         imgs, gt_boxes = batch
         head_logits = self(imgs)
         losses = []
+        batched_debug_data = []
 
         for logits,head in zip(head_logits,self.heads):
-            loss = head.compute_loss(logits, gt_boxes)
+            loss,debug_data = head.compute_loss(logits, gt_boxes)
+            # debug_data: (pos_selections, neg_selections, fh, fw, self.head_idx)
             losses.append(loss)
+            batched_debug_data.append(debug_data)
 
         logs = []
         for i,loss in enumerate(losses):
             logs.append(f"head {i+1} loss: {loss}")
         #print(" |" .join(logs))
+        #debug(imgs, batched_debug_data, batch_idx)
         return sum(losses)
 
+def debug(imgs, data, batch_idx):
+
+    batch_size = imgs.size(0)
+    from cv2 import cv2
+    import numpy as np
+
+    for i,img in enumerate(imgs):
+        nimg = (img*255).permute(1,2,0).cpu().numpy().astype(np.uint8)
+        nimg = cv2.cvtColor(nimg,cv2.COLOR_RGB2BGR)
+        t_img = nimg.copy()
+        for d in data:
+            if isinstance(d,type(None)):
+                continue
+            pos_selections,neg_selections,fh,fw,head_idx = d
+            pos_mask = np.zeros((batch_size*fh*fw), dtype=np.uint8)
+            neg_mask = np.zeros((batch_size*fh*fw), dtype=np.uint8)
+
+            pos_mask[pos_selections.cpu().numpy()] = 255
+            neg_mask[neg_selections.cpu().numpy()] = 255
+
+            pos_mask = pos_mask.reshape(batch_size,fh,fw)
+            neg_mask = neg_mask.reshape(batch_size,fh,fw)
+
+            overlap = pos_mask[i] == neg_mask[i]
+            is_same = (np.bitwise_or(pos_mask[i][overlap] == 255, neg_mask[i][overlap] == 255)).any()
+            print(f"batch idx: {batch_idx} | head idx: {head_idx} overlaps {is_same} | positives: {(pos_mask[i]==255).sum()} | negatives: {(neg_mask[i]==255).sum()}")
+            cv2.imshow("",t_img)
+            cv2.imshow("pos mask", pos_mask[i])
+            cv2.imshow("neg mask", neg_mask[i])
+
+            if cv2.waitKey(0) == 27:
+                exit(0)
 
 if __name__ == "__main__":
     model = LFFD()
