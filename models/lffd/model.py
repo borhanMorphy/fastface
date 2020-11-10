@@ -103,6 +103,10 @@ class LFFD(nn.Module):
             loss = head.compute_loss(logits, gt_boxes)
             losses.append(loss)
 
+        logs = []
+        for i,loss in enumerate(losses):
+            logs.append(f"head {i+1} loss: {loss}")
+        #print(" |" .join(logs))
         return sum(losses)
 
 

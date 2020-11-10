@@ -25,6 +25,8 @@ class DetectionHead(nn.Module):
             conv_layer(features,num_target_reg,kernel_size=1,padding=0))
 
         self.matcher = LFFDMatcher(lower_scale,upper_scale)
+        self.temp_cache = []
+        self.verbose = 20
 
     def gen_rf_anchors(self, fmaph:int, fmapw:int, device:str='cpu') -> torch.Tensor:
         """takes feature map h and w and reconstructs rf anchors as tensor
@@ -93,12 +95,26 @@ class DetectionHead(nn.Module):
         ratio = 10
         pos_sample_count = batched_cls_targets[batched_cls_targets==1].shape[0]
         neg_sample_count = ratio*pos_sample_count
-        
+
+
+        self.temp_cache.append((pos_sample_count,neg_sample_count))
+        if len(self.temp_cache) == self.verbose:
+            pos_count = 0
+            neg_count = 0
+            for pos,neg in self.temp_cache:
+                pos_count += pos
+                neg_count += neg
+            print(f"head with rf size: {self.rf_size} positive: {pos_count} negative: {neg_count}")
+            self.temp_cache = []
+            #if pos_count == 0:
+            #    for params in self.cls_head.parameters():
+            #        print(params.grad)
         batched_cls_targets = batched_cls_targets.reshape(-1)
         cls_logits = cls_logits.reshape(-1)
 
         selectable_cls_targets, = torch.where(batched_cls_targets==0)
-        selections = random_sample_selection(selectable_cls_targets.cpu().numpy().tolist(), neg_sample_count)
+        selectable_cls_targets = selectable_cls_targets.cpu().numpy().tolist()
+        selections = random_sample_selection(selectable_cls_targets, min(neg_sample_count,len(selectable_cls_targets)))
 
         if len(selections) == 0:
             return torch.tensor(0, dtype=cls_logits.dtype, requires_grad=True, device=cls_logits.device)
@@ -107,7 +123,7 @@ class DetectionHead(nn.Module):
         mask[selections] = True
         mask[batched_cls_targets == 1] = True
         ss, = torch.where(mask)
-        
+
         loss = F.binary_cross_entropy_with_logits(cls_logits[ss], batched_cls_targets[ss])
         return loss
 

@@ -1,6 +1,6 @@
 from models import get_detector_by_name
 from datasets import get_dataset
-from transforms import Interpolate,Padding
+from transforms import Interpolate,Padding,LFFDRandomSample
 from utils.utils import seed_everything
 from typing import Tuple,List
 
@@ -24,65 +24,71 @@ class Transforms():
             img,gt_boxes = t(img,gt_boxes)
         return img,gt_boxes
 
+def collate_fn(data):
+    imgs = []
+    gt_boxes = []
+    for img,gt_box in data:
+        img,gt_box = prep_batch(img,gt_box)
+        imgs.append(img)
+        gt_boxes.append(gt_box)
+
+    # !RuntimeError: Sizes of tensors must match except in dimension 0. Got 640 and 1024 in dimension 3 (The offending index is 2)
+    batch = torch.cat(imgs, dim=0)
+    return batch,gt_boxes
+
 if __name__ == "__main__":
     target_size = (640,640)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     model = get_detector_by_name("lffd").train()
+    model.to(device)
 
     seed_everything(42)
 
-    transforms = Transforms(
+    val_transforms = Transforms(
         Interpolate(max_dim=target_size[0]),
         Padding(target_size=target_size, pad_value=0)
     )
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    train_transforms = Transforms(
+        LFFDRandomSample([(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)], target_size=target_size, min_dim=10)
+    )
 
-    ds = get_dataset("widerface", phase='val', partitions=['easy'], transforms=transforms)
-    batch_size = 4
-    batch_counter = 0
-    img_batch = []
-    gt_boxes_batch = []
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-5, weight_decay=0)
+
+    ds = get_dataset("widerface", phase='train', partitions=['easy'], transforms=train_transforms)
+    batch_size = 8
     optimizer.zero_grad()
 
     val_holder = []
-    verbose = 4
+    verbose = 20
     accumulation = 4
     accumulation_counter = 0
+    epochs = 20
 
-    for i,(img,boxes) in enumerate(tqdm(ds)):
+    dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True,
+        num_workers=2, collate_fn=collate_fn)
 
-        batch,gt_boxes = prep_batch(img,boxes)
+    for epoch in range(epochs):
+        for i,(batch,gt_boxes) in enumerate(tqdm(dl)):
 
-        if batch_counter < batch_size:
-            img_batch.append(batch)
-            gt_boxes_batch.append(gt_boxes)
-            batch_counter += 1
-            continue
-        else:
-            batch_counter = 0
-            batch = torch.cat(img_batch, dim=0).contiguous()
-            img_batch = []
-            gt_boxes = gt_boxes_batch
-            gt_boxes_batch = []
+            loss = model.training_step((batch.to(device),[box.to(device) for box in gt_boxes]),i)
 
-        loss = model.training_step((batch,gt_boxes),i)
+            loss /= accumulation
+            loss.backward()
 
+            val_holder.append(loss.item())
 
-        loss /= accumulation
-        loss.backward()
+            if len(val_holder) == verbose:
+                print(f"epoch [{epoch+1}/{epochs}] loss: {sum(val_holder)/verbose}")
+                val_holder = []
 
-        val_holder.append(loss.item())
-
-        if len(val_holder) == verbose:
-            print(f"epoch [{1}/{1}] loss: {sum(val_holder)/verbose}")
-            val_holder = []
-
-        accumulation_counter += 1
-
-        if accumulation_counter == accumulation:
-            optimizer.step()
-            optimizer.zero_grad()
-            accumulation_counter = 0
-        else:
             accumulation_counter += 1
+
+            if accumulation_counter == accumulation:
+                optimizer.step()
+                optimizer.zero_grad()
+                accumulation_counter = 0
+            else:
+                accumulation_counter += 1
