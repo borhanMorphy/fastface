@@ -53,34 +53,38 @@ if __name__ == "__main__":
         LFFDRandomSample([(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)], target_size=target_size, min_dim=10)
     )
 
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-1, momentum=0.9)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, weight_decay=0)
-
-    ds = get_dataset("widerface", phase='train', partitions=['easy'], transforms=val_transforms)
+    ds = get_dataset("widerface", phase='train', partitions=['easy'], transforms=train_transforms)
     #val_ds = get_dataset("widerface", phase='val', partitions=['easy'], transforms=val_transforms)
 
-    batch_size = 16
+    batch_size = 8
 
     val_holder = []
     verbose = 8
     epochs = 50
+    accumulation = 4
+    accumulation_counter = 0
 
     dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True,
         num_workers=4, collate_fn=collate_fn)
 
     #val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size, shuffle=False,
     #    num_workers=2, collate_fn=collate_fn)
-
+    optimizer.zero_grad()
     for epoch in range(epochs):
         for i,(batch,gt_boxes) in enumerate(tqdm(dl)):
-            optimizer.zero_grad()
 
             loss = model.training_step((batch.to(device),[box.to(device) for box in gt_boxes]),i)
+            (loss / accumulation).backward()
 
-            loss.backward()
-            optimizer.step()
+            accumulation_counter += 1
 
             val_holder.append(loss.item())
+
+            if accumulation_counter == accumulation:
+                optimizer.step()
+                optimizer.zero_grad()
 
             if len(val_holder) == verbose:
                 print(f"epoch [{epoch+1}/{epochs}] loss: {sum(val_holder)/verbose}")

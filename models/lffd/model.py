@@ -74,8 +74,6 @@ class LFFD(nn.Module):
         c15 = self.res_block5(c13)
         logits.append( self.heads[3](c15))
 
-        return logits
-
         # *medium part
         c16 = self.downsample_conv4(c15)
         c18 = self.res_block6(c16)

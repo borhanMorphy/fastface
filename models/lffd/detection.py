@@ -16,15 +16,35 @@ class DetectionHead(nn.Module):
         self.rf_size = rf_size
         self.rf_stride = rf_stride
 
+        self.det_conv = nn.Conv2d(features, features,
+            kernel_size=1, stride=1,
+            padding=0, bias=False)
+
+
         self.cls_head = nn.Sequential(
-            conv_layer(features,features,kernel_size=1,padding=0),
-            conv_layer(features,num_classes,kernel_size=1,padding=0))
+            nn.Conv2d(features, features,
+                kernel_size=1, stride=1,
+                padding=0, bias=False),
+            nn.Conv2d(features, num_classes,
+                kernel_size=1, stride=1,
+                padding=0, bias=False))
 
         self.reg_head = nn.Sequential(
-            conv_layer(features,features,kernel_size=1,padding=0),
-            conv_layer(features,num_target_reg,kernel_size=1,padding=0))
+            nn.Conv2d(features, features,
+                kernel_size=1, stride=1,
+                padding=0, bias=False),
+            nn.Conv2d(features, num_target_reg,
+                kernel_size=1, stride=1,
+                padding=0, bias=False))
+
+        def conv_xavier_init(m):
+            if type(m) == nn.Conv2d:
+                nn.init.xavier_normal_(m.weight)
+
+        self.apply(conv_xavier_init)
 
         self.matcher = LFFDMatcher(lower_scale,upper_scale)
+        self.counter = 0
 
     def gen_rf_anchors(self, fmaph:int, fmapw:int, device:str='cpu') -> torch.Tensor:
         """takes feature map h and w and reconstructs rf anchors as tensor
@@ -77,8 +97,8 @@ class DetectionHead(nn.Module):
 
         batched_cls_targets = torch.zeros((batch_size,fh,fw,cls_logits.size(-1)), dtype=cls_logits.dtype, device=device)
 
-        for i,(gt_boxes,cls_mask,cls_targets) in enumerate(zip(batch_gt_boxes,batched_cls_mask,batched_cls_targets)):
-
+        for i in range(batch_size):
+            gt_boxes = batch_gt_boxes[i]
             # move to same device if not
             if gt_boxes.device == device: gt_boxes = gt_boxes.to(device)
 
@@ -120,19 +140,28 @@ class DetectionHead(nn.Module):
 
         neg_selections = torch.tensor(neg_selections, dtype=torch.long, device=cls_logits.device)
 
-
         pos_selections, = torch.where(batched_cls_targets==1)
 
         selections = torch.cat([pos_selections,neg_selections], dim=0)
-        loss = F.binary_cross_entropy_with_logits(cls_logits[selections],batched_cls_targets[selections])
 
+        loss = torch.abs(torch.sigmoid(cls_logits[selections])-batched_cls_targets[selections]).mean()
+
+        if self.counter >= 200:
+            print(cls_logits[pos_selections], torch.sigmoid(cls_logits[pos_selections]), batched_cls_targets[pos_selections])
+            print(cls_logits[neg_selections], torch.sigmoid(cls_logits[neg_selections]), batched_cls_targets[neg_selections])
+            print("__"*50)
+            input("\nwaiting\n")
+            self.counter = 0
+        else:
+            self.counter += 1
         debug_data = (pos_selections, neg_selections, fh, fw, self.head_idx)
 
         return loss,debug_data
 
-    def forward(self, input:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
-        cls_logits = self.cls_head(input).permute(0,2,3,1).contiguous()
+    def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+        data = self.det_conv(x)
+        cls_logits = self.cls_head(data).permute(0,2,3,1)
         # (b,c,h,w) => (b,h,w,c)
-        reg_logits = self.reg_head(input).permute(0,2,3,1).contiguous()
+        reg_logits = self.reg_head(data).permute(0,2,3,1)
         # (b,c,h,w) => (b,h,w,c)
         return cls_logits,reg_logits
