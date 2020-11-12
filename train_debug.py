@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 def prep_batch(img:np.ndarray, gt_boxes:np.ndarray) -> Tuple[torch.Tensor,torch.Tensor]:
-    batch = torch.from_numpy(img.astype(np.float32) / 255)
+    batch = (torch.from_numpy(img.astype(np.float32)) - 127.5) / 127.5
     batch = batch.permute(2,0,1).unsqueeze(0).contiguous()
 
     return batch,torch.from_numpy(gt_boxes)
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     model = get_detector_by_name("lffd").train()
     model.to(device)
 
-    #seed_everything(42)
+    seed_everything(42)
 
     val_transforms = Transforms(
         Interpolate(max_dim=target_size[0]),
@@ -55,18 +55,18 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-1, momentum=0.9)
 
-    ds = get_dataset("widerface", phase='train', partitions=['easy'], transforms=train_transforms)
+    ds = get_dataset("widerface", phase='train', partitions=['easy','medium','hard'], transforms=train_transforms)
     #val_ds = get_dataset("widerface", phase='val', partitions=['easy'], transforms=val_transforms)
 
-    batch_size = 8
+    batch_size = 16
 
     val_holder = []
-    verbose = 8
+    verbose = 16
     epochs = 50
-    accumulation = 4
+    accumulation = 2
     accumulation_counter = 0
 
-    dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True,
+    dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True, pin_memory=True,
         num_workers=4, collate_fn=collate_fn)
 
     #val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size, shuffle=False,

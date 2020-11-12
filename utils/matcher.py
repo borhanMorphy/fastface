@@ -23,29 +23,26 @@ class LFFDMatcher():
 
         return sl_range,su_range
 
-    def __call__(self, rf_anchors:torch.Tensor, gt_boxes:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+    def __call__(self, rf_centers:torch.Tensor, gt_boxes:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         """Matches given receptive field centers and ground truth boxes
 
         Args:
-            rf_anchors (torch.Tensor): fh,fw,4 as x1,y1,x2,y2
+            rf_centers (torch.Tensor): fh,fw,2 as cx,cy
             gt_boxes (torch.Tensor): N,4 as x1,y1,x2,y2
 
         Returns:
             Tuple:
-                torch.Tensor: cls_logit_mask gt box index as fh x fw (ps: -1 means negative >= 0 means positive and -2 means ignored)
-                torch.Tensor: reg_logit_mask gt box index as fh x fw (ps: -1 means negative >= 0 means positive and -2 means ignored)
+                torch.Tensor: cls_mask gt box index as fh x fw (ps: -1 means negative, >= 0 means positive, and -2 means ignored)
+                torch.Tensor: reg_mask gt box index as fh x fw (ps: -1 means negative, >= 0 means positive, and -2 means ignored)
         """
         # TODO fix naming `mask`
-        rf_centers = rf_anchors[:,:,:2]
-        rf_centers[:, :, 0] = (rf_anchors[:,:,2] + rf_anchors[:,:,0]) / 2
-        rf_centers[:, :, 1] = (rf_anchors[:,:,3] + rf_anchors[:,:,1]) / 2
 
-        cls_logit_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone())
-        reg_logit_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone())
+        cls_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone(), ignore=True)
+        reg_mask = self._gen_match_mask(rf_centers.clone(), gt_boxes.clone(), ignore=True)
 
-        return cls_logit_mask,reg_logit_mask
+        return cls_mask,reg_mask
 
-    def _gen_match_mask(self, rf_centers:torch.Tensor, gt_boxes:torch.Tensor) -> torch.Tensor:
+    def _gen_match_mask(self, rf_centers:torch.Tensor, gt_boxes:torch.Tensor, ignore:bool=True) -> torch.Tensor:
         # -1 : negative
         # => 0: gt_box_idx
 
@@ -54,7 +51,7 @@ class LFFDMatcher():
         rf_centers = rf_centers.reshape(-1,2)
         M = fh*fw
 
-        mask = -1*torch.ones((M,), dtype=torch.int32, device=gt_boxes.device)
+        mask = -1*torch.ones((M,), dtype=torch.long, device=gt_boxes.device)
 
         if gt_boxes.size(0) == 0: return mask.view(fh,fw)
 
@@ -65,18 +62,18 @@ class LFFDMatcher():
         # areas: N,
 
         accepted_box_mask = torch.bitwise_and(areas >= self.min_scale, areas < self.max_scale)
-        w_cond = torch.bitwise_and(
-            wh[:, 0] > self.gsl_range[1],
-            wh[:, 0] < self.gsu_range[0])
+        if ignore:
+            w_cond = torch.bitwise_and(
+                wh[:, 0] >= self.gsl_range[1],
+                wh[:, 0] <= self.gsu_range[0])
 
-        h_cond = torch.bitwise_and(
-            wh[:, 1] > self.gsl_range[1],
-            wh[:, 1] < self.gsu_range[0])
+            h_cond = torch.bitwise_and(
+                wh[:, 1] >= self.gsl_range[1],
+                wh[:, 1] <= self.gsu_range[0])
 
-        accepted_box_mask = torch.bitwise_and(torch.bitwise_and(w_cond,h_cond),accepted_box_mask)
+            accepted_box_mask = torch.bitwise_and(torch.bitwise_and(w_cond,h_cond),accepted_box_mask)
 
-
-        gt_box_ids = torch.arange(0, gt_boxes.size(0), dtype=torch.int32, device=gt_boxes.device)[accepted_box_mask]
+        gt_box_ids = torch.arange(0, gt_boxes.size(0), dtype=torch.long, device=gt_boxes.device)[accepted_box_mask]
         gt_boxes = gt_boxes[accepted_box_mask]
 
         # TODO apply ignore here
