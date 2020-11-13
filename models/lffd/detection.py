@@ -23,20 +23,20 @@ class DetectionHead(nn.Module):
         self.cls_head = nn.Sequential(
             nn.Conv2d(features, features,
                 kernel_size=1, stride=1,
-                padding=0, bias=True),
+                padding=0, bias=False),
             nn.ReLU6(inplace=True),
             nn.Conv2d(features, self.num_classes,
                 kernel_size=1, stride=1,
-                padding=0, bias=True))
+                padding=0, bias=False))
 
         self.reg_head = nn.Sequential(
             nn.Conv2d(features, features,
                 kernel_size=1, stride=1,
-                padding=0, bias=True),
+                padding=0, bias=False),
             nn.ReLU6(inplace=True),
             nn.Conv2d(features, self.num_target_regs,
                 kernel_size=1, stride=1,
-                padding=0, bias=True))
+                padding=0, bias=False))
 
         def conv_xavier_init(m):
             if type(m) == nn.Conv2d:
@@ -100,18 +100,14 @@ class DetectionHead(nn.Module):
         Returns:
             Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]: [description]
         """
-        # t_cls          : bs,fh',fw'      | type: torch.long           | device: model.device
+        # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
         # t_regs         : bs,fh',fw',4    | type: model.dtype          | device: model.device
-        # t_objness_mask : bs,fh',fw'      | type: torch.bool           | device: model.device
-        # t_reg_mask     : bs,fh',fw'      | type: torch.bool           | device: model.device
         # ig             : bs,fh',fw'      | type: torch.bool           | device: model.device
         batch_size = len(gt_boxes)
         fh,fw = fmap
 
-        t_cls = torch.zeros(*(batch_size,fh,fw) ,dtype=torch.long, device=device)
+        t_cls = torch.zeros(*(batch_size,fh,fw) ,dtype=dtype, device=device)
         t_regs = torch.zeros(*(batch_size,fh,fw,self.num_target_regs) ,dtype=dtype, device=device)
-        t_objness_mask = torch.zeros(*(batch_size,fh,fw) ,dtype=torch.bool, device=device)
-        t_reg_mask = torch.zeros(*(batch_size,fh,fw) ,dtype=torch.bool, device=device)
         ignore = torch.zeros(*(batch_size,fh,fw) ,dtype=torch.bool, device=device)
 
         # TODO cache rf anchors
@@ -124,17 +120,16 @@ class DetectionHead(nn.Module):
         for i in range(batch_size):
             if gt_boxes[i].shape[0] == 0: continue
             # fh x fw
-            cls_mask,reg_mask = self.matcher(rf_centers, gt_boxes[i])
+            cls_mask,reg_mask,ig = self.matcher(rf_centers, gt_boxes[i])
 
             t_cls[i, cls_mask>=0] = 1
-            t_objness_mask[i, cls_mask>=0] = True
             t_reg_mask[i, reg_mask>=0] = True
 
             t_regs[i,reg_mask>=0] = gt_boxes[i][reg_mask[reg_mask>=0],:]
             ignore[i, cls_mask==-2] = True
             t_regs[i] = ((t_regs[i].view(-1,4) - rf_centers.view(-1,2).repeat(1,2)) / (self.rf_size*.5)).view(fh,fw,4)
 
-        return t_cls,t_regs,t_objness_mask,t_reg_mask,ignore
+        return t_cls,t_regs,ignore
 
     def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         data = self.det_conv(x)
