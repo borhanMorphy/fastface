@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-1, momentum=0.9)
 
-    ds = get_dataset("widerface", phase='train', partitions=['easy','medium','hard'], transforms=train_transforms)
+    ds = get_dataset("widerface", phase='train', partitions=['easy','medium','hard'], transforms=val_transforms)
     #val_ds = get_dataset("widerface", phase='val', partitions=['easy'], transforms=val_transforms)
 
     batch_size = 16
