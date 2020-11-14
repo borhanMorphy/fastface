@@ -128,159 +128,49 @@ class LFFD(nn.Module):
         target_reg_mask:List = []
         ignore:List = []
 
-        debug_fmap = [] # ? Debug
-        current = 0
         for i in range(len(self.heads)):
             # *for each head
             fh,fw = cls_logits[i].shape[2:]
-            start = current
-            current += (fh*fw)
 
-            debug_fmap.append((fh,fw,start))
-
-            t_cls,t_regs,t_objness_mask,t_reg_mask,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
-            # t_cls          : bs,fh',fw'      | type: torch.long           | device: model.device
+            t_cls,t_regs,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
+            # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
             # t_regs         : bs,fh',fw',4    | type: model.dtype          | device: model.device
-            # t_objness_mask : bs,fh',fw'      | type: torch.bool           | device: model.device
-            # t_reg_mask     : bs,fh',fw'      | type: torch.bool           | device: model.device
             # ig             : bs,fh',fw'      | type: torch.bool           | device: model.device
 
-            cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1, self.num_classes)
-            reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, self.num_target_regs)
+            cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
+            reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
 
             target_cls.append(t_cls.view(batch_size, -1))
-            target_regs.append(t_regs.view(batch_size,-1,self.num_target_regs))
+            target_regs.append(t_regs.view(batch_size,-1,4))
 
-            target_objectness_mask.append(t_objness_mask.view(batch_size,-1))
-            target_reg_mask.append(t_reg_mask.view(batch_size,-1))
             ignore.append(ig.view(batch_size,-1))
 
         cls_logits = torch.cat(cls_logits, dim=1)
         reg_logits = torch.cat(reg_logits, dim=1)
         target_cls = torch.cat(target_cls, dim=1)
         target_regs = torch.cat(target_regs, dim=1)
+        ignore = torch.cat(ignore, dim=1)
 
-        target_objectness_mask = torch.cat(target_objectness_mask, dim=1).view(-1)
-        target_reg_mask = torch.cat(target_reg_mask, dim=1).view(-1)
-        ignore = torch.cat(ignore, dim=1).view(-1)
-
-        # *INFO: Shape | Device | Dtype
-        #print("cls_logits: ",cls_logits.shape," device: ",cls_logits.device, " dtype: ",cls_logits.dtype)
-        #print("reg_logits: ",reg_logits.shape," device: ",reg_logits.device, " dtype: ",reg_logits.dtype)
-        #print("target_cls: ",target_cls.shape," device: ",target_cls.device, " dtype: ",target_cls.dtype)
-        #print("target_regs: ",target_regs.shape," device: ",target_regs.device, " dtype: ",target_regs.dtype)
-        #print("target_objectness_mask: ",target_objectness_mask.shape," device: ",target_objectness_mask.device, " dtype: ",target_objectness_mask.dtype)
-        #print("target_reg_mask: ",target_reg_mask.shape," device: ",target_reg_mask.device, " dtype: ",target_reg_mask.dtype)
-        #print("ignore: ",ignore.shape," device: ",ignore.device, " dtype: ",ignore.dtype)
-        #exit(0)
-
-        pos_mask = target_objectness_mask & ~ignore
-        neg_mask = ~target_objectness_mask & ~ignore
+        pos_mask = (target_cls == 1) & (~ignore)
+        neg_mask = (target_cls == 0) & (~ignore)
 
         positives = pos_mask.sum()
         negatives = neg_mask.sum()
         negatives = min(negatives,ratio*positives)
-        """
-        with torch.no_grad():
-            # !apply hard negative mining
-            loss = F.cross_entropy(cls_logits.view(-1, self.num_classes), target_cls.view(-1) , reduction='none')
-            mask = target_objectness_mask | ignore
-            loss[mask] = -math.inf
-            loss = loss.cpu()
-            selected = loss.argsort(descending=True)[:negatives]
-            neg_mask[:] = False
-            neg_mask[selected] = True
-        """
-        ss, = torch.where(neg_mask)
+
+        ss, = torch.where(neg_mask.view(-1))
         ss = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
         neg_mask[:] = False
+        neg_mask = neg_mask.view(-1)
         neg_mask[ss] = True
+        neg_mask = neg_mask.view(batch_size,-1)
         negatives = neg_mask.sum()
 
-        pos_mask = pos_mask.view(batch_size,-1)
-        neg_mask = neg_mask.view(batch_size,-1)
+        cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
-        cls_loss = F.cross_entropy(cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
-
-        target_reg_mask = target_reg_mask.view(batch_size,-1)
-        reg_loss = F.mse_loss(reg_logits[target_reg_mask, :], target_regs[target_reg_mask, :])
-
-        """
-        ## ? Debug
-        neg_counter = 0
-        for i in range(batch_size):
-            img = imgs[i]
-            img = img * 127.5 + 127.5
-            nimg = (img*255).permute(1,2,0).cpu().numpy().astype(np.uint8)
-            nimg = cv2.UMat(nimg).get()
-            nimg = cv2.cvtColor(nimg, cv2.COLOR_RGB2BGR)
-            for x1,y1,x2,y2 in gt_boxes[i].cpu().numpy().astype(np.int32):
-                nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2), (255,0,0))
-
-            for head,(fh,fw,start) in zip(self.heads,debug_fmap):
-                priors = head.gen_rf_anchors(fh,fw,clip=True).view(-1,4)
-                p_mask = pos_mask[i][start: start+fh*fw]
-                n_mask = neg_mask[i][start: start+fh*fw]
-                pos_boxes = priors[p_mask].cpu().numpy().astype(np.int32).tolist()
-                neg_boxes = priors[n_mask].cpu().numpy().astype(np.int32).tolist()
-                neg_counter += len(neg_boxes)
-                for x1,y1,x2,y2 in pos_boxes:
-                    nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2), (0,255,0))
-                for x1,y1,x2,y2 in neg_boxes:
-                    nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2), (0,0,255))
-
-            cv2.imshow("",nimg)
-            if cv2.waitKey(0) == 27:
-                exit(0)
-        print(negatives," ==? ",neg_counter)
-        """
+        reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
 
-        """
-        if (batch_idx+1) % 20 == 0:
-            print("positives: ",pos_mask.sum()," negatives: ",neg_mask.sum())
-            preds = F.softmax(cls_logits[pos_mask | neg_mask], dim=1)
-            print(preds[:, 0], target_cls[pos_mask])
-            print(preds[:, 1], target_cls[neg_mask])
-            input("waiting")
-        """
-
         return cls_loss + reg_loss
-
-def debug(imgs, data, batch_idx):
-
-    batch_size = imgs.size(0)
-    from cv2 import cv2
-    import numpy as np
-
-    for i,img in enumerate(imgs):
-        nimg = (img*255).permute(1,2,0).cpu().numpy().astype(np.uint8)
-        nimg = cv2.cvtColor(nimg,cv2.COLOR_RGB2BGR)
-        t_img = nimg.copy()
-        for d in data:
-            if isinstance(d,type(None)):
-                continue
-            pos_selections,neg_selections,fh,fw,head_idx = d
-            pos_mask = np.zeros((batch_size*fh*fw), dtype=np.uint8)
-            neg_mask = np.zeros((batch_size*fh*fw), dtype=np.uint8)
-
-            pos_mask[pos_selections.cpu().numpy()] = 255
-            neg_mask[neg_selections.cpu().numpy()] = 255
-
-            pos_mask = pos_mask.reshape(batch_size,fh,fw)
-            neg_mask = neg_mask.reshape(batch_size,fh,fw)
-
-            overlap = pos_mask[i] == neg_mask[i]
-            is_same = (np.bitwise_or(pos_mask[i][overlap] == 255, neg_mask[i][overlap] == 255)).any()
-            print(f"batch idx: {batch_idx} | head idx: {head_idx} overlaps {is_same} | positives: {(pos_mask[i]==255).sum()} | negatives: {(neg_mask[i]==255).sum()}")
-            cv2.imshow("",t_img)
-            cv2.imshow("pos mask", pos_mask[i])
-            cv2.imshow("neg mask", neg_mask[i])
-
-            if cv2.waitKey(0) == 27:
-                exit(0)
-
-if __name__ == "__main__":
-    model = LFFD()
-    print(model)
