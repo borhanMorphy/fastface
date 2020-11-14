@@ -83,10 +83,10 @@ class LFFDMatcher():
             # set as matched
             cls_mask[match] = True
 
-            # set reg targets
-            reg_targets[match, 0] = (rf_centers[match, 0] - x1) / rf_norm_value
-            reg_targets[match, 1] = (rf_centers[match, 1] - y1) / rf_norm_value
-            reg_targets[match, 2] = (rf_centers[match, 0] - x2) / rf_norm_value
-            reg_targets[match, 3] = (rf_centers[match, 1] - y2) / rf_norm_value
+            # set reg targets)
+            reg_targets[match, [0]] = (rf_centers[match, [0]] - x1) / rf_norm_value
+            reg_targets[match, [1]] = (rf_centers[match, [1]] - y1) / rf_norm_value
+            reg_targets[match, [2]] = (rf_centers[match, [0]] - x2) / rf_norm_value
+            reg_targets[match, [3]] = (rf_centers[match, [1]] - y2) / rf_norm_value
 
         return cls_mask,reg_targets,ignore_mask

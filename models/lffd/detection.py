@@ -9,14 +9,13 @@ from utils.utils import random_sample_selection
 
 class DetectionHead(nn.Module):
     def __init__(self, head_idx:int, features:int, rf_size:int, rf_stride:int,
-            lower_scale:int, upper_scale:int, num_classes:int=2, num_target_regs:int=4):
+            lower_scale:int, upper_scale:int, num_classes:int=2):
 
         super(DetectionHead,self).__init__()
         self.head_idx = head_idx
         self.rf_size = rf_size
         self.rf_stride = rf_stride
         self.num_classes = num_classes
-        self.num_target_regs = num_target_regs
 
         self.det_conv = conv_layer(features, features, kernel_size=1, stride=1, padding=0)
 
@@ -34,7 +33,7 @@ class DetectionHead(nn.Module):
                 kernel_size=1, stride=1,
                 padding=0, bias=False),
             nn.ReLU6(inplace=True),
-            nn.Conv2d(features, self.num_target_regs,
+            nn.Conv2d(features, 4,
                 kernel_size=1, stride=1,
                 padding=0, bias=False))
 
@@ -106,28 +105,23 @@ class DetectionHead(nn.Module):
         batch_size = len(gt_boxes)
         fh,fw = fmap
 
-        t_cls = torch.zeros(*(batch_size,fh,fw) ,dtype=dtype, device=device)
-        t_regs = torch.zeros(*(batch_size,fh,fw,self.num_target_regs) ,dtype=dtype, device=device)
-        ignore = torch.zeros(*(batch_size,fh,fw) ,dtype=torch.bool, device=device)
+        t_cls = torch.zeros(*(batch_size,fh,fw), dtype=dtype, device=device)
+        t_regs = torch.zeros(*(batch_size,fh,fw,4), dtype=dtype, device=device)
+        ignore = torch.zeros(*(batch_size,fh,fw), dtype=torch.bool, device=device)
 
         # TODO cache rf anchors
         rf_anchors = self.gen_rf_anchors(fh, fw, device=device, dtype=dtype, clip=True)
-        rf_centers = rf_anchors[:,:,:2]
-        rf_centers[:, :, 0] = (rf_anchors[:,:,2] + rf_anchors[:,:,0]) / 2
-        rf_centers[:, :, 1] = (rf_anchors[:,:,3] + rf_anchors[:,:,1]) / 2
 
         # rf_anchors: fh x fw x 4 as xmin,ymin,xmax,ymax
         for i in range(batch_size):
-            if gt_boxes[i].shape[0] == 0: continue
-            # fh x fw
-            cls_mask,reg_mask,ig = self.matcher(rf_centers, gt_boxes[i])
+            
+            cls_mask,reg_targets,ignore_mask = self.matcher(rf_anchors,
+                gt_boxes[i], device=device, dtype=dtype)
 
-            t_cls[i, cls_mask>=0] = 1
-            t_reg_mask[i, reg_mask>=0] = True
+            t_cls[i, cls_mask] = 1
 
-            t_regs[i,reg_mask>=0] = gt_boxes[i][reg_mask[reg_mask>=0],:]
-            ignore[i, cls_mask==-2] = True
-            t_regs[i] = ((t_regs[i].view(-1,4) - rf_centers.view(-1,2).repeat(1,2)) / (self.rf_size*.5)).view(fh,fw,4)
+            t_regs[i, :,:,:] = reg_targets
+            ignore[i, :,:] = ignore_mask
 
         return t_cls,t_regs,ignore
 
