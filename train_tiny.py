@@ -53,12 +53,12 @@ if __name__ == "__main__":
 
     ds = get_dataset("widerface", phase='val', partitions=['hard'], transforms=val_transforms)
 
-    batch_size = 16
+    batch_size = 32
 
     val_holder = []
-    verbose = 16
+    verbose = 32
     epochs = 50
-    accumulation = 2
+    accumulation = 1
     accumulation_counter = 0
 
     dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True, pin_memory=True,
