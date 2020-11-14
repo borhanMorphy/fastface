@@ -56,7 +56,7 @@ if __name__ == "__main__":
     batch_size = 32
 
     val_holder = []
-    verbose = 32
+    verbose = 8
     epochs = 50
     accumulation = 1
     accumulation_counter = 0
