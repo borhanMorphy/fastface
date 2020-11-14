@@ -22,7 +22,7 @@ class LFFD(nn.Module):
 
     def __init__(self, in_channels:int=3, filters:List[int]=None,
             rf_sizes:List[int]=None, rf_strides:List[int]=None, scales:List[int]=None,
-            num_classes:int=1):
+            num_classes:int=1, debug:bool=False):
         super(LFFD,self).__init__()
 
         if filters is None: filters = LFFD.__FILTERS__
@@ -30,6 +30,7 @@ class LFFD(nn.Module):
         if rf_strides is None: rf_strides = LFFD.__RF_STRIDES__
         if scales is None: scales = LFFD.__SCALES__
         self.num_classes = num_classes
+        self.__debug = debug
 
         # TODO check if list lenghts are matched
 
@@ -127,9 +128,17 @@ class LFFD(nn.Module):
         target_reg_mask:List = []
         ignore:List = []
 
+        debug_fmap = [] # ? Debug
+        current = 0
+
         for i in range(len(self.heads)):
             # *for each head
             fh,fw = cls_logits[i].shape[2:]
+
+            # ? Debug
+            start = current
+            current += (fh*fw)
+            debug_fmap.append((fh,fw,start))
 
             t_cls,t_regs,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
             # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
@@ -157,11 +166,61 @@ class LFFD(nn.Module):
         negatives = neg_mask.sum()
         negatives = min(negatives,ratio*positives)
 
+        # TODO change here to OHMN
+        neg_mask = neg_mask.view(-1)
+        ss, = torch.where(neg_mask)
+        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
+        neg_mask[:] = False
+        neg_mask[selections] = True
+        neg_mask = neg_mask.view(batch_size,-1)
+        negatives = neg_mask.sum()
+        ###########################
+
         cls_loss = F.binary_cross_entropy_with_logits(
             cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
+        ## ? Debug
+        if self.__debug:
+            debug(imgs, gt_boxes, debug_fmap, self.heads, pos_mask, neg_mask, ignore)
+
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
 
         return cls_loss + reg_loss
+
+def debug(imgs, gt_boxes, debug_fmap, heads, pos_mask, neg_mask, ignore):
+    for i,img in enumerate(imgs):
+        nimg = (img*127.5 + 127.5).permute(1,2,0).cpu().numpy().astype(np.uint8)
+        #nimg = cv2.UMat(nimg).get()
+        nimg = cv2.cvtColor(nimg, cv2.COLOR_RGB2BGR)
+        print(f"positives: {pos_mask[i].sum()} negatives:{neg_mask[i].sum()} ignore:{ignore[i].sum()}")
+        for x1,y1,x2,y2 in gt_boxes[i].cpu().numpy().astype(np.int32):
+            nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2), (255,0,0))
+        for head,(fh,fw,start) in zip(heads,debug_fmap):
+            priors = head.gen_rf_anchors(fh,fw,clip=True).view(-1,4)
+
+            p_mask = pos_mask[i][start: start+fh*fw]
+            n_mask = neg_mask[i][start: start+fh*fw]
+            i_mask = ignore[i][start: start+fh*fw]
+
+            pos_boxes = priors[p_mask].cpu().numpy().astype(np.int32).tolist()
+            neg_boxes = priors[n_mask].cpu().numpy().astype(np.int32).tolist()
+            ignore_boxes = priors[i_mask].cpu().numpy().astype(np.int32).tolist()
+
+            for x1,y1,x2,y2 in pos_boxes:
+                cx = int((x1+x2) / 2)
+                cy = int((y1+y2) / 2)
+                nimg = cv2.circle(nimg, (cx,cy), 2, (0,255,0))
+            for x1,y1,x2,y2 in neg_boxes:
+                cx = int((x1+x2) / 2)
+                cy = int((y1+y2) / 2)
+                nimg = cv2.circle(nimg, (cx,cy), 2, (0,0,255))
+            for x1,y1,x2,y2 in ignore_boxes:
+                cx = int((x1+x2) / 2)
+                cy = int((y1+y2) / 2)
+                nimg = cv2.circle(nimg, (cx,cy), 2, (0,255,255))
+
+        cv2.imshow("",nimg)
+        if cv2.waitKey(0) == 27:
+            exit(0)

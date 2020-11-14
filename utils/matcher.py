@@ -50,7 +50,7 @@ class LFFDMatcher():
         face_scales,_ = wh.max(dim=1)
 
         # only select gt boxes that falls between scales
-        gt_select_cond = (face_scales > self.min_scale) & (face_scales < self.max_scale)
+        gt_select_cond = (face_scales >= self.gsl_range[0]) & (face_scales <= self.gsu_range[1])
         s_gt_boxes = gt_boxes[gt_select_cond, :]
 
         # return if no gt box is found in that scale
@@ -67,7 +67,7 @@ class LFFDMatcher():
         rf_norm_value = (rf_anchors[0,0,2] - rf_anchors[0,0,0]) / 2
 
         # lets match
-        for x1,y1,x2,y2 in s_gt_boxes:
+        for box_idx,(x1,y1,x2,y2) in enumerate(s_gt_boxes):
             cond_x = (rf_centers[:,:,0] > x1) & (rf_centers[:,:,0] < x2)
             cond_y = (rf_centers[:,:,1] > y1) & (rf_centers[:,:,1] < y2)
             match = cond_x & cond_y
@@ -79,6 +79,10 @@ class LFFDMatcher():
 
             # if already has a match than ignore
             ignore_mask[cls_mask & match] = True
+
+            # if falls in gray scale ignore
+            if box_idx in gt_ignore_box_ids:
+                ignore_mask[match] = True
 
             # set as matched
             cls_mask[match] = True

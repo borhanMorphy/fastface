@@ -45,7 +45,8 @@ class WiderFace(Dataset):
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
-    def __init__(self, phase:str='train', partitions:List=None, transform=None, target_transform=None, transforms=None):
+    def __init__(self, phase:str='train', partitions:List=None, 
+            transform=None, target_transform=None, transforms=None):
         assert phase in WiderFace.__phases__,f"given phase {phase} is not valid, must be one of: {WiderFace.__phases__}"
         if not partitions: partitions = WiderFace.__partitions__
         for partition in partitions: assert partition in WiderFace.__partitions__,"given partition is not in the defined list"
