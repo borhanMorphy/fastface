@@ -157,14 +157,6 @@ class LFFD(nn.Module):
         negatives = neg_mask.sum()
         negatives = min(negatives,ratio*positives)
 
-        ss, = torch.where(neg_mask.view(-1))
-        ss = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
-        neg_mask[:] = False
-        neg_mask = neg_mask.view(-1)
-        neg_mask[ss] = True
-        neg_mask = neg_mask.view(batch_size,-1)
-        negatives = neg_mask.sum()
-
         cls_loss = F.binary_cross_entropy_with_logits(
             cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
