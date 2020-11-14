@@ -1,4 +1,4 @@
-from models.lffd.tiny import LFFDTinyPart
+from models.lffd import LFFD
 from datasets import get_dataset
 from transforms import Interpolate,Padding
 from utils.utils import seed_everything
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     target_size = (640,640)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = LFFDTinyPart()
+    model = LFFD()
     model.to(device)
 
     seed_everything(42)
