@@ -7,10 +7,9 @@ from ..pad import Padding
 from ..interpolate import Interpolate
 
 class LFFDRandomSample():
-    def __init__(self, scales:List[List], target_size:Tuple[int,int]=(640,640), min_dim:int=10):
+    def __init__(self, scales:List[List], target_size:Tuple[int,int]=(640,640)):
         self.scales = np.array(scales, dtype=np.float32) # N,2
         self.target_size = target_size # W,H
-        self.min_dim = min_dim
         self.padding = Padding(target_size=target_size, pad_value=0)
         self.interpolate = Interpolate(max_dim=target_size[0])
 
@@ -30,10 +29,6 @@ class LFFDRandomSample():
             img,boxes = self.interpolate(img,boxes)
             img,boxes = self.padding(img,boxes)
             return img,boxes
-
-        # TODO move this to dataset
-        mask = np.bitwise_and((boxes[:, 2] - boxes[:, 0] >= self.min_dim), (boxes[:, 3] - boxes[:, 1] >= self.min_dim))
-        boxes = boxes[mask]
 
         num_faces = boxes.shape[0]
         if num_faces == 0:
@@ -139,8 +134,6 @@ class LFFDRandomSample():
         boxes[:, [0,2]] += left_index_x
         boxes[:, [1,3]] += up_index_y
 
-        mask = np.bitwise_and((boxes[:, 2] - boxes[:, 0] >= self.min_dim), (boxes[:, 3] - boxes[:, 1] >= self.min_dim))
-        boxes = boxes[np.bitwise_and(mask,center_mask)]
         boxes[:, 0] = boxes[:, 0].clip(0,self.target_size[0])
         boxes[:, 1] = boxes[:, 1].clip(0,self.target_size[1])
         boxes[:, 2] = boxes[:, 2].clip(0,self.target_size[0])

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from typing import Tuple,List
+from typing import Tuple,List,Dict
 from .conv import conv_layer
 from .resblock import ResBlock
 from .detection import DetectionHead
@@ -22,7 +22,7 @@ class LFFD(nn.Module):
 
     def __init__(self, in_channels:int=3, filters:List[int]=None,
             rf_sizes:List[int]=None, rf_strides:List[int]=None, scales:List[int]=None,
-            num_classes:int=1, debug:bool=False):
+            num_classes:int=1, hyp:Dict={}, debug:bool=False):
         super(LFFD,self).__init__()
 
         if filters is None: filters = LFFD.__FILTERS__
@@ -30,6 +30,7 @@ class LFFD(nn.Module):
         if rf_strides is None: rf_strides = LFFD.__RF_STRIDES__
         if scales is None: scales = LFFD.__SCALES__
         self.num_classes = num_classes
+        self.hyp = hyp
         self.__debug = debug
 
         # TODO check if list lenghts are matched
@@ -110,7 +111,8 @@ class LFFD(nn.Module):
 
         return cls_logits,reg_logits
 
-    def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]], batch_idx:int):
+    def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
+            batch_idx:int) -> torch.Tensor:
 
         imgs,gt_boxes = batch
 
@@ -188,6 +190,13 @@ class LFFD(nn.Module):
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
 
         return cls_loss + reg_loss
+
+    def configure_optimizers(self):
+        return torch.optim.SGD(
+            self.parameters(),
+            lr=self.hyp.get('learning_rate',1e-2),
+            momentum=self.hyp.get('momentum',0.9),
+            weight_decay=self.hyp.get('weight_decay',0))
 
 def debug(imgs, gt_boxes, debug_fmap, heads, pos_mask, neg_mask, ignore):
     for i,img in enumerate(imgs):

@@ -73,12 +73,14 @@ class WiderFace(Dataset):
         img = self._load_image(self.ids[idx])
         target_boxes = self.targets[idx].copy()
 
-        if self.transform:
-            img = self.transform(img)
-        if self.target_transform:
-            target_boxes = self.target_transform(target_boxes)
         if self.transforms:
             img,target_boxes = self.transforms(img,target_boxes)
+
+        if self.transform:
+            img = self.transform(img)
+
+        if self.target_transform:
+            target_boxes = self.target_transform(target_boxes)
 
         return img,target_boxes
 

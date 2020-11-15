@@ -11,12 +11,12 @@ class LightFaceDetector(pl.LightningModule):
         return self.model(data)
 
     def training_step(self, batch, batch_idx):
-        raise NotImplementedError
+        return self.model.training_step(batch,batch_idx)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        return self.model.configure_optimizers()
 
-def build_detector(model_name:str) -> pl.LightningModule:
-    model = get_detector_by_name(model_name)
-    return LightFaceDetector(model)
+    @classmethod
+    def build(cls, model_name:str, *args, **kwargs) -> pl.LightningModule:
+        model = get_detector_by_name(model_name,*args,**kwargs)
+        return cls(model)
