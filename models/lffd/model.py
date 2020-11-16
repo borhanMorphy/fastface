@@ -275,7 +275,7 @@ class LFFD(nn.Module):
             pick = preds[i][:, 4] > 0.01
             pred_boxes.append(preds[i][pick])
 
-        return {'loss':loss, 'preds': pred_boxes, 'gts': gt_boxes}
+        return {'loss':loss.item()}
 
     def configure_optimizers(self):
         return torch.optim.SGD(
