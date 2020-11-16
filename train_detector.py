@@ -92,7 +92,7 @@ if __name__ == '__main__':
         accumulate_grad_batches=args.accumulation,
         precision=args.precision)
 
-    detector = LightFaceDetector.build("lffd", metric_names=['ap'], hyp=hyp, debug=args.debug)
+    detector = LightFaceDetector.build("lffd", metric_names=[], hyp=hyp, debug=args.debug)
 
     train_dl = generate_dl(args.train_ds, "train",
         args.batch_size, transforms=train_transforms)
