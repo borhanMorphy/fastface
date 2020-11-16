@@ -272,8 +272,8 @@ class LFFD(nn.Module):
 
         pred_boxes:List = []
         for i in range(batch_size):
-            pick = preds[i][:, 4] > 0.01
-            pred_boxes.append(preds[i][pick].cpu())
+            sorted_preds = preds[i][:, 4].argsort(descending=True)
+            pred_boxes.append(preds[i,sorted_preds,:][:200,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()
