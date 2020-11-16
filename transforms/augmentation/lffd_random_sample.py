@@ -86,15 +86,8 @@ class LFFDRandomSample():
             np.bitwise_and(cboxes_y > low_h, cboxes_y < high_h))
 
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
-        # TODO fix here later
-        try:
-            aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
-        except Exception as e:
-            print(f"lffd random resize failed with:\n{e}\n")
-            print(f"image shape: {img.shape} sf:{sf} box: {[x1,y1,x2,y2]} offset: {[offset_w_1,offset_w_2,offset_h_1,offset_h_2]}")             
-            img,boxes = self.interpolate(img,boxes)
-            img,boxes = self.padding(img,boxes)
-            return img,boxes
+
+        aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
 
         aimg = aimg[:self.target_size[1], : self.target_size[0]]
 

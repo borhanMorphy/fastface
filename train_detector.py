@@ -71,12 +71,12 @@ if __name__ == '__main__':
     )
 
     train_transforms = Compose(
+        FaceDiscarder(min_face_scale=10),
         LFFDRandomSample(
             [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
             ], target_size=(args.target_size,args.target_size)),
-        FaceDiscarder(min_face_scale=10),
         RandomHorizontalFlip(p=0.5),
         Normalize(mean=127.5, std=127.5),
         ToTensor()
