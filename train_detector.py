@@ -21,6 +21,7 @@ import argparse
 def parse_arguments():
     ap = argparse.ArgumentParser()
     ap.add_argument('--batch-size', '-bs', type=int, default=32)
+    ap.add_argument('--accumulation', '-ac', type=int, default=1)
     ap.add_argument('--epochs', '-e', type=int, default=50)
     ap.add_argument('--verbose', '-vb', type=int, default=8)
     ap.add_argument('--seed', '-s', type=int, default=-1)
@@ -29,14 +30,16 @@ def parse_arguments():
     ap.add_argument('--weight-decay', '-wd', type=float, default=0)
 
     ap.add_argument('--target-size', '-t', type=int, default=640)
-    
+    ap.add_argument('--device','-d',type=str,
+        default='cuda' if torch.cuda.is_available() else 'cpu', choices=['cpu','cuda'])
+
     ap.add_argument('--train-ds', '-tds',type=str,
         default="widerface", choices=get_available_datasets())
 
     ap.add_argument('--val-ds', '-vds', type=str,
         default="widerface-easy", choices=get_available_datasets())
 
-    ap.add_argument('--debug','-d',action='store_true')
+    ap.add_argument('--debug',action='store_true')
 
     return ap.parse_args()
 
@@ -51,8 +54,8 @@ def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None, **
     num_workers = max(int(batch_size / 8),1)
 
     return DataLoader(ds, batch_size=batch_size, shuffle=phase=='train', pin_memory=True,
-        num_workers=4, collate_fn=collate_fn)
-
+        num_workers=num_workers if phase=='train' else 1,
+        collate_fn=collate_fn)
 
 if __name__ == '__main__':
     args = parse_arguments()
@@ -84,7 +87,8 @@ if __name__ == '__main__':
         'weight_decay': args.weight_decay
     }
 
-    trainer = pl.Trainer()
+    trainer = pl.Trainer(gpus=1 if args.device=='cuda' else 0,
+        accumulate_grad_batches=args.accumulation)
 
     detector = LightFaceDetector.build("lffd", hyp=hyp, debug=args.debug)
 
