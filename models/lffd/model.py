@@ -273,9 +273,12 @@ class LFFD(nn.Module):
         pred_boxes:List = []
         for i in range(batch_size):
             pick = preds[i][:, 4] > 0.01
-            pred_boxes.append(preds[i][pick])
+            pred_boxes.append(preds[i][pick].cpu())
 
-        return {'loss':loss.item()}
+        gt_boxes = [box.cpu() for box in gt_boxes]
+        loss = loss.item()
+
+        return {'loss':loss, 'preds': pred_boxes, 'gts': gt_boxes}
 
     def configure_optimizers(self):
         return torch.optim.SGD(

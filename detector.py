@@ -27,11 +27,9 @@ class LightFaceDetector(pl.LightningModule):
         for val_output in val_outputs:
             for metric in self.metrics:
                 metric(val_output['preds'], val_output['gts'])
-        metrics = {}
-        for metric in self.metrics:
-            metrics[str(metric)] = metric.compute()
 
-        return metrics
+        for metric in self.metrics:
+            print(str(metric), metric.compute())
 
     def configure_optimizers(self):
         return self.model.configure_optimizers()
