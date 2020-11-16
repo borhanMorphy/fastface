@@ -74,7 +74,9 @@ class AveragePrecision(Metric):
                 torch.Tensor -- N,3 dimensional matrix as iou,best,confidence
                 M -- total gt count
         """
-
+        dtype = ground_truths[0].dtype
+        device = ground_truths[0].device
+        
         table = []
         M = 0
         for pred,gt in zip(predictions,ground_truths):
@@ -90,7 +92,7 @@ class AveragePrecision(Metric):
                 M += mi
                 continue
             M += mi
-            ious = box_ops.box_iou(pred[:,:4],gt) # ni,mi vector
+            ious = box_ops.box_iou(pred[:,:4].to(device,dtype),gt) # ni,mi vector
             iou_values,iou_indexes = ious.max(dim=1)
             ious = torch.stack([iou_values,iou_indexes.float(), pred[:, 4]]).t() # ni,3
             sort_pick = ious[:,0].argsort(dim=0,descending=True) # ni,3
