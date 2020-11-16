@@ -46,7 +46,7 @@ def parse_arguments():
 
 def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None, **kwargs):
     ds = get_dataset(dataset_name, phase=phase, transforms=transforms, **kwargs)
-    
+
     def collate_fn(data):
         imgs,gt_boxes = zip(*data)
         batch = torch.stack(imgs, dim=0)

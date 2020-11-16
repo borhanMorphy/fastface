@@ -13,6 +13,9 @@ class LightFaceDetector(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         return self.model.training_step(batch,batch_idx)
 
+    def validation_step(self, batch, batch_idx):
+        return self.model.validation_step(batch,batch_idx)
+
     def configure_optimizers(self):
         return self.model.configure_optimizers()
 

@@ -191,6 +191,75 @@ class LFFD(nn.Module):
 
         return cls_loss + reg_loss
 
+    def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
+            batch_idx:int) -> torch.Tensor:
+
+        imgs,gt_boxes = batch
+
+        device = imgs.device
+        dtype = imgs.dtype
+        batch_size = imgs.size(0)
+        ratio = 10
+
+        # TODO am i have to add torch.no_grad() here ?
+        cls_logits,reg_logits = self(imgs)
+
+        target_cls:List = []
+        target_regs:List = []
+
+        target_objectness_mask:List = []
+        target_reg_mask:List = []
+        ignore:List = []
+
+        for i in range(len(self.heads)):
+            # *for each head
+            fh,fw = cls_logits[i].shape[2:]
+
+            t_cls,t_regs,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
+            # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
+            # t_regs         : bs,fh',fw',4    | type: model.dtype          | device: model.device
+            # ig             : bs,fh',fw'      | type: torch.bool           | device: model.device
+
+            cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
+            reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
+
+            target_cls.append(t_cls.view(batch_size, -1))
+            target_regs.append(t_regs.view(batch_size,-1,4))
+
+            ignore.append(ig.view(batch_size,-1))
+
+        cls_logits = torch.cat(cls_logits, dim=1)
+        reg_logits = torch.cat(reg_logits, dim=1)
+        target_cls = torch.cat(target_cls, dim=1)
+        target_regs = torch.cat(target_regs, dim=1)
+        ignore = torch.cat(ignore, dim=1)
+
+        pos_mask = (target_cls == 1) & (~ignore)
+        neg_mask = (target_cls == 0) & (~ignore)
+
+        positives = pos_mask.sum()
+        negatives = neg_mask.sum()
+        negatives = min(negatives,ratio*positives)
+
+        # TODO change here to OHMN
+        neg_mask = neg_mask.view(-1)
+        ss, = torch.where(neg_mask)
+        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
+        neg_mask[:] = False
+        neg_mask[selections] = True
+        neg_mask = neg_mask.view(batch_size,-1)
+        negatives = neg_mask.sum()
+        ###########################
+
+        cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
+
+        reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
+
+        assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
+
+        return cls_loss + reg_loss
+
     def configure_optimizers(self):
         return torch.optim.SGD(
             self.parameters(),
