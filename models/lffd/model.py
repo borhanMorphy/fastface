@@ -192,7 +192,7 @@ class LFFD(nn.Module):
         return cls_loss + reg_loss
 
     def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
-            batch_idx:int) -> torch.Tensor:
+            batch_idx:int) -> Dict:
 
         imgs,gt_boxes = batch
 
@@ -201,7 +201,6 @@ class LFFD(nn.Module):
         batch_size = imgs.size(0)
         ratio = 10
 
-        # TODO am i have to add torch.no_grad() here ?
         cls_logits,reg_logits = self(imgs)
 
         target_cls:List = []
@@ -210,6 +209,7 @@ class LFFD(nn.Module):
         target_objectness_mask:List = []
         target_reg_mask:List = []
         ignore:List = []
+        preds:List = []
 
         for i in range(len(self.heads)):
             # *for each head
@@ -223,11 +223,22 @@ class LFFD(nn.Module):
             cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
             reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
 
+            with torch.no_grad():
+                scores = torch.sigmoid(cls_logits[i].view(batch_size,fh,fw,1))
+                pred_boxes = self.heads[i].apply_bbox_regression(
+                    reg_logits[i].view(batch_size,fh,fw,4))
+
+                pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
+                # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
+                preds.append(pred_boxes)
+                
+
             target_cls.append(t_cls.view(batch_size, -1))
             target_regs.append(t_regs.view(batch_size,-1,4))
 
             ignore.append(ig.view(batch_size,-1))
 
+        preds = torch.cat(preds, dim=1)
         cls_logits = torch.cat(cls_logits, dim=1)
         reg_logits = torch.cat(reg_logits, dim=1)
         target_cls = torch.cat(target_cls, dim=1)
@@ -257,8 +268,14 @@ class LFFD(nn.Module):
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
+        loss = cls_loss + reg_loss
 
-        return cls_loss + reg_loss
+        pred_boxes:List = []
+        for i in range(batch_size):
+            pick = preds[i][:, 4] > 0.01
+            pred_boxes.append(preds[i][pick])
+
+        return {'loss':loss, 'preds': pred_boxes, 'gts': gt_boxes}
 
     def configure_optimizers(self):
         return torch.optim.SGD(
