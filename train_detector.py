@@ -29,12 +29,14 @@ def parse_arguments():
     ap.add_argument('--weight-decay', '-wd', type=float, default=0)
 
     ap.add_argument('--target-size', '-t', type=int, default=640)
-    
+
     ap.add_argument('--train-ds', '-tds',type=str,
         default="widerface", choices=get_available_datasets())
 
     ap.add_argument('--val-ds', '-vds', type=str,
         default="widerface-easy", choices=get_available_datasets())
+
+    ap.add_argument(('--devices', '-d', ))
 
     ap.add_argument('--debug','-d',action='store_true')
 
@@ -42,16 +44,16 @@ def parse_arguments():
 
 def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None, **kwargs):
     ds = get_dataset(dataset_name, phase=phase, transforms=transforms, **kwargs)
-    
+
     def collate_fn(data):
         imgs,gt_boxes = zip(*data)
         batch = torch.stack(imgs, dim=0)
         return batch,gt_boxes
-    
+
     num_workers = max(int(batch_size / 8),1)
 
     return DataLoader(ds, batch_size=batch_size, shuffle=phase=='train', pin_memory=True,
-        num_workers=4, collate_fn=collate_fn)
+        num_workers=num_workers, collate_fn=collate_fn)
 
 
 if __name__ == '__main__':
