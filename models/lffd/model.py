@@ -231,7 +231,7 @@ class LFFD(nn.Module):
                 pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
                 # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
                 preds.append(pred_boxes)
-                
+
 
             target_cls.append(t_cls.view(batch_size, -1))
             target_regs.append(t_regs.view(batch_size,-1,4))
@@ -273,7 +273,7 @@ class LFFD(nn.Module):
         pred_boxes:List = []
         for i in range(batch_size):
             sorted_preds = preds[i][:, 4].argsort(descending=True)
-            pred_boxes.append(preds[i,sorted_preds,:][:200,:].cpu())
+            pred_boxes.append(preds[i,sorted_preds,:][:1000,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()

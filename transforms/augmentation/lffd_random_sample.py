@@ -85,6 +85,11 @@ class LFFDRandomSample():
             np.bitwise_and(cboxes_x > low_w, cboxes_x < high_w),
             np.bitwise_and(cboxes_y > low_h, cboxes_y < high_h))
 
+        if y1-offset_h_1 <= y2+offset_h_2 or x1-offset_w_1 <= x2+offset_w_2:
+            img,boxes = self.interpolate(img,boxes)
+            img,boxes = self.padding(img,boxes)
+            return img,boxes
+
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
 
         aimg = cv2.resize(aimg,None,fx=sf,fy=sf)

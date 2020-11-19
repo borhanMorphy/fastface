@@ -53,7 +53,7 @@ class DetectionHead(nn.Module):
         Args:
             reg_logits (torch.Tensor): bs,fh,fw,4
 
-        Returns: 
+        Returns:
             pred_boxes (torch.Tensor): bs,fh,fw,4 as xmin,ymin,xmax,ymax
         """
         fh,fw = reg_logits.shape[1:3]

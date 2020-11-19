@@ -52,7 +52,7 @@ def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None, **
         batch = torch.stack(imgs, dim=0)
         return batch,gt_boxes
 
-    num_workers = max(int(batch_size / 8),1)
+    num_workers = max(int(batch_size / 4),1)
 
     return DataLoader(ds, batch_size=batch_size, shuffle=phase=='train', pin_memory=True,
         num_workers=num_workers if phase=='train' else 1,
