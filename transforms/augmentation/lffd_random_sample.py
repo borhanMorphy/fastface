@@ -86,7 +86,9 @@ class LFFDRandomSample():
             np.bitwise_and(cboxes_y > low_h, cboxes_y < high_h))
 
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
+
         aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
+
         aimg = aimg[:self.target_size[1], : self.target_size[0]]
 
         boxes[:, [0,2]] = boxes[:, [0,2]] - (x1 - offset_w_1)

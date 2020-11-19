@@ -48,6 +48,29 @@ class DetectionHead(nn.Module):
 
         self.matcher = LFFDMatcher(lower_scale,upper_scale)
 
+    def apply_bbox_regression(self, reg_logits:torch.Tensor) -> torch.Tensor:
+        """Applies bounding box regression using regression logits
+        Args:
+            reg_logits (torch.Tensor): bs,fh,fw,4
+
+        Returns: 
+            pred_boxes (torch.Tensor): bs,fh,fw,4 as xmin,ymin,xmax,ymax
+        """
+        fh,fw = reg_logits.shape[1:3]
+
+        rf_anchors = self.gen_rf_anchors(fh,fw,
+            device=reg_logits.device,
+            dtype=reg_logits.dtype)
+        # rf_anchors: fh,fw,4
+        rf_normalizer = self.rf_size/2
+        pred_boxes = rf_anchors - reg_logits*rf_normalizer
+        #pred_boxes[:, :, : 1] = rf_anchors[:, :, 1] - (rf_normalizer*reg_logits[:, :, :, 1])
+        #pred_boxes[:, :, : 2] = rf_anchors[:, :, 2] - (rf_normalizer*reg_logits[:, :, :, 2])
+        #pred_boxes[:, :, : 3] = rf_anchors[:, :, 3] - (rf_normalizer*reg_logits[:, :, :, 3])
+
+        return pred_boxes
+
+
     def gen_rf_anchors(self, fmaph:int, fmapw:int, device:str='cpu',
             dtype:torch.dtype=torch.float32, clip:bool=False) -> torch.Tensor:
         """takes feature map h and w and reconstructs rf anchors as tensor

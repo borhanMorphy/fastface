@@ -191,6 +191,95 @@ class LFFD(nn.Module):
 
         return cls_loss + reg_loss
 
+    def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
+            batch_idx:int) -> Dict:
+
+        imgs,gt_boxes = batch
+
+        device = imgs.device
+        dtype = imgs.dtype
+        batch_size = imgs.size(0)
+        ratio = 10
+
+        cls_logits,reg_logits = self(imgs)
+
+        target_cls:List = []
+        target_regs:List = []
+
+        target_objectness_mask:List = []
+        target_reg_mask:List = []
+        ignore:List = []
+        preds:List = []
+
+        for i in range(len(self.heads)):
+            # *for each head
+            fh,fw = cls_logits[i].shape[2:]
+
+            t_cls,t_regs,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
+            # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
+            # t_regs         : bs,fh',fw',4    | type: model.dtype          | device: model.device
+            # ig             : bs,fh',fw'      | type: torch.bool           | device: model.device
+
+            cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
+            reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
+
+            with torch.no_grad():
+                scores = torch.sigmoid(cls_logits[i].view(batch_size,fh,fw,1))
+                pred_boxes = self.heads[i].apply_bbox_regression(
+                    reg_logits[i].view(batch_size,fh,fw,4))
+
+                pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
+                # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
+                preds.append(pred_boxes)
+                
+
+            target_cls.append(t_cls.view(batch_size, -1))
+            target_regs.append(t_regs.view(batch_size,-1,4))
+
+            ignore.append(ig.view(batch_size,-1))
+
+        preds = torch.cat(preds, dim=1)
+        cls_logits = torch.cat(cls_logits, dim=1)
+        reg_logits = torch.cat(reg_logits, dim=1)
+        target_cls = torch.cat(target_cls, dim=1)
+        target_regs = torch.cat(target_regs, dim=1)
+        ignore = torch.cat(ignore, dim=1)
+
+        pos_mask = (target_cls == 1) & (~ignore)
+        neg_mask = (target_cls == 0) & (~ignore)
+
+        positives = pos_mask.sum()
+        negatives = neg_mask.sum()
+        negatives = min(negatives,ratio*positives)
+
+        # TODO change here to OHMN
+        neg_mask = neg_mask.view(-1)
+        ss, = torch.where(neg_mask)
+        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
+        neg_mask[:] = False
+        neg_mask[selections] = True
+        neg_mask = neg_mask.view(batch_size,-1)
+        negatives = neg_mask.sum()
+        ###########################
+
+        cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
+
+        reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
+
+        assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
+        loss = cls_loss + reg_loss
+
+        pred_boxes:List = []
+        for i in range(batch_size):
+            sorted_preds = preds[i][:, 4].argsort(descending=True)
+            pred_boxes.append(preds[i,sorted_preds,:][:200,:].cpu())
+
+        gt_boxes = [box.cpu() for box in gt_boxes]
+        loss = loss.item()
+
+        return {'loss':loss, 'preds': pred_boxes, 'gts': gt_boxes}
+
     def configure_optimizers(self):
         return torch.optim.SGD(
             self.parameters(),
