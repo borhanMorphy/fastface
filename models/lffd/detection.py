@@ -66,10 +66,10 @@ class DetectionHead(nn.Module):
         #pred_boxes = rf_anchors - reg_logits*rf_normalizer
         pred_boxes = reg_logits.clone()
 
-        pred_boxes[:, :, : 0] = rf_anchors[:, :, 0] - (rf_normalizer*reg_logits[:, :, :, 0])
-        pred_boxes[:, :, : 1] = rf_anchors[:, :, 1] - (rf_normalizer*reg_logits[:, :, :, 1])
-        pred_boxes[:, :, : 2] = rf_anchors[:, :, 2] - (rf_normalizer*reg_logits[:, :, :, 2])
-        pred_boxes[:, :, : 3] = rf_anchors[:, :, 3] - (rf_normalizer*reg_logits[:, :, :, 3])
+        pred_boxes[:, :, :, 0] = rf_anchors[:, :, 0] - (rf_normalizer*reg_logits[:, :, :, 0])
+        pred_boxes[:, :, :, 1] = rf_anchors[:, :, 1] - (rf_normalizer*reg_logits[:, :, :, 1])
+        pred_boxes[:, :, :, 2] = rf_anchors[:, :, 2] - (rf_normalizer*reg_logits[:, :, :, 2])
+        pred_boxes[:, :, :, 3] = rf_anchors[:, :, 3] - (rf_normalizer*reg_logits[:, :, :, 3])
 
         return pred_boxes
 
