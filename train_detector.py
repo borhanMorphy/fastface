@@ -32,7 +32,6 @@ def parse_arguments():
     ap.add_argument('--target-size', '-t', type=int, default=640)
     ap.add_argument('--device','-d',type=str,
         default='cuda' if torch.cuda.is_available() else 'cpu', choices=['cpu','cuda'])
-    ap.add_argument('--precision', '-p', type=int, default=32, choices=[16,32])
 
     ap.add_argument('--train-ds', '-tds',type=str,
         default="widerface", choices=get_available_datasets())
@@ -89,8 +88,7 @@ if __name__ == '__main__':
     }
 
     trainer = pl.Trainer(gpus=1 if args.device=='cuda' else 0,
-        accumulate_grad_batches=args.accumulation,
-        precision=args.precision)
+        accumulate_grad_batches=args.accumulation)
 
     detector = LightFaceDetector.build("lffd", metric_names=['ap'], hyp=hyp, debug=args.debug)
 
