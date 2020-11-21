@@ -64,8 +64,8 @@ class DetectionHead(nn.Module):
         # rf_anchors: fh,fw,4
         rf_normalizer = self.rf_size/2
         rf_centers = rf_anchors[:, : , :2]
-        rf_centers[: ,: , 0] = rf_anchors[:, : , 2] - rf_anchors[:, : , 0]
-        rf_centers[: ,: , 1] = rf_anchors[:, : , 3] - rf_anchors[:, : , 1]
+        rf_centers[: ,: , 0] = (rf_anchors[:, : , 0] + rf_anchors[:, : , 2]) / 2
+        rf_centers[: ,: , 1] = (rf_anchors[:, : , 1] + rf_anchors[:, : , 3]) / 2
 
         pred_boxes = reg_logits.clone()
 
