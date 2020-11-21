@@ -269,11 +269,10 @@ class LFFD(nn.Module):
 
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
         loss = cls_loss + reg_loss
-
         pred_boxes:List = []
         for i in range(batch_size):
-            th = preds[i,:,4] > 0.1
-            pred_boxes.append(preds[i,th,:][:200,:].cpu())
+            select = preds[i,:,4].argsort(descending=True)
+            pred_boxes.append(preds[i,select,:][:200,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()

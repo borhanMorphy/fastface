@@ -17,13 +17,14 @@ class LFFDMatcher():
         su_range = (su, int(math.ceil(su * 1.1)))
         return sl_range,su_range
 
-    def __call__(self, rf_anchors:torch.Tensor, gt_boxes:torch.Tensor, device:str='cpu',
-            dtype:torch.dtype=torch.float32) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
+    def __call__(self, rf_anchors:torch.Tensor, gt_boxes:torch.Tensor, rf_norm_value:float,
+            device:str='cpu', dtype:torch.dtype=torch.float32) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
         """Matches given receptive field centers and ground truth boxes
 
         Args:
             rf_anchors (torch.Tensor): fh,fw,4 as x1,y1,x2,y2
             gt_boxes (torch.Tensor): N,4 as x1,y1,x2,y2
+            rf_norm_value (float): rf size / 2
             device (str): {cpu:cuda}
             dtype (torch.dtype): torch.float32
 
@@ -64,7 +65,6 @@ class LFFDMatcher():
         gt_ignore_box_ids, = torch.where(lower_ignore_cond | upper_ignore_cond)
 
         rf_centers = (rf_anchors[:,:, [0,1]] + rf_anchors[:,:, [2,3]]) / 2
-        rf_norm_value = (rf_anchors[0,0,2] - rf_anchors[0,0,0]) / 2
 
         # lets match
         for box_idx,(x1,y1,x2,y2) in enumerate(s_gt_boxes):
@@ -88,6 +88,7 @@ class LFFDMatcher():
             cls_mask[match] = True
 
             # set reg targets)
+
             reg_targets[match, [0]] = (rf_centers[match, [0]] - x1) / rf_norm_value
             reg_targets[match, [1]] = (rf_centers[match, [1]] - y1) / rf_norm_value
             reg_targets[match, [2]] = (rf_centers[match, [0]] - x2) / rf_norm_value

@@ -63,9 +63,8 @@ class DetectionHead(nn.Module):
             dtype=reg_logits.dtype, clip=True)
         # rf_anchors: fh,fw,4
         rf_normalizer = self.rf_size/2
-        rf_centers = rf_anchors[:, : , :2]
-        rf_centers[: ,: , 0] = (rf_anchors[:, : , 0] + rf_anchors[:, : , 2]) / 2
-        rf_centers[: ,: , 1] = (rf_anchors[:, : , 1] + rf_anchors[:, : , 3]) / 2
+
+        rf_centers = (rf_anchors[:,:, [0,1]] + rf_anchors[:,:, [2,3]]) / 2
 
         pred_boxes = reg_logits.clone()
 
@@ -145,7 +144,7 @@ class DetectionHead(nn.Module):
         for i in range(batch_size):
             
             cls_mask,reg_targets,ignore_mask = self.matcher(rf_anchors,
-                gt_boxes[i], device=device, dtype=dtype)
+                gt_boxes[i], self.rf_size/2, device=device, dtype=dtype)
 
             t_cls[i, cls_mask] = 1
 
