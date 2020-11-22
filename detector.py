@@ -29,10 +29,10 @@ class LightFaceDetector(pl.LightningModule):
         preds = []
         gts = []
         losses = []
-        for val_output in val_outputs:
-            preds += val_output['preds']
-            gts += val_output['gts']
-            losses += val_outputs['loss']
+        for output in val_outputs:
+            preds += output['preds']
+            gts += output['gts']
+            losses += output['loss']
         ap_score = calculate_AP(preds, gts)
         print(f"loss: {sum(losses)/len(losses)} ,AP=0.5 score: {ap_score*100}")
 
