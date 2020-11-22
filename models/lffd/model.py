@@ -226,7 +226,7 @@ class LFFD(nn.Module):
 
             with torch.no_grad():
                 # TODO checkout here
-                scores = 1 - torch.sigmoid(cls_logits[i].view(batch_size,fh,fw,1))
+                scores = torch.sigmoid(cls_logits[i].view(batch_size,fh,fw,1))
                 pred_boxes = self.heads[i].apply_bbox_regression(
                     reg_logits[i].view(batch_size,fh,fw,4))
 
