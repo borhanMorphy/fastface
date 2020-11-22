@@ -26,6 +26,11 @@ class LightFaceDetector(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self.model.validation_step(batch,batch_idx)
 
+    def validation_step_end(self, val_step_output):
+        print(val_step_output)
+        exit(0)
+        return 0
+
     def validation_epoch_end(self, val_outputs:List):
         print(len(val_outputs))
         for val_output in val_outputs:
