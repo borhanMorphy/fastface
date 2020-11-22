@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.ops import boxes as box_ops
 
 from typing import Tuple,List,Dict
 from .conv import conv_layer
@@ -271,8 +272,11 @@ class LFFD(nn.Module):
         loss = cls_loss + reg_loss
         pred_boxes:List = []
         for i in range(batch_size):
-            select = preds[i,:,4].argsort(descending=True)
-            pred_boxes.append(preds[i,select,:][:200,:].cpu())
+            th = preds[i,:,4] > 0.1
+            pick = box_ops.nms(preds[i,th,:4], preds[i,th,4], .3)
+            selected_boxes = preds[i,pick,:]
+            orders = selected_boxes[:, 4].argsort(descending=True)
+            pred_boxes.append(predselected_boxes[orders,:][:200,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()
