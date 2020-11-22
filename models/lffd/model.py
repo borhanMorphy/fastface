@@ -281,7 +281,13 @@ class LFFD(nn.Module):
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()
 
-        return {'loss':loss, 'preds': pred_boxes, 'gts': gt_boxes}
+        return {
+            'loss':loss,
+            'cls_loss':cls_loss.item(),
+            'reg_loss':reg_loss.item(),
+            'preds': pred_boxes,
+            'gts': gt_boxes
+        }
 
     def configure_optimizers(self):
         return torch.optim.SGD(

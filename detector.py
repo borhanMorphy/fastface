@@ -37,16 +37,22 @@ class LightFaceDetector(pl.LightningModule):
         return step_outputs
 
     def validation_epoch_end(self, val_outputs:List):
-        print("\nlen val_outputs: ",len(val_outputs))
         preds = []
         gts = []
         losses = []
+        reg_losses = []
+        cls_losses = []
         for output in val_outputs:
             preds += output['preds']
             gts += output['gts']
             losses.append(output['loss'])
+            cls_losses.append(output['cls_loss'])
+            reg_losses.append(output['reg_loss'])
         ap_score = calculate_AP(preds, gts)
-        print(f"loss: {sum(losses)/len(losses)} ,AP=0.5 score: {ap_score*100}")
+        loss = sum(losses)/len(losses)
+        cls_loss = sum(cls_loss)/len(cls_loss)
+        reg_loss = sum(reg_loss)/len(reg_loss)
+        print(f"loss: {loss} cls loss: {cls_loss}, reg loss: {reg_loss} ,AP=0.5 score: {ap_score*100}")
 
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch,batch_idx)
