@@ -25,7 +25,7 @@ def parse_arguments():
     ap.add_argument('--epochs', '-e', type=int, default=50)
     ap.add_argument('--verbose', '-vb', type=int, default=8)
     ap.add_argument('--seed', '-s', type=int, default=-1)
-    ap.add_argument('--learning-rate', '-lr', type=float, default=1e-2)
+    ap.add_argument('--learning-rate', '-lr', type=float, default=1e-1)
     ap.add_argument('--momentum', '-m', type=float, default=.9)
     ap.add_argument('--weight-decay', '-wd', type=float, default=0)
 
@@ -98,6 +98,8 @@ if __name__ == '__main__':
     val_dl = generate_dl(args.val_ds, "val",
         args.batch_size, transforms=val_transforms)
 
-    trainer.fit(detector,
-        train_dataloader=train_dl,
-        val_dataloaders=val_dl)
+    #trainer.fit(detector,
+    #    train_dataloader=train_dl,
+    #    val_dataloaders=val_dl)
+
+    trainer.test(detector, val_dl)
