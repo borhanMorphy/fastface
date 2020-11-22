@@ -60,11 +60,13 @@ class DetectionHead(nn.Module):
 
         rf_anchors = self.gen_rf_anchors(fh,fw,
             device=reg_logits.device,
-            dtype=reg_logits.dtype, clip=True)
+            dtype=reg_logits.dtype)
         # rf_anchors: fh,fw,4
         rf_normalizer = self.rf_size/2
+        assert fh == rf_anchors.size(0)
+        assert fw == rf_anchors.size(1)
 
-        rf_centers = (rf_anchors[:,:, [0,1]] + rf_anchors[:,:, [2,3]]) / 2
+        rf_centers = (rf_anchors[:,:, :2] + rf_anchors[:,:, 2:]) / 2
 
         pred_boxes = reg_logits.clone()
 
@@ -138,7 +140,7 @@ class DetectionHead(nn.Module):
         ignore = torch.zeros(*(batch_size,fh,fw), dtype=torch.bool, device=device)
 
         # TODO cache rf anchors
-        rf_anchors = self.gen_rf_anchors(fh, fw, device=device, dtype=dtype, clip=True)
+        rf_anchors = self.gen_rf_anchors(fh, fw, device=device, dtype=dtype)
 
         # rf_anchors: fh x fw x 4 as xmin,ymin,xmax,ymax
         for i in range(batch_size):

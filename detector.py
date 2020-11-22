@@ -5,6 +5,9 @@ import torch
 from typing import List,Dict
 from utils.metric import calculate_AP
 
+import numpy as np
+from cv2 import cv2
+
 class LightFaceDetector(pl.LightningModule):
     def __init__(self, model, metrics:List=[]):
         super().__init__()
@@ -22,7 +25,19 @@ class LightFaceDetector(pl.LightningModule):
             metric.reset()
 
     def validation_step(self, batch, batch_idx):
-        return self.model.validation_step(batch,batch_idx)
+        step_outputs = self.model.validation_step(batch,batch_idx)
+        preds = step_outputs['preds']
+        gts = step_outputs['gts']
+        imgs,gt_boxes = batch
+        for img in imgs:
+            nimg = (img*127.5 + 127.5).permute(1,2,0).cpu().numpy().astype(np.uint8)
+            #nimg = cv2.UMat(nimg).get()
+            nimg = cv2.cvtColor(nimg, cv2.COLOR_RGB2BGR)
+            print(gts[0].long())
+            print(preds[0].long())
+            cv2.imshow("",nimg)
+            cv2.waitKey(0)
+        return step_outputs
 
     def validation_epoch_end(self, val_outputs:List):
         print("\nlen val_outputs: ",len(val_outputs))
