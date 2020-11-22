@@ -30,9 +30,9 @@ class LightFaceDetector(pl.LightningModule):
         gts = step_outputs['gts']
         imgs,gt_boxes = batch
         for gt,pred in zip(gts,preds):
-            print(gt.long())
+            print("gt: ",gt.long())
             pred[:,:4] = pred[:,:4].long().float()
-            print(pred[:5,:])
+            print("pred: ",pred[0,:])
 
         return step_outputs
 

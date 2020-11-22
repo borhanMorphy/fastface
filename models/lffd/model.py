@@ -272,9 +272,9 @@ class LFFD(nn.Module):
         loss = cls_loss + reg_loss
         pred_boxes:List = []
         for i in range(batch_size):
-            th = preds[i,:,4] > 0.1
-            pick = box_ops.nms(preds[i,th,:4], preds[i,th,4], .3)
-            selected_boxes = preds[i,pick,:]
+            selected_boxes = preds[i, preds[i,:,4] > 0.1, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .3)
+            selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
             pred_boxes.append(selected_boxes[orders,:][:200,:].cpu())
 
