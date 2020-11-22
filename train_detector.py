@@ -98,8 +98,6 @@ if __name__ == '__main__':
     val_dl = generate_dl(args.val_ds, "val",
         args.batch_size, transforms=val_transforms)
 
-    #trainer.fit(detector,
-    #    train_dataloader=train_dl,
-    #    val_dataloaders=val_dl)
-
-    trainer.test(detector, val_dl)
+    trainer.fit(detector,
+        train_dataloader=train_dl,
+        val_dataloaders=val_dl)
