@@ -50,8 +50,8 @@ class LightFaceDetector(pl.LightningModule):
             reg_losses.append(output['reg_loss'])
         ap_score = calculate_AP(preds, gts)
         loss = sum(losses)/len(losses)
-        cls_loss = sum(cls_loss)/len(cls_loss)
-        reg_loss = sum(reg_loss)/len(reg_loss)
+        cls_loss = sum(cls_losses)/len(cls_losses)
+        reg_loss = sum(reg_losses)/len(reg_losses)
         print(f"loss: {loss} cls loss: {cls_loss}, reg loss: {reg_loss} ,AP=0.5 score: {ap_score*100}")
 
     def test_step(self, batch, batch_idx):
