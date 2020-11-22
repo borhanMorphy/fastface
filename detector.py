@@ -26,15 +26,6 @@ class LightFaceDetector(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         step_outputs = self.model.validation_step(batch,batch_idx)
-        """
-        preds = step_outputs['preds']
-        gts = step_outputs['gts']
-        imgs,gt_boxes = batch
-        for gt,pred in zip(gts,preds):
-            print("gt: ",gt.long())
-            pred[:,:4] = pred[:,:4].long().float()
-            print("pred: ",pred[0,:])
-        """
         return step_outputs
 
     def validation_epoch_end(self, val_outputs:List):

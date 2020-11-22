@@ -225,6 +225,7 @@ class LFFD(nn.Module):
             reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
 
             with torch.no_grad():
+                # TODO checkout here
                 scores = 1 - torch.sigmoid(cls_logits[i].view(batch_size,fh,fw,1))
                 pred_boxes = self.heads[i].apply_bbox_regression(
                     reg_logits[i].view(batch_size,fh,fw,4))
@@ -272,12 +273,11 @@ class LFFD(nn.Module):
         loss = cls_loss + reg_loss
         pred_boxes:List = []
         for i in range(batch_size):
-            print(preds[i, pos_mask[i], :], gt_boxes[i])
             selected_boxes = preds[i, preds[i,:,4] > 0.1, :]
             pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .3)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:2000,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:200,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()
