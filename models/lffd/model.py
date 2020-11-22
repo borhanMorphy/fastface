@@ -276,7 +276,7 @@ class LFFD(nn.Module):
             pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .3)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:200,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:2000,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
         loss = loss.item()
