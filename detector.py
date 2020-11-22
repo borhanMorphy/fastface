@@ -32,7 +32,7 @@ class LightFaceDetector(pl.LightningModule):
         for gt,pred in zip(gts,preds):
             print(gt.long())
             pred[:,:4] = pred[:,:4].long().float()
-            print(pred)
+            print(pred[:5,:])
 
         return step_outputs
 
