@@ -194,10 +194,11 @@ class LFFD(nn.Module):
         # cls_loss: batch_size,fh*fw
         # *OHNM
         ###########################
-        for i,_n_mask in enumerate(neg_mask):
-            pick = box_ops.nms(rfs[_n_mask], cls_loss[i, _n_mask], 0.3)
-            neg_mask[i,:] = False
-            neg_mask[i,pick] = True
+        with torch.no_grad():
+            for i,_n_mask in enumerate(neg_mask):
+                pick = box_ops.nms(rfs[_n_mask], cls_loss[i, _n_mask].detach(), 0.3)
+                neg_mask[i,:] = False
+                neg_mask[i,pick] = True
 
         negatives = min(neg_mask.sum(),negatives)
 
