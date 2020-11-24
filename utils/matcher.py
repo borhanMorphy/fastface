@@ -60,8 +60,8 @@ class LFFDMatcher():
 
         # lookup ignores
         face_scales = face_scales[gt_select_cond]
-        lower_ignore_cond = (face_scales >= self.gsl_range[0]) & (face_scales <= self.gsl_range[1])
-        upper_ignore_cond = (face_scales >= self.gsu_range[0]) & (face_scales <= self.gsu_range[1])
+        lower_ignore_cond = (face_scales >= self.gsl_range[0]) & (face_scales < self.gsl_range[1])
+        upper_ignore_cond = (face_scales > self.gsu_range[0]) & (face_scales <= self.gsu_range[1])
         gt_ignore_box_ids, = torch.where(lower_ignore_cond | upper_ignore_cond)
 
         rf_centers = (rf_anchors[:,:, [0,1]] + rf_anchors[:,:, [2,3]]) / 2
