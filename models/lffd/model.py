@@ -153,7 +153,7 @@ class LFFD(nn.Module):
 
             # TODO use cache
             h_rfs = self.heads[i].gen_rf_anchors(fh, fw, device=device, dtype=dtype, clip=True)
-            rfs.append(h_rfs.view(-1,4).repeat(batch_size,1,1))
+            rfs.append(h_rfs.view(-1,4))
             # List[ (fh*fw,4) ] 
 
             target_cls.append(t_cls.view(batch_size, -1))
@@ -166,7 +166,7 @@ class LFFD(nn.Module):
         target_cls = torch.cat(target_cls, dim=1)
         target_regs = torch.cat(target_regs, dim=1)
         ignore = torch.cat(ignore, dim=1)
-        rfs = torch.cat(rfs,dim=1)
+        rfs = torch.cat(rfs,dim=0)
 
         pos_mask = (target_cls == 1) & (~ignore)
         neg_mask = (target_cls == 0) & (~ignore)
@@ -188,18 +188,25 @@ class LFFD(nn.Module):
         """
         ###########################
 
-        pos_cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask], target_cls[pos_mask], reduction='none')
+        cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits, target_cls, reduction='none')
 
-        neg_cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[neg_mask], target_cls[neg_mask], reduction='none')
-
+        # cls_loss: batch_size,fh*fw
         # *OHNM
         ###########################
-        neg_cls_loss = neg_cls_loss[neg_cls_loss.argsort(descending=True)][:negatives]
+        for i,_n_mask in enumerate(neg_mask):
+            pick = box_ops.nms(rfs[_n_mask], cls_loss[i, _n_mask], 0.3)
+            neg_mask[i,:] = False
+            neg_mask[i,pick] = True
 
-        # TODO add nms using rfs if needed
-        cls_loss = torch.cat([pos_cls_loss,neg_cls_loss]).mean()
+        negatives = min(neg_mask.sum(),negatives)
+
+        pos_cls_loss = cls_loss[pos_mask]
+        neg_cls_loss = cls_loss[neg_mask]
+
+        _,n_ids = neg_cls_loss.topk(negatives)
+
+        cls_loss = torch.cat([pos_cls_loss,neg_cls_loss[n_ids]]).mean()
 
         ###########################
 
