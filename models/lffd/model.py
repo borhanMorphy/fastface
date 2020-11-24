@@ -180,23 +180,11 @@ class LFFD(nn.Module):
 
             # sort negative samples using negative losses and select samples
             _selected_neg_loss_ids = _ref_neg_mask[_neg_sort][:negatives]
-            # TODO must show selected negative ids
-            print("_selected_neg_loss_ids: ",_selected_neg_loss_ids)
             neg_mask = neg_mask.view(-1)
             neg_mask[:] = False
             neg_mask[_selected_neg_loss_ids] = True
-            neg_mask = neg_mask.view(-1,fh,fw)
+            neg_mask = neg_mask.view(batch_size,-1)
             assert neg_mask.sum() == negatives,"after OHNM negative counts do not match"
-        ###########################
-
-        # TODO change here to OHMN
-        #neg_mask = neg_mask.view(-1)
-        #ss, = torch.where(neg_mask)
-        #selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
-        #neg_mask[:] = False
-        #neg_mask[selections] = True
-        #neg_mask = neg_mask.view(batch_size,-1)
-        #negatives = neg_mask.sum()
         ###########################
 
         cls_loss = F.binary_cross_entropy_with_logits(
@@ -288,22 +276,11 @@ class LFFD(nn.Module):
             # sort negative samples using negative losses and select samples
             _selected_neg_loss_ids = _ref_neg_mask[_neg_sort][:negatives]
             # TODO must show selected negative ids
-            print("_selected_neg_loss_ids: ",_selected_neg_loss_ids)
             neg_mask = neg_mask.view(-1)
             neg_mask[:] = False
             neg_mask[_selected_neg_loss_ids] = True
-            neg_mask = neg_mask.view(-1,fh,fw)
+            neg_mask = neg_mask.view(batch_size,-1)
             assert neg_mask.sum() == negatives,"after OHNM negative counts do not match"
-        ###########################
-
-        # TODO change here to OHMN
-        #neg_mask = neg_mask.view(-1)
-        #ss, = torch.where(neg_mask)
-        #selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
-        #neg_mask[:] = False
-        #neg_mask[selections] = True
-        #neg_mask = neg_mask.view(batch_size,-1)
-        #negatives = neg_mask.sum()
         ###########################
 
         cls_loss = F.binary_cross_entropy_with_logits(
