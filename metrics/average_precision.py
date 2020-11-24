@@ -19,7 +19,7 @@ class AveragePrecision(Metric):
         Arguments:
             preds {List} -- [Ni,5 dimensional as xmin,ymin,xmax,ymax,conf]
             targets {List} -- [Ni,4 dimensional as xmin,ymin,xmax,ymax]
-        
+
         """
         self.pred_boxes += preds
         self.gt_boxes += targets

@@ -81,6 +81,7 @@ class LFFDRandomSample():
         cboxes_x = (boxes[:, 0] + boxes[:, 2]) // 2
         cboxes_y = (boxes[:, 1] + boxes[:, 3]) // 2
 
+        # TODO handle here
         center_mask = np.bitwise_and(
             np.bitwise_and(cboxes_x > low_w, cboxes_x < high_w),
             np.bitwise_and(cboxes_y > low_h, cboxes_y < high_h))

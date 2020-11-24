@@ -44,11 +44,15 @@ class LightFaceDetector(pl.LightningModule):
         loss = sum(losses)/len(losses)
         cls_loss = sum(cls_losses)/len(cls_losses)
         reg_loss = sum(reg_losses)/len(reg_losses)
-        print(f"loss: {loss} cls loss: {cls_loss}, reg loss: {reg_loss} ,AP=0.5 score: {ap_score*100}")
+        ap_score = ap_score*100
+        print(f"loss: {loss} | cls loss: {cls_loss} | reg loss: {reg_loss} | AP=0.5 score: {ap_score}")
+        self.log('val_loss', loss)
+        self.log('val_ap', ap_score)
+
 
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch,batch_idx)
-    
+
     def test_epoch_end(self, test_outputs:List):
         return self.validation_epoch_end(test_outputs)
 
