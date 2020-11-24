@@ -7,6 +7,7 @@ Face detection implementation using [pytorch-lightning](https://www.pytorchlight
 - [x] add checkpoint support
 - [x] add widerface dataset support
 - [ ] add FDDB dataset support
+- [ ] add LR Scheduler
 - [x] add detector train loop
 - [x] add detector val loop
 - [ ] add detector test loop

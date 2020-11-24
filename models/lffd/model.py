@@ -291,11 +291,18 @@ class LFFD(nn.Module):
         }
 
     def configure_optimizers(self):
-        return torch.optim.SGD(
+        optimizer = torch.optim.SGD(
             self.parameters(),
             lr=self.hyp.get('learning_rate',1e-2),
             momentum=self.hyp.get('momentum',0.9),
             weight_decay=self.hyp.get('weight_decay',0))
+
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer,
+            milestones=[600000, 1000000, 1200000, 1400000],
+            gamma=0.1)
+
+        return [optimizer], [lr_scheduler]
 
 def debug(imgs, gt_boxes, debug_fmap, heads, pos_mask, neg_mask, ignore):
     for i,img in enumerate(imgs):
