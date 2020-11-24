@@ -129,6 +129,7 @@ class LFFD(nn.Module):
         target_objectness_mask:List = []
         target_reg_mask:List = []
         ignore:List = []
+        rfs:List = []
 
         debug_fmap = [] # ? Debug
         current = 0
@@ -150,6 +151,11 @@ class LFFD(nn.Module):
             cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
             reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
 
+            # TODO use cache
+            h_rfs = self.heads[i].gen_rf_anchors(fh, fw, device=device, dtype=dtype, clip=True)
+            rfs.append(h_rfs.view(-1,4).repeat(batch_size,1,1))
+            # List[ (fh*fw,4) ] 
+
             target_cls.append(t_cls.view(batch_size, -1))
             target_regs.append(t_regs.view(batch_size,-1,4))
 
@@ -160,6 +166,7 @@ class LFFD(nn.Module):
         target_cls = torch.cat(target_cls, dim=1)
         target_regs = torch.cat(target_regs, dim=1)
         ignore = torch.cat(ignore, dim=1)
+        rfs = torch.cat(rfs,dim=1)
 
         pos_mask = (target_cls == 1) & (~ignore)
         neg_mask = (target_cls == 0) & (~ignore)
@@ -181,12 +188,19 @@ class LFFD(nn.Module):
         """
         ###########################
 
-        cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask], reduction='none')
+        pos_cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[pos_mask], target_cls[pos_mask], reduction='none')
+
+        neg_cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[neg_mask], target_cls[neg_mask], reduction='none')
 
         # *OHNM
         ###########################
-        cls_loss = cls_loss[cls_loss.argsort(descending=True)][:negatives].mean()
+        neg_cls_loss = neg_cls_loss[neg_cls_loss.argsort(descending=True)][:negatives]
+
+        # TODO add nms using rfs if needed
+        cls_loss = torch.cat([pos_cls_loss,neg_cls_loss]).mean()
+
         ###########################
 
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
