@@ -113,7 +113,8 @@ class LFFD(nn.Module):
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int) -> torch.Tensor:
-
+        #if batch_idx < 2:
+        #    return torch.tensor(0., requires_grad=True)
         imgs,gt_boxes = batch
 
         device = imgs.device
@@ -131,7 +132,7 @@ class LFFD(nn.Module):
         ignore:List = []
         rfs:List = []
 
-        debug_fmap = [] # ? Debug
+        debug_fmaps = [] # ? Debug
         current = 0
 
         for i in range(len(self.heads)):
@@ -141,7 +142,7 @@ class LFFD(nn.Module):
             # ? Debug
             start = current
             current += (fh*fw)
-            debug_fmap.append((fh,fw,start))
+            debug_fmaps.append((fh,fw,start))
 
             t_cls,t_regs,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
             # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
@@ -166,7 +167,7 @@ class LFFD(nn.Module):
         target_cls = torch.cat(target_cls, dim=1)
         target_regs = torch.cat(target_regs, dim=1)
         ignore = torch.cat(ignore, dim=1)
-        rfs = torch.cat(rfs,dim=0)
+        #rfs = torch.cat(rfs,dim=0)
 
         pos_mask = (target_cls == 1) & (~ignore)
         neg_mask = (target_cls == 0) & (~ignore)
@@ -177,7 +178,6 @@ class LFFD(nn.Module):
 
         # *Random sample selection
         ############################
-        """
         neg_mask = neg_mask.view(-1)
         ss, = torch.where(neg_mask)
         selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
@@ -185,37 +185,17 @@ class LFFD(nn.Module):
         neg_mask[selections] = True
         neg_mask = neg_mask.view(batch_size,-1)
         negatives = neg_mask.sum()
-        """
-        ###########################
+        ############################
 
         cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits, target_cls, reduction='none')
-
-        # cls_loss: batch_size,fh*fw
-        # *OHNM
-        ###########################
-        with torch.no_grad():
-            for i,_n_mask in enumerate(neg_mask):
-                pick = box_ops.nms(rfs[_n_mask], cls_loss[i, _n_mask].detach(), 0.3)
-                neg_mask[i,:] = False
-                neg_mask[i,pick] = True
-
-        negatives = min(neg_mask.sum(),negatives)
-
-        pos_cls_loss = cls_loss[pos_mask]
-        neg_cls_loss = cls_loss[neg_mask]
-
-        _,n_ids = neg_cls_loss.topk(negatives)
-
-        cls_loss = torch.cat([pos_cls_loss,neg_cls_loss[n_ids]]).mean()
-
-        ###########################
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
         ## ? Debug
         if self.__debug:
-            debug(imgs, gt_boxes, debug_fmap, self.heads, pos_mask, neg_mask, ignore)
+            #debug_show_rf_matches(imgs,rfs,gt_boxes)
+            debug_show_pos_neg_ig_with_gt(imgs,gt_boxes,rfs,debug_fmaps,pos_mask,neg_mask,ignore)
 
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
 
@@ -336,14 +316,80 @@ class LFFD(nn.Module):
         """
         return optimizer
 
-def debug(imgs, gt_boxes, debug_fmap, heads, pos_mask, neg_mask, ignore):
-    for i,img in enumerate(imgs):
+def debug_show_rf_matches(tensor_imgs:torch.Tensor,
+        head_rfs:List[torch.Tensor], batch_gt_boxes:List[torch.Tensor]):
+    imgs = debug_tensor2img(tensor_imgs)
+    np_gt_boxes = [gt_boxes.cpu().long().numpy() for gt_boxes in batch_gt_boxes]
+    np_head_rfs = [rfs.cpu().long().numpy() for rfs in head_rfs]
+    for img,gt_boxes in zip(imgs,np_gt_boxes):
+        timg = img.copy()
+        for x1,y1,x2,y2 in gt_boxes:
+            timg = cv2.rectangle(timg, (x1,y1),(x2,y2),(0,255,0))
+
+        for i,rfs in enumerate(np_head_rfs):
+            print(f"for head {i+1}")
+            values,pick = box_ops.box_iou(torch.tensor(rfs),torch.tensor(gt_boxes)).max(dim=0)
+            pick = pick.cpu().numpy().tolist()
+            nimg = timg.copy()
+            for j,(x1,y1,x2,y2) in enumerate(rfs[pick,:]):
+                print("iou: ",values[j])
+                nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2),(0,0,255),2)
+            cv2.imshow("",nimg)
+            cv2.waitKey(0)
+
+def debug_show_pos_neg_ig_with_gt(tensor_imgs:torch.Tensor,
+        batch_gt_boxes:List[torch.Tensor], head_rfs:List[torch.Tensor],
+        debug_fmaps:List[Tuple], pos_mask:torch.Tensor,
+        neg_mask:torch.Tensor, ig_mask:torch.Tensor):
+
+    imgs = debug_tensor2img(tensor_imgs)
+    np_gt_boxes = [gt_boxes.cpu().long().numpy() for gt_boxes in batch_gt_boxes]
+    np_head_rfs = [rfs.cpu().long().numpy() for rfs in head_rfs]
+    for img,gt_boxes,p_mask,n_mask,i_mask in zip(imgs, np_gt_boxes,
+            pos_mask, neg_mask, ig_mask):
+        # p_mask: 66800,
+        print(f"positives: {p_mask.sum()} negatives:{n_mask.sum()} ignore:{i_mask.sum()}")
+        timg = img.copy()
+        for x1,y1,x2,y2 in gt_boxes:
+            timg = cv2.rectangle(timg,(x1,y1),(x2,y2),(255,0,0),2)
+        for (fh,fw,start),rfs in zip(debug_fmaps,np_head_rfs):
+            # rfs  : 25600,4 as xmin,ymin,xmax,ymax
+            crfs = ((rfs[:, [2,3]] + rfs[:, [0,1]]) // 2).astype(np.int32)
+            # crfs : 25600,2 as cx,cy
+            p_crfs = crfs[p_mask[start: start+fh*fw], :]
+            n_crfs = crfs[n_mask[start: start+fh*fw], :]
+            i_crfs = crfs[i_mask[start: start+fh*fw], :]
+
+            for cx,cy in p_crfs:
+                timg = cv2.circle(timg, (cx,cy), 4, (0,255,0))
+
+            for cx,cy in n_crfs:
+                timg = cv2.circle(timg, (cx,cy), 4, (0,0,255))
+
+            for cx,cy in i_crfs:
+                timg = cv2.circle(timg, (cx,cy), 4, (0,255,255))
+
+        cv2.imshow("",timg)
+        cv2.waitKey(0)
+
+def debug_tensor2img(imgs:torch.Tensor) -> List[np.ndarray]:
+    np_imgs = []
+    for img in imgs:
         nimg = (img*127.5 + 127.5).permute(1,2,0).cpu().numpy().astype(np.uint8)
         #nimg = cv2.UMat(nimg).get()
         nimg = cv2.cvtColor(nimg, cv2.COLOR_RGB2BGR)
+        np_imgs.append(nimg)
+    return np_imgs
+
+def debug(imgs, batch_gt_boxes, debug_fmap, heads, pos_mask, neg_mask, ignore, rfs):
+    for i,(img,gt_boxes) in enumerate(zip(imgs,batch_gt_boxes)):
+
         print(f"positives: {pos_mask[i].sum()} negatives:{neg_mask[i].sum()} ignore:{ignore[i].sum()}")
-        for x1,y1,x2,y2 in gt_boxes[i].cpu().numpy().astype(np.int32):
+        debug_show_rf_matches(nimg, rfs , gt_boxes.clone())
+
+        for x1,y1,x2,y2 in gt_boxes.cpu().numpy().astype(np.int32):
             nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2), (255,0,0))
+
         for head,(fh,fw,start) in zip(heads,debug_fmap):
             priors = head.gen_rf_anchors(fh,fw,clip=True).view(-1,4)
 
@@ -358,15 +404,15 @@ def debug(imgs, gt_boxes, debug_fmap, heads, pos_mask, neg_mask, ignore):
             for x1,y1,x2,y2 in pos_boxes:
                 cx = int((x1+x2) / 2)
                 cy = int((y1+y2) / 2)
-                nimg = cv2.circle(nimg, (cx,cy), 2, (0,255,0))
+                nimg = cv2.circle(nimg, (cx,cy), 4, (0,255,0))
             for x1,y1,x2,y2 in neg_boxes:
                 cx = int((x1+x2) / 2)
                 cy = int((y1+y2) / 2)
-                nimg = cv2.circle(nimg, (cx,cy), 2, (0,0,255))
+                nimg = cv2.circle(nimg, (cx,cy), 4, (0,0,255))
             for x1,y1,x2,y2 in ignore_boxes:
                 cx = int((x1+x2) / 2)
                 cy = int((y1+y2) / 2)
-                nimg = cv2.circle(nimg, (cx,cy), 2, (0,255,255))
+                nimg = cv2.circle(nimg, (cx,cy), 4, (0,255,255))
 
         cv2.imshow("",nimg)
         if cv2.waitKey(0) == 27:

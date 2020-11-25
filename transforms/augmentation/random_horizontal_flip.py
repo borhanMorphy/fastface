@@ -22,7 +22,9 @@ class RandomHorizontalFlip():
             return nimg,boxes
 
         # x1,y1,x2,y2
-        w = boxes[:, [2]] - boxes[:, [0]]
-        boxes[:, [0,2]] = w - boxes[:, [0,2]]
+        w = nimg.shape[1]
+        cboxes = boxes.copy()
+        boxes[:, 0] = w - cboxes[:, 2]
+        boxes[:, 2] = w - cboxes[:, 0]
 
         return nimg,boxes
