@@ -127,8 +127,6 @@ class LFFD(nn.Module):
         target_cls:List = []
         target_regs:List = []
 
-        target_objectness_mask:List = []
-        target_reg_mask:List = []
         ignore:List = []
         rfs:List = []
 
@@ -178,24 +176,17 @@ class LFFD(nn.Module):
 
         # *Random sample selection
         ############################
-        #neg_mask = neg_mask.view(-1)
-        #ss, = torch.where(neg_mask)
-        #selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
-        #neg_mask[:] = False
-        #neg_mask[selections] = True
-        #neg_mask = neg_mask.view(batch_size,-1)
-        #negatives = neg_mask.sum()
-        ############################
-
-        # *OHNM
-        ############################
+        neg_mask = neg_mask.view(-1)
+        ss, = torch.where(neg_mask)
+        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
+        neg_mask[:] = False
+        neg_mask[selections] = True
+        neg_mask = neg_mask.view(batch_size,-1)
+        negatives = neg_mask.sum()
         ############################
 
         cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask], reduction='none')
-
-        cls_loss,_ = cls_loss.topk(negatives)
-        cls_loss = cls_loss.mean()
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
@@ -223,8 +214,6 @@ class LFFD(nn.Module):
         target_cls:List = []
         target_regs:List = []
 
-        target_objectness_mask:List = []
-        target_reg_mask:List = []
         ignore:List = []
         preds:List = []
 
@@ -297,10 +286,8 @@ class LFFD(nn.Module):
             pred_boxes.append(selected_boxes[orders,:][:200,:].cpu())
 
         gt_boxes = [box.cpu() for box in gt_boxes]
-        loss = loss.item()
-
         return {
-            'loss':loss,
+            'loss':loss.item(),
             'cls_loss':cls_loss.item(),
             'reg_loss':reg_loss.item(),
             'preds': pred_boxes,
