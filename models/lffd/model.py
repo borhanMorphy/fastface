@@ -155,7 +155,7 @@ class LFFD(nn.Module):
             # TODO use cache
             h_rfs = self.heads[i].gen_rf_anchors(fh, fw, device=device, dtype=dtype, clip=True)
             rfs.append(h_rfs.view(-1,4))
-            # List[ (fh*fw,4) ] 
+            # List[ (fh*fw,4) ]
 
             target_cls.append(t_cls.view(batch_size, -1))
             target_regs.append(t_regs.view(batch_size,-1,4))
@@ -167,7 +167,7 @@ class LFFD(nn.Module):
         target_cls = torch.cat(target_cls, dim=1)
         target_regs = torch.cat(target_regs, dim=1)
         ignore = torch.cat(ignore, dim=1)
-        #rfs = torch.cat(rfs,dim=0)
+        priors = torch.cat(rfs,dim=0)
 
         pos_mask = (target_cls == 1) & (~ignore)
         neg_mask = (target_cls == 0) & (~ignore)
@@ -189,19 +189,33 @@ class LFFD(nn.Module):
 
         # *OHNM
         ############################
-        neg_ids, = torch.where(neg_mask.view(-1))
-        ## neg_ids: neg_mask.sum(),
         with torch.no_grad():
             neg_cls_loss = F.binary_cross_entropy_with_logits(
                 cls_logits[neg_mask], target_cls[neg_mask], reduction='none')
             # neg_cls_loss: neg_mask.sum(),
-        _,selected_negs = neg_cls_loss.topk(negatives)
+
+        _loss_start_point = 0
+        picked_neg_cls_losses = []
+        for i in range(batch_size):
+            _neg_prior_count = priors[neg_mask[i],:].size(0)
+            _neg_cls_loss = neg_cls_loss[_loss_start_point:_loss_start_point+_neg_prior_count]
+            _loss_start_point += _neg_prior_count
+            pick = box_ops.nms(priors[neg_mask[i],:].cpu(), _neg_cls_loss.cpu(), iou_threshold=.7)
+            neg_mask[i, :] = False
+            neg_mask[i, pick] = True
+            picked_neg_cls_losses.append(_neg_cls_loss[pick])
+
+        picked_neg_cls_losses = torch.cat(picked_neg_cls_losses, dim=0)
+        negatives = min(negatives, neg_mask.sum())
+        _,selected_negs = picked_neg_cls_losses.topk(negatives)
+        neg_ids, = torch.where(neg_mask.view(-1))
         neg_ids = neg_ids[selected_negs]
         neg_mask = neg_mask.view(-1)
         neg_mask[:] = False
         neg_mask[neg_ids] = True
-        neg_mask = neg_mask.view(batch_size,-1)
-        assert negatives == neg_mask.sum()
+        neg_mask = neg_mask.view(batch_size, -1)
+
+        assert neg_mask.sum() == negatives
         ############################
 
         cls_loss = F.binary_cross_entropy_with_logits(
@@ -323,15 +337,13 @@ class LFFD(nn.Module):
             lr=self.hyp.get('learning_rate',1e-1),
             momentum=self.hyp.get('momentum',0.9),
             weight_decay=self.hyp.get('weight_decay',0))
-        """
+
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer,
             milestones=[600000, 1000000, 1200000, 1400000],
             gamma=0.1)
 
         return [optimizer], [lr_scheduler]
-        """
-        return optimizer
 
 def debug_show_rf_matches(tensor_imgs:torch.Tensor,
         head_rfs:List[torch.Tensor], batch_gt_boxes:List[torch.Tensor]):
@@ -356,8 +368,12 @@ def debug_show_rf_matches(tensor_imgs:torch.Tensor,
 
 def debug_show_pos_neg_ig_with_gt(tensor_imgs:torch.Tensor,
         batch_gt_boxes:List[torch.Tensor], head_rfs:List[torch.Tensor],
-        debug_fmaps:List[Tuple], pos_mask:torch.Tensor,
-        neg_mask:torch.Tensor, ig_mask:torch.Tensor):
+        debug_fmaps:List[Tuple], opos_mask:torch.Tensor,
+        oneg_mask:torch.Tensor, oig_mask:torch.Tensor):
+
+    pos_mask = opos_mask.cpu()
+    neg_mask = oneg_mask.cpu()
+    ig_mask = oig_mask.cpu()
 
     imgs = debug_tensor2img(tensor_imgs)
     np_gt_boxes = [gt_boxes.cpu().long().numpy() for gt_boxes in batch_gt_boxes]
