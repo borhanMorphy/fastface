@@ -189,37 +189,13 @@ class LFFD(nn.Module):
 
         # *OHNM
         ############################
-        with torch.no_grad():
-            neg_cls_loss = F.binary_cross_entropy_with_logits(
-                cls_logits[neg_mask], target_cls[neg_mask], reduction='none')
-            # neg_cls_loss: neg_mask.sum(),
-
-        _loss_start_point = 0
-        picked_neg_cls_losses = []
-        for i in range(batch_size):
-            _neg_prior_count = priors[neg_mask[i],:].size(0)
-            _neg_cls_loss = neg_cls_loss[_loss_start_point:_loss_start_point+_neg_prior_count]
-            _loss_start_point += _neg_prior_count
-            pick = box_ops.nms(priors[neg_mask[i],:].cpu(), _neg_cls_loss.cpu(), iou_threshold=.7)
-            neg_mask[i, :] = False
-            neg_mask[i, pick] = True
-            picked_neg_cls_losses.append(_neg_cls_loss[pick])
-
-        picked_neg_cls_losses = torch.cat(picked_neg_cls_losses, dim=0)
-        negatives = min(negatives, neg_mask.sum())
-        _,selected_negs = picked_neg_cls_losses.topk(negatives)
-        neg_ids, = torch.where(neg_mask.view(-1))
-        neg_ids = neg_ids[selected_negs]
-        neg_mask = neg_mask.view(-1)
-        neg_mask[:] = False
-        neg_mask[neg_ids] = True
-        neg_mask = neg_mask.view(batch_size, -1)
-
-        assert neg_mask.sum() == negatives
         ############################
 
         cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask], reduction='none')
+
+        cls_loss,_ = cls_loss.topk(negatives)
+        cls_loss = cls_loss.mean()
 
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
