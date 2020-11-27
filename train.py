@@ -103,12 +103,16 @@ if __name__ == '__main__':
         print("traning from scratch")
 
     detector = LightFaceDetector.build("lffd", metric_names=['ap'], hyp=hyp, debug=args.debug)
-    #detector.load_from_checkpoint('checkpoints/lffd-widerface-epoch=04-val_loss=0.111-val_ap=13.86.ckpt')
+    ckpt_path = None
+    if args.resume:
+        best_ap_score,ckpt_path = get_best_checkpoint_path(
+            args.checkpoint_path, by='val_ap', mode='max')
+        print(f"resuming the training, best ap score: {best_ap_score}")
 
     trainer = pl.Trainer(
         gpus=1 if args.device=='cuda' else 0,
         accumulate_grad_batches=args.accumulation,
-        resume_from_checkpoint = None,#'checkpoints/lffd-widerface-epoch=04-val_loss=0.111-val_ap=13.86.ckpt',#get_best_checkpoint_path(args.checkpoint_path, by='val_ap', mode='max') if args.resume else None,
+        resume_from_checkpoint=ckpt_path,
         checkpoint_callback=checkpoint_callback)
 
     train_dl = generate_dl(args.train_ds, "train",

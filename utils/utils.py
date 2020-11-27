@@ -22,6 +22,6 @@ def get_best_checkpoint_path(checkpoint_dir:str, by:str='val_ap', mode:str='max'
                 continue
             _,v = part.split("=")
             v = float(v)
-            checkpoints.append((v,file_name))
+            checkpoints.append((v,os.path.join(checkpoint_dir,file_name)))
             break
     return eval(mode)(checkpoints)

@@ -113,8 +113,7 @@ class LFFD(nn.Module):
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int) -> torch.Tensor:
-        #if batch_idx < 2:
-        #    return torch.tensor(0., requires_grad=True)
+
         imgs,gt_boxes = batch
 
         device = imgs.device
