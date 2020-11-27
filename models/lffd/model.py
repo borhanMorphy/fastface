@@ -121,6 +121,7 @@ class LFFD(nn.Module):
         dtype = imgs.dtype
         batch_size = imgs.size(0)
         ratio = 10
+        sample_factor = 5
 
         cls_logits,reg_logits = self(imgs)
 
@@ -172,7 +173,7 @@ class LFFD(nn.Module):
 
         positives = pos_mask.sum()
         negatives = neg_mask.sum()
-        negatives = min(negatives,ratio*positives)
+        negatives = min(negatives,sample_factor*ratio*positives)
 
         # *Random sample selection
         ############################
@@ -182,11 +183,14 @@ class LFFD(nn.Module):
         neg_mask[:] = False
         neg_mask[selections] = True
         neg_mask = neg_mask.view(batch_size,-1)
-        negatives = neg_mask.sum()
+        negatives = min(neg_mask.sum(),ratio*positives)
         ############################
 
         cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask], reduction='none')
+
+        cls_loss,_ = cls_loss.topk(negatives)
+        cls_loss = cls_loss.mean()
 
         reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
 
