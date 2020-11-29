@@ -113,7 +113,8 @@ if __name__ == '__main__':
         gpus=1 if args.device=='cuda' else 0,
         accumulate_grad_batches=args.accumulation,
         resume_from_checkpoint=ckpt_path,
-        checkpoint_callback=checkpoint_callback)
+        checkpoint_callback=checkpoint_callback,
+        max_epochs=args.epochs)
 
     train_dl = generate_dl(args.train_ds, "train",
         args.batch_size, transforms=train_transforms)
