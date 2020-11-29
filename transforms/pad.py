@@ -7,7 +7,8 @@ class Padding():
         self.pad_value = pad_value
         self.target_size = target_size # w,h
 
-    def __call__(self, img:np.ndarray, boxes:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, img:np.ndarray,
+            gt_boxes:np.ndarray=None) -> Tuple[np.ndarray, np.ndarray]:
 
         h,w,c = img.shape
         tw,th = self.target_size
@@ -23,9 +24,11 @@ class Padding():
         nimg = np.ones((th,tw,c), dtype=img.dtype) * self.pad_value
         nimg[pad_up:th-pad_down, pad_left:tw-pad_right] = img
 
-        nboxes = boxes.copy()
-        if len(boxes.shape) == 2 and boxes.shape[0] > 0:
-            nboxes[:, [0,2]] = boxes[:, [0,2]] + pad_left
-            nboxes[:, [1,3]] = boxes[:, [1,3]] + pad_up
+        if isinstance(gt_boxes, type(None)): return nimg
 
-        return nimg, nboxes
+        ngt_boxes = gt_boxes.copy()
+        if len(gt_boxes.shape) == 2 and gt_boxes.shape[0] > 0:
+            ngt_boxes[:, [0,2]] = gt_boxes[:, [0,2]] + pad_left
+            ngt_boxes[:, [1,3]] = gt_boxes[:, [1,3]] + pad_up
+
+        return nimg, ngt_boxes

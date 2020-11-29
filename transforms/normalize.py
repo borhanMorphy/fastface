@@ -6,10 +6,13 @@ class Normalize():
         self.mean = mean
         self.std = std
 
-    def __call__(self, img:np.ndarray, boxes:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, img:np.ndarray,
+            gt_boxes:np.ndarray=None) -> Tuple[np.ndarray, np.ndarray]:
         if img.dtype == np.uint8:
             img = img.astype(np.float32)
         img -= self.mean
         img /= self.std
 
-        return img,boxes
+        if isinstance(gt_boxes, type(None)): return img
+
+        return img,gt_boxes

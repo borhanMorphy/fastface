@@ -64,3 +64,12 @@ class LightFaceDetector(pl.LightningModule):
         model = get_detector_by_name(model_name,*args,**kwargs)
         metrics = [get_metric(metric_name) for metric_name in metric_names]
         return cls(model, metrics=metrics)
+
+    @classmethod
+    def from_pretrained(cls, model_name:str, model_path:str,
+            *args,**kwargs):
+        model = get_detector_by_name(model_name, *args, **kwargs)
+        st = torch.load(model_path, map_location='cpu')
+        pl_model = cls(model)
+        pl_model.load_state_dict(st['state_dict'])
+        return pl_model
