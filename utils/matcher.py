@@ -43,7 +43,7 @@ class LFFDMatcher():
         # return if gt box is empty
         if gt_boxes.size(0) == 0:
             return cls_mask,reg_targets,ignore_mask
-        
+
         wh = gt_boxes[:,[2,3]] - gt_boxes[:,[0,1]]
         # wh: N,2 as w,h
 

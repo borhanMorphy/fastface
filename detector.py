@@ -17,6 +17,9 @@ class LightFaceDetector(pl.LightningModule):
     def forward(self, data:torch.Tensor):
         return self.model(data)
 
+    def predict(self, data:torch.Tensor):
+        return self.model.predict(data)
+
     def training_step(self, batch, batch_idx):
         return self.model.training_step(batch,batch_idx)
 

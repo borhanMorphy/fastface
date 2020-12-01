@@ -16,8 +16,8 @@ class FaceDiscarder():
         if gt_boxes.shape[0] == 0:
             return img,gt_boxes
 
-        face_scales = wh.max(axis=1)
         wh = gt_boxes[:, [2,3]] - gt_boxes[:, [0,1]]
+        face_scales = wh.max(axis=1)
         accept_cond = (face_scales >= self.min_face_scale) & (face_scales <= self.max_face_scale)
 
         return img,gt_boxes[accept_cond, :]

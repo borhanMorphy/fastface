@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from typing import Tuple,List
-from .conv import conv_layer
+from .conv import conv1x1
 from utils.matcher import LFFDMatcher
 from utils.utils import random_sample_selection
 
 class DetectionHead(nn.Module):
-    def __init__(self, head_idx:int, features:int, rf_size:int, rf_stride:int,
+    def __init__(self, head_idx:int, infeatures:int, features:int, rf_size:int, rf_stride:int,
             lower_scale:int, upper_scale:int, num_classes:int=2):
 
         super(DetectionHead,self).__init__()
@@ -17,25 +17,17 @@ class DetectionHead(nn.Module):
         self.rf_stride = rf_stride
         self.num_classes = num_classes
 
-        self.det_conv = conv_layer(features, features, kernel_size=1, stride=1, padding=0)
+        self.det_conv = conv1x1(infeatures, features)
 
         self.cls_head = nn.Sequential(
-            nn.Conv2d(features, features,
-                kernel_size=1, stride=1,
-                padding=0, bias=False),
+            conv1x1(features, features),
             nn.ReLU6(inplace=True),
-            nn.Conv2d(features, self.num_classes,
-                kernel_size=1, stride=1,
-                padding=0, bias=False))
+            conv1x1(features, self.num_classes))
 
         self.reg_head = nn.Sequential(
-            nn.Conv2d(features, features,
-                kernel_size=1, stride=1,
-                padding=0, bias=False),
+            conv1x1(features, features),
             nn.ReLU6(inplace=True),
-            nn.Conv2d(features, 4,
-                kernel_size=1, stride=1,
-                padding=0, bias=False))
+            conv1x1(features, 4))
 
         def conv_xavier_init(m):
             if type(m) == nn.Conv2d:

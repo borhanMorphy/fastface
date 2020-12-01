@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchvision.ops import boxes as box_ops
 
 from typing import Tuple,List,Dict
-from .conv import conv_layer
+from .conv import conv3x3
 from .resblock import ResBlock
 from .detection import DetectionHead
 from utils.utils import random_sample_selection
@@ -36,32 +36,37 @@ class LFFD(nn.Module):
         # TODO check if list lenghts are matched
 
         # *tiny part
-        self.downsample_conv1 = conv_layer(in_channels,64,stride=2,padding=1)
-        self.downsample_conv2 = conv_layer(64,64,stride=2,padding=1)
+        self.downsample_conv1 = nn.Sequential(
+            conv3x3(in_channels,64,stride=2,padding=1), nn.ReLU6(inplace=True))
+        self.downsample_conv2 = nn.Sequential(
+            conv3x3(64,64,stride=2,padding=1), nn.ReLU6(inplace=True))
         self.res_block1 = ResBlock(64)
         self.res_block2 = ResBlock(64)
         self.res_block3 = ResBlock(64)
         self.res_block4 = ResBlock(64)
 
         # *small part
-        self.downsample_conv3 = conv_layer(64,64,stride=2,padding=1)
+        self.downsample_conv3 = nn.Sequential(
+            conv3x3(64,64,stride=2,padding=1), nn.ReLU6(inplace=True))
         self.res_block4 = ResBlock(64)
         self.res_block5 = ResBlock(64)
 
         # *medium part
-        self.downsample_conv4 = conv_layer(64,128,stride=2,padding=1)
+        self.downsample_conv4 = nn.Sequential(
+            conv3x3(64,128,stride=2,padding=1), nn.ReLU6(inplace=True))
         self.res_block6 = ResBlock(128)
 
         # *large part
-        self.downsample_conv5 = conv_layer(128,128,stride=2,padding=1)
+        self.downsample_conv5 = nn.Sequential(
+            conv3x3(128,128,stride=2,padding=1), nn.ReLU6(inplace=True))
         self.res_block7 = ResBlock(128)
         self.res_block8 = ResBlock(128)
         self.res_block9 = ResBlock(128)
 
         self.heads = nn.ModuleList([
-            DetectionHead(idx+1,num_of_filters,rf_size,rf_stride,lower_scale,upper_scale,
+            DetectionHead(idx+1,infeatures,128,rf_size,rf_stride,lower_scale,upper_scale,
                 num_classes=num_classes)
-            for idx,(num_of_filters, rf_size, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(filters,rf_sizes,rf_strides,scales))
+            for idx,(infeatures, rf_size, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(filters,rf_sizes,rf_strides,scales))
         ])
 
     def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
@@ -110,6 +115,38 @@ class LFFD(nn.Module):
             reg_logits.append(reg_l)
 
         return cls_logits,reg_logits
+
+    @torch.no_grad()
+    def predict(self, x:torch.Tensor) -> List[torch.Tensor]:
+        if len(x.shape) == 3:
+            x = x.unsqueeze(0)
+        batch_size = x.size(0)
+        cls_logits,reg_logits = self.forward(x)
+        preds:List = []
+        for i in range(len(self.heads)):
+            # *for each head
+            fh,fw = cls_logits[i].shape[2:]
+
+            cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
+            reg_ = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
+            # TODO checkout here
+            scores = torch.sigmoid(cls_.view(batch_size,fh,fw,1))
+            boxes = self.heads[i].apply_bbox_regression(
+                reg_.view(batch_size,fh,fw,4))
+
+            boxes = torch.cat([boxes,scores], dim=-1).view(batch_size,-1,5)
+            # boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
+            preds.append(boxes)
+        preds = torch.cat(preds, dim=1)
+
+        pred_boxes:List = []
+        for i in range(batch_size):
+            selected_boxes = preds[i, preds[i,:,4] > 0.9, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .5)
+            selected_boxes = selected_boxes[pick,:]
+            orders = selected_boxes[:, 4].argsort(descending=True)
+            pred_boxes.append(selected_boxes[orders,:][:100,:].cpu())
+        return pred_boxes
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int) -> torch.Tensor:
@@ -283,7 +320,7 @@ class LFFD(nn.Module):
         pred_boxes:List = []
         for i in range(batch_size):
             selected_boxes = preds[i, preds[i,:,4] > 0.1, :]
-            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .3)
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .5)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
             pred_boxes.append(selected_boxes[orders,:][:200,:].cpu())
