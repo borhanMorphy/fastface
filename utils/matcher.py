@@ -82,6 +82,7 @@ class LFFDMatcher():
 
             # if falls in gray scale ignore
             if box_idx in gt_ignore_box_ids:
+                # TODO control here
                 ignore_mask[match] = True
 
             # set as matched

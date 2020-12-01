@@ -205,11 +205,12 @@ class LFFD(nn.Module):
         priors = torch.cat(rfs,dim=0)
 
         pos_mask = (target_cls == 1) & (~ignore)
+        rpos_mask = target_cls == 1
         neg_mask = (target_cls == 0) & (~ignore)
 
         positives = pos_mask.sum()
         negatives = neg_mask.sum()
-        negatives = min(negatives,sample_factor*ratio*positives)
+        negatives = min(negatives,ratio*positives)
 
         # *Random sample selection
         ############################
@@ -219,16 +220,12 @@ class LFFD(nn.Module):
         neg_mask[:] = False
         neg_mask[selections] = True
         neg_mask = neg_mask.view(batch_size,-1)
-        negatives = min(neg_mask.sum(),ratio*positives)
         ############################
 
         cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask], reduction='none')
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
-        cls_loss,_ = cls_loss.topk(negatives)
-        cls_loss = cls_loss.mean()
-
-        reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
+        reg_loss = F.mse_loss(reg_logits[rpos_mask, :], target_regs[rpos_mask, :])
 
         ## ? Debug
         if self.__debug:
@@ -293,6 +290,7 @@ class LFFD(nn.Module):
         ignore = torch.cat(ignore, dim=1)
 
         pos_mask = (target_cls == 1) & (~ignore)
+        rpos_mask = target_cls == 1
         neg_mask = (target_cls == 0) & (~ignore)
 
         positives = pos_mask.sum()
@@ -313,13 +311,13 @@ class LFFD(nn.Module):
         cls_loss = F.binary_cross_entropy_with_logits(
             cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
-        reg_loss = F.mse_loss(reg_logits[pos_mask, :], target_regs[pos_mask, :])
+        reg_loss = F.mse_loss(reg_logits[rpos_mask, :], target_regs[rpos_mask, :])
 
         assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
         loss = cls_loss + reg_loss
         pred_boxes:List = []
         for i in range(batch_size):
-            selected_boxes = preds[i, preds[i,:,4] > 0.1, :]
+            selected_boxes = preds[i, preds[i,:,4] > 0.5, :]
             pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .5)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)

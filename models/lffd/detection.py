@@ -139,7 +139,6 @@ class DetectionHead(nn.Module):
 
         # rf_anchors: fh x fw x 4 as xmin,ymin,xmax,ymax
         for i in range(batch_size):
-            
             cls_mask,reg_targets,ignore_mask = self.matcher(rf_anchors,
                 gt_boxes[i], self.rf_size/2, device=device, dtype=dtype)
 
