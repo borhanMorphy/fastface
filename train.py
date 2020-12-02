@@ -27,7 +27,7 @@ def parse_arguments():
     ap.add_argument('--seed', '-s', type=int, default=-1)
     ap.add_argument('--learning-rate', '-lr', type=float, default=1e-1)
     ap.add_argument('--momentum', '-m', type=float, default=.9)
-    ap.add_argument('--weight-decay', '-wd', type=float, default=0)
+    ap.add_argument('--weight-decay', '-wd', type=float, default=1e-5)
 
     ap.add_argument('--target-size', '-t', type=int, default=640)
     ap.add_argument('--device','-d',type=str,
@@ -71,12 +71,13 @@ if __name__ == '__main__':
     )
 
     train_transforms = Compose(
-        FaceDiscarder(min_face_scale=10),
+        FaceDiscarder(min_face_scale=2),
         LFFDRandomSample(
             [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
             ], target_size=(args.target_size,args.target_size)),
+        FaceDiscarder(min_face_scale=8),
         RandomHorizontalFlip(p=0.5),
         Normalize(mean=127.5, std=127.5),
         ToTensor()

@@ -156,8 +156,7 @@ class LFFD(nn.Module):
         device = imgs.device
         dtype = imgs.dtype
         batch_size = imgs.size(0)
-        ratio = 10
-        sample_factor = 5
+        ratio = 5
 
         cls_logits,reg_logits = self(imgs)
 
@@ -202,7 +201,6 @@ class LFFD(nn.Module):
         target_cls = torch.cat(target_cls, dim=1)
         target_regs = torch.cat(target_regs, dim=1)
         ignore = torch.cat(ignore, dim=1)
-        priors = torch.cat(rfs,dim=0)
 
         pos_mask = (target_cls == 1) & (~ignore)
         rpos_mask = target_cls == 1
@@ -337,7 +335,7 @@ class LFFD(nn.Module):
             self.parameters(),
             lr=self.hyp.get('learning_rate',1e-1),
             momentum=self.hyp.get('momentum',0.9),
-            weight_decay=self.hyp.get('weight_decay',0))
+            weight_decay=self.hyp.get('weight_decay',1e-5))
 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer,

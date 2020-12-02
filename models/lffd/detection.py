@@ -9,7 +9,7 @@ from utils.utils import random_sample_selection
 
 class DetectionHead(nn.Module):
     def __init__(self, head_idx:int, infeatures:int, features:int, rf_size:int, rf_stride:int,
-            lower_scale:int, upper_scale:int, num_classes:int=2):
+            lower_scale:int, upper_scale:int, num_classes:int=1):
 
         super(DetectionHead,self).__init__()
         self.head_idx = head_idx
@@ -71,7 +71,6 @@ class DetectionHead(nn.Module):
         pred_boxes[:,:,:,[1,3]] = torch.clamp(pred_boxes[:,:,:,[1,3]],0,fh*self.rf_stride)
 
         return pred_boxes
-
 
     def gen_rf_anchors(self, fmaph:int, fmapw:int, device:str='cpu',
             dtype:torch.dtype=torch.float32, clip:bool=False) -> torch.Tensor:
@@ -157,3 +156,55 @@ class DetectionHead(nn.Module):
         reg_logits = self.reg_head(data)
         # (b,c,h,w)
         return cls_logits,reg_logits
+
+    def compute_loss(self, cls_logits:torch.Tensor, reg_logits:torch.Tensor,
+            gt_boxes:List[torch.Tensor]) -> Tuple[torch.Tensor,torch.Tensor]:
+        fh,fw = cls_logits.shape[2:]
+        device = cls_logits.device
+        dtype = cls_logits.dtype
+        batch_size = cls_logits.size(0)
+        ratio = 5
+
+        cls_logits = cls_logits.permute(0,2,3,1)
+        reg_logits = reg_logits.permute(0,2,3,1)
+        target_cls, target_regs, ignore = self.build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
+        # target_cls     : bs,fh,fw      | type: model.dtype          | device: model.device
+        # target_regs    : bs,fh,fw,4    | type: model.dtype          | device: model.device
+        # ignore         : bs,fh,fw      | type: torch.bool           | device: model.device
+        """
+            16 torch.Size([20, 4])
+            cls_logits:  torch.Size([16, 160, 160, 1])
+            reg_logits:  torch.Size([16, 160, 160, 4])
+            target_cls:  torch.Size([16, 160, 160])
+            target_regs: torch.Size([16, 160, 160, 4])
+            ignore:  torch.Size([16, 160, 160]
+        """
+        pos_mask = (target_cls == 1) & (~ignore)
+        rpos_mask = target_cls == 1
+        neg_mask = (target_cls == 0) & (~ignore)
+        positives = pos_mask.sum()
+        if positives <= 0:
+            negatives = batch_size
+        else:
+            negatives = min(neg_mask.sum(), ratio*positives)
+
+        # *Random sample selection
+        ############################
+        neg_mask = neg_mask.view(-1)
+        ss, = torch.where(neg_mask)
+        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
+        neg_mask[:] = False
+        neg_mask[selections] = True
+        neg_mask = neg_mask.view(batch_size,fh,fw)
+        negatives = neg_mask.sum()
+        ###########################
+
+        cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask].unsqueeze(-1))
+
+        if rpos_mask.sum() <= 0:
+            reg_loss = torch.tensor(0, dtype=dtype, device=device, requires_grad=True)
+        else:
+            reg_loss = F.mse_loss(reg_logits[rpos_mask], target_regs[rpos_mask])
+
+        return cls_loss,reg_loss

@@ -7,8 +7,8 @@ from ..pad import Padding
 from ..interpolate import Interpolate
 
 class LFFDRandomSample():
-    def __init__(self, scales:List[List], target_size:Tuple[int,int]=(640,640)):
-        self.scales = np.array(scales, dtype=np.float32) # N,2
+    def __init__(self, scales:List[Tuple[int,int]], target_size:Tuple[int,int]=(640,640)):
+        self.scales = scales
         self.target_size = target_size # W,H
         self.padding = Padding(target_size=target_size, pad_value=0)
         self.interpolate = Interpolate(max_dim=target_size[0])
@@ -31,28 +31,21 @@ class LFFDRandomSample():
             return img,boxes
 
         num_faces = boxes.shape[0]
-        if num_faces == 0:
-            h,w = img.shape[:2]
-            target_w,target_h = self.target_size
-            cx,cy = w//2,h//2
-            offset_x = int(w//2 - target_w//2)
-            offset_y = int(h//2 - target_h//2)
-            aimg = img[offset_y:offset_y+target_h, offset_x:offset_x+target_w]
-            return aimg,boxes
 
         # select one face
         selected_face_idx = random.randint(0, num_faces-1)
 
-        # !Warning maybe select with order not random ? Lookup the paper to make sure this is correct
-        selected_face_scale_idx = random.randint(0, self.scales.shape[0]-1)
-        scale_lower,scale_higher = self.scales[selected_face_scale_idx]
+        selected_face_scale_idx = random.choice(list(range(len(self.scales))))
+        min_scale,max_scale = self.scales[selected_face_scale_idx]
 
-        scale_size = random.uniform(scale_lower,scale_higher)
+        scale_size = random.uniform(min_scale, max_scale)
 
         x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
+
+        face_scale = max(y2-y1,x2-x1)
         h,w = img.shape[:2]
 
-        sf = scale_size / (math.sqrt((y2-y1) * (x2-x1)) + 1e-16)
+        sf = scale_size / face_scale
 
         aboxes = boxes * sf
         sx1,sy1,sx2,sy2 = aboxes[selected_face_idx].astype(np.int32)
@@ -86,11 +79,6 @@ class LFFDRandomSample():
             np.bitwise_and(cboxes_x > low_w, cboxes_x < high_w),
             np.bitwise_and(cboxes_y > low_h, cboxes_y < high_h))
 
-        if y1-offset_h_1 <= y2+offset_h_2 or x1-offset_w_1 <= x2+offset_w_2:
-            img,boxes = self.interpolate(img,boxes)
-            img,boxes = self.padding(img,boxes)
-            return img,boxes
-
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
 
         aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
@@ -102,6 +90,7 @@ class LFFDRandomSample():
         boxes *= sf
 
         x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
+
         cx = (x1+x2) // 2
         cy = (y1+y2) // 2
 
@@ -146,5 +135,4 @@ class LFFDRandomSample():
         boxes[:, 1] = boxes[:, 1].clip(0,self.target_size[1])
         boxes[:, 2] = boxes[:, 2].clip(0,self.target_size[0])
         boxes[:, 3] = boxes[:, 3].clip(0,self.target_size[1])
-
-        return img,boxes
+        return img,boxes[center_mask,:]
