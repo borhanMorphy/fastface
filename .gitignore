@@ -4,3 +4,8 @@ __pycache__
 data/
 lightning_logs/
 checkpoints
+outputs
+
+*.pt
+*.pth
+*.ckpt
