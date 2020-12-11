@@ -11,22 +11,24 @@ from utils.utils import random_sample_selection
 
 import math
 import numpy as np
-from cv2 import cv2
 
 class LFFD(nn.Module):
     # these configs are for 8 headed lffd detector
     __FILTERS__ = [64,64,64,64,128,128,128,128]
-    __RF_SIZES__ = [55,71,111,143,223,383,511,639]
+    __RF_SIZES__ = [15, 20, 40, 70, 110, 250, 400, 560]
+    __RF_START_OFFSETS__ = [3, 3, 7, 7, 15, 31, 31, 31]
     __RF_STRIDES__ = [4,4,8,8,16,32,32,32]
     __SCALES__ = [(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)] # calculated for 640 image input
 
     def __init__(self, in_channels:int=3, filters:List[int]=None,
-            rf_sizes:List[int]=None, rf_strides:List[int]=None, scales:List[int]=None,
+            rf_sizes:List[int]=None, rf_start_offsets:List[int]=None,
+            rf_strides:List[int]=None, scales:List[int]=None,
             num_classes:int=1, hyp:Dict={}, debug:bool=False):
         super(LFFD,self).__init__()
 
         if filters is None: filters = LFFD.__FILTERS__
         if rf_sizes is None: rf_sizes = LFFD.__RF_SIZES__
+        if rf_start_offsets is None: rf_start_offsets = LFFD.__RF_START_OFFSETS__
         if rf_strides is None: rf_strides = LFFD.__RF_STRIDES__
         if scales is None: scales = LFFD.__SCALES__
         self.num_classes = num_classes
@@ -36,81 +38,84 @@ class LFFD(nn.Module):
         # TODO check if list lenghts are matched
 
         # *tiny part
-        self.downsample_conv1 = nn.Sequential(
-            conv3x3(in_channels,64,stride=2,padding=1), nn.ReLU6(inplace=True))
-        self.downsample_conv2 = nn.Sequential(
-            conv3x3(64,64,stride=2,padding=1), nn.ReLU6(inplace=True))
+        self.conv1_dw = conv3x3(in_channels, 64, stride=2, padding=0)
+        self.relu1 = nn.ReLU()
+
+        self.conv2_dw = conv3x3(64, 64, stride=2, padding=0)
+        self.relu2 = nn.ReLU()
+
         self.res_block1 = ResBlock(64)
         self.res_block2 = ResBlock(64)
         self.res_block3 = ResBlock(64)
         self.res_block4 = ResBlock(64)
 
         # *small part
-        self.downsample_conv3 = nn.Sequential(
-            conv3x3(64,64,stride=2,padding=1), nn.ReLU6(inplace=True))
-        self.res_block4 = ResBlock(64)
+        self.conv3_dw = conv3x3(64, 64, stride=2, padding=0)
+        self.relu3 = nn.ReLU()
+
         self.res_block5 = ResBlock(64)
+        self.res_block6 = ResBlock(64)
 
         # *medium part
-        self.downsample_conv4 = nn.Sequential(
-            conv3x3(64,128,stride=2,padding=1), nn.ReLU6(inplace=True))
-        self.res_block6 = ResBlock(128)
+        self.conv4_dw = conv3x3(64, 128, stride=2, padding=0)
+        self.relu4 = nn.ReLU()
+        self.res_block7 = ResBlock(128)
 
         # *large part
-        self.downsample_conv5 = nn.Sequential(
-            conv3x3(128,128,stride=2,padding=1), nn.ReLU6(inplace=True))
-        self.res_block7 = ResBlock(128)
+        self.conv5_dw = conv3x3(128, 128, stride=2, padding=0)
+        self.relu5 = nn.ReLU()
         self.res_block8 = ResBlock(128)
         self.res_block9 = ResBlock(128)
+        self.res_block10 = ResBlock(128)
 
         self.heads = nn.ModuleList([
-            DetectionHead(idx+1,infeatures,128,rf_size,rf_stride,lower_scale,upper_scale,
+            DetectionHead(idx+1,infeatures,128,
+                rf_size,rf_start_offset,rf_stride,
+                lower_scale,upper_scale,
                 num_classes=num_classes)
-            for idx,(infeatures, rf_size, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(filters,rf_sizes,rf_strides,scales))
+            for idx,(infeatures, rf_size, rf_start_offset, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(
+                filters,rf_sizes,rf_start_offsets,rf_strides,scales))
         ])
 
     def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
-        logits:List = []
         # *tiny part
-        c1 = self.downsample_conv1(x)
-        c2 = self.downsample_conv2(c1)
-        c4 = self.res_block1(c2)
-        c6 = self.res_block2(c4)
-        c8 = self.res_block3(c6)
-        logits.append(c8)
+        c1 = self.conv1_dw(x)         # 3 => 64
+        r1 = self.relu1(c1)
 
-        c10 = self.res_block4(c8)
-        logits.append(c10)
+        c2 = self.conv2_dw(r1)          # 64 => 64
+        r2 = self.relu2(c2)
+
+        r4,c4 = self.res_block1(r2,c2)        # 64 => 64
+        r6,c6 = self.res_block2(r4,c4)        # 64 => 64
+        r8,c8 = self.res_block3(r6,c6)        # 64 => 64
+        r10,_ = self.res_block4(r8,c8)      # 64 => 64
 
         # *small part
-        c11 = self.downsample_conv3(c10)
-        c13 = self.res_block4(c11)
-        logits.append(c13)
+        c11 = self.conv3_dw(r10)       # 64 => 64
+        r11 = self.relu3(c11)
 
-        c15 = self.res_block5(c13)
-        logits.append(c15)
+        r13,c13 = self.res_block5(r11,c11)      # 64 => 64
+        r15,_ = self.res_block6(r13,c13)      # 64 => 64
 
         # *medium part
-        c16 = self.downsample_conv4(c15)
-        c18 = self.res_block6(c16)
-        logits.append(c18)
+        c16 = self.conv4_dw(r15)       # 64 => 128
+        r16 = self.relu4(c16)
+
+        r18,_ = self.res_block7(r16,c16)      # 128 => 128
 
         # *large part
-        c19 = self.downsample_conv5(c18)
-        c21 = self.res_block7(c19)
-        logits.append(c21)
+        c19 = self.conv5_dw(r18)       # 128 => 128
+        r19 = self.relu5(c19)
 
-        c23 = self.res_block8(c21)
-        logits.append(c23)
-
-        c25 = self.res_block9(c23)
-        logits.append(c25)
+        r21,c21 = self.res_block8(r19,c19)      # 128 => 128
+        r23,c23 = self.res_block9(r21,c21)      # 128 => 128
+        r25,_ = self.res_block10(r23,c23)     # 128 => 128
 
         cls_logits:List = []
         reg_logits:List = []
 
-        for i in range(len(logits)):
-            cls_l,reg_l = self.heads[i](logits[i])
+        for i,logit in enumerate([r8,r10,r13,r15,r18,r21,r23,r25]):
+            cls_l,reg_l = self.heads[i](logit)
             cls_logits.append(cls_l)
             reg_logits.append(reg_l)
 
@@ -127,10 +132,11 @@ class LFFD(nn.Module):
             # *for each head
             fh,fw = cls_logits[i].shape[2:]
 
-            cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
+            cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, -1, self.num_classes)
             reg_ = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
             # TODO checkout here
-            scores = torch.sigmoid(cls_.view(batch_size,fh,fw,1))
+            scores = torch.sigmoid(cls_.view(batch_size,fh,fw,self.num_classes))
+            # original positive pred score dim is 0
             boxes = self.heads[i].apply_bbox_regression(
                 reg_.view(batch_size,fh,fw,4))
 
@@ -141,11 +147,11 @@ class LFFD(nn.Module):
 
         pred_boxes:List = []
         for i in range(batch_size):
-            selected_boxes = preds[i, preds[i,:,4] > 0.9, :]
-            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .5)
+            selected_boxes = preds[i, preds[i,:,4] > 0.11, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .4)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:100,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:10000,:].cpu())
         return pred_boxes
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
@@ -156,7 +162,7 @@ class LFFD(nn.Module):
         device = imgs.device
         dtype = imgs.dtype
         batch_size = imgs.size(0)
-        ratio = 5
+        ratio = 10
 
         cls_logits,reg_logits = self(imgs)
 
@@ -220,6 +226,12 @@ class LFFD(nn.Module):
         neg_mask = neg_mask.view(batch_size,-1)
         ############################
 
+        #cls_loss = F.binary_cross_entropy_with_logits(cls_logits, target_cls, reduction='none')
+        #pos_cls_loss = cls_loss[pos_mask]
+        #neg_cls_loss,_ = cls_loss[neg_mask].topk(negatives)
+        #cls_loss = torch.cat([pos_cls_loss, neg_cls_loss], dim=0).mean()
+        ############################
+
         cls_loss = F.binary_cross_entropy_with_logits(
             cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
 
@@ -237,7 +249,8 @@ class LFFD(nn.Module):
     def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int) -> Dict:
 
-        imgs,gt_boxes = batch
+        imgs,o_gt_boxes = batch
+        gt_boxes = [gt[:,:4] for gt in o_gt_boxes]
 
         device = imgs.device
         dtype = imgs.dtype
@@ -266,7 +279,7 @@ class LFFD(nn.Module):
 
             with torch.no_grad():
                 # TODO checkout here
-                scores = torch.sigmoid(cls_logits[i].view(batch_size,fh,fw,1))
+                scores = torch.sigmoid(cls_logits[i].view(batch_size, fh, fw, self.num_classes))
                 pred_boxes = self.heads[i].apply_bbox_regression(
                     reg_logits[i].view(batch_size,fh,fw,4))
 
@@ -315,19 +328,58 @@ class LFFD(nn.Module):
         loss = cls_loss + reg_loss
         pred_boxes:List = []
         for i in range(batch_size):
-            selected_boxes = preds[i, preds[i,:,4] > 0.5, :]
-            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .5)
+            selected_boxes = preds[i, preds[i,:,4] > 0.11, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .4)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:200,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:10000,:].cpu())
 
-        gt_boxes = [box.cpu() for box in gt_boxes]
         return {
             'loss':loss.item(),
             'cls_loss':cls_loss.item(),
             'reg_loss':reg_loss.item(),
             'preds': pred_boxes,
-            'gts': gt_boxes
+            'gts': [box.cpu() for box in o_gt_boxes]
+        }
+
+    def test_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
+            batch_idx:int) -> Dict:
+
+        imgs,o_gt_boxes = batch
+        batch_size = imgs.size(0)
+
+        cls_logits,reg_logits = self(imgs)
+
+        preds:List = []
+
+        for i in range(len(self.heads)):
+            # *for each head
+            fh,fw = cls_logits[i].shape[2:]
+            cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
+            reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
+
+            with torch.no_grad():
+                # TODO checkout here
+                scores = torch.sigmoid(cls_logits[i].view(batch_size, fh, fw, self.num_classes))
+                pred_boxes = self.heads[i].apply_bbox_regression(
+                    reg_logits[i].view(batch_size,fh,fw,4))
+
+                pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
+                # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
+                preds.append(pred_boxes)
+
+        preds = torch.cat(preds, dim=1)
+        pred_boxes:List = []
+        for i in range(batch_size):
+            selected_boxes = preds[i, preds[i,:,4] > 0.11, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .4)
+            selected_boxes = selected_boxes[pick,:]
+            orders = selected_boxes[:, 4].argsort(descending=True)
+            pred_boxes.append(selected_boxes[orders,:][:10000,:].cpu())
+
+        return {
+            'preds': pred_boxes,
+            'gts': [box.cpu() for box in o_gt_boxes]
         }
 
     def configure_optimizers(self):

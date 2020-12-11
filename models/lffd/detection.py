@@ -8,25 +8,28 @@ from utils.matcher import LFFDMatcher
 from utils.utils import random_sample_selection
 
 class DetectionHead(nn.Module):
-    def __init__(self, head_idx:int, infeatures:int, features:int, rf_size:int, rf_stride:int,
-            lower_scale:int, upper_scale:int, num_classes:int=1):
+    def __init__(self, head_idx:int, infeatures:int,
+            features:int, rf_size:int, rf_start_offset:int, rf_stride:int,
+            lower_scale:int, upper_scale:int, num_classes:int=2):
 
         super(DetectionHead,self).__init__()
         self.head_idx = head_idx
         self.rf_size = rf_size
+        self.rf_start_offset = rf_start_offset
         self.rf_stride = rf_stride
         self.num_classes = num_classes
 
-        self.det_conv = conv1x1(infeatures, features)
+        self.det_conv = nn.Sequential(
+            conv1x1(infeatures, features), nn.ReLU())
 
         self.cls_head = nn.Sequential(
             conv1x1(features, features),
-            nn.ReLU6(inplace=True),
+            nn.ReLU(),
             conv1x1(features, self.num_classes))
 
         self.reg_head = nn.Sequential(
             conv1x1(features, features),
-            nn.ReLU6(inplace=True),
+            nn.ReLU(),
             conv1x1(features, 4))
 
         def conv_xavier_init(m):
@@ -95,9 +98,10 @@ class DetectionHead(nn.Module):
         )
 
         # rfs: fmaph x fmapw x 2
-        rfs = torch.stack([x,y], dim=-1) + 0.5
+        rfs = torch.stack([x,y], dim=-1)
 
         rfs *= self.rf_stride
+        rfs += self.rf_start_offset
 
         # rfs: fh x fw x 2 as x,y
         rfs = rfs.repeat(1,1,2) # fh x fw x 2 => fh x fw x 4
