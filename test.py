@@ -1,6 +1,7 @@
 from detector import LightFaceDetector
 from datasets import get_dataset, get_available_datasets
 from utils.utils import seed_everything, get_best_checkpoint_path
+from metrics import get_metric
 
 from transforms import (
     Compose,
@@ -17,7 +18,7 @@ import argparse
 
 def parse_arguments():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--batch-size', '-bs', type=int, default=32)
+    ap.add_argument('--batch-size', '-bs', type=int, default=1)
     ap.add_argument('--verbose', '-vb', type=int, default=8)
     ap.add_argument('--seed', '-s', type=int, default=-1)
 
@@ -25,10 +26,11 @@ def parse_arguments():
     ap.add_argument('--device','-d',type=str,
         default='cuda' if torch.cuda.is_available() else 'cpu', choices=['cpu','cuda'])
 
-    ap.add_argument('--ds', '-ds',type=str,
+    ap.add_argument('--ds', '-ds', type=str,
         default="widerface-easy", choices=get_available_datasets())
 
     ap.add_argument('--checkpoint-path', '-ckpt', type=str, default="./checkpoints/", help='checkpoint dir path')
+    ap.add_argument('--model-path', '-mp', type=str, help='model path')
     ap.add_argument('--debug', action='store_true')
 
     return ap.parse_args()
@@ -52,21 +54,26 @@ if __name__ == '__main__':
     if args.seed != -1: seed_everything(args.seed)
 
     transforms = Compose(
-        Interpolate(max_dim=args.target_size),
-        Padding(target_size=(args.target_size,args.target_size), pad_value=0),
         Normalize(mean=127.5, std=127.5),
         ToTensor()
     )
 
-    print(f"Best checkpoint, using: {args.checkpoint_path}")
-    best_ap_score,ckpt_path = get_best_checkpoint_path(
-            args.checkpoint_path, by='val_ap', mode='max')
+    metrics = {
+        f'{args.ds}-ap' : get_metric("widerface_ap")
+    }
 
-    detector = LightFaceDetector.from_pretrained("lffd",ckpt_path)
+    if args.model_path:
+        print("loading using model path")
+        model_path = args.model_path
+    else:
+        print(f"Best checkpoint, using: {args.checkpoint_path}")
+        best_ap_score,model_path = get_best_checkpoint_path(
+                args.checkpoint_path, by='ap', mode='max')
+
+    detector = LightFaceDetector.from_pretrained("lffd", model_path, metrics=metrics)
 
     trainer = pl.Trainer(gpus=1 if args.device=='cuda' else 0)
 
-    dl = generate_dl(args.ds, "val",
-        args.batch_size, transforms=transforms)
+    dl = generate_dl(args.ds, "val", args.batch_size, transforms=transforms)
 
     trainer.test(detector, test_dataloaders=dl)
