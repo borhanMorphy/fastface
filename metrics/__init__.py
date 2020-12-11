@@ -1,10 +1,10 @@
-from .average_precision import AveragePrecision
+from .widerface_ap import WiderFaceAP
 
 from typing import List
 
 __metric_mapper__ = {
-    'ap': {
-        'cls': AveragePrecision,
+    'widerface_ap': {
+        'cls': WiderFaceAP,
         'args': (),
         'kwargs': {
             'iou_threshold':0.5
