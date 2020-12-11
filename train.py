@@ -1,6 +1,7 @@
 from detector import LightFaceDetector
 from datasets import get_dataset, get_available_datasets
 from utils.utils import seed_everything, get_best_checkpoint_path
+from metrics import get_metric
 
 from transforms import (
     Compose,
@@ -103,7 +104,11 @@ if __name__ == '__main__':
     else:
         print("traning from scratch")
 
-    detector = LightFaceDetector.build("lffd", metric_names=['ap'], hyp=hyp, debug=args.debug)
+    metrics = {
+        'val_ap': get_metric("widerface_ap")
+    }
+
+    detector = LightFaceDetector.build("lffd", metrics=metrics, hyp=hyp, debug=args.debug)
     ckpt_path = None
     if args.resume:
         best_ap_score,ckpt_path = get_best_checkpoint_path(
