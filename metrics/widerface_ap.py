@@ -5,6 +5,7 @@ import torchvision.ops.boxes as box_ops
 import numpy as np
 
 class WiderFaceAP(Metric):
+	# this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
 	"""Calculates WiderFace Average Precision"""
 
 	def __init__(self, dist_sync_on_step=False, iou_threshold:float=.5):

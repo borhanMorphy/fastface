@@ -1,24 +1,61 @@
 # Light Face Detector
+Face detection implementations with [pytorch-lightning](https://www.pytorchlightning.ai/)
 
-Face detection implementation using [pytorch-lightning](https://www.pytorchlightning.ai/)
+## GOAL
+Supporting lightweight face detection implementations to train, test and deploy in a scalable and maintainable manner.
 
-## TODOs
+## CONTENTS
+- [Recent Update](#recent-update)
+- [Usage](#usage)
+- [TODO](#todo)
+- [Reference](#reference)
+- [Citation](#citation)
+
+## Recent Update
+* `2020.12.11` tested training script and achived 75 ap score on `widerface easy` validation set using lffd (560_25L_8scales) with random weight initialization(defined in the paper)
+* `2020.12.11` added widerface evaluation metric under the `metrics/widerface_ap.py` as `pytorch_lightning.metrics.Metric`
+* `2020.12.06` added lffd weight conversion script under the `tools/lffd_mx2torch.py` to convert official mxnet model weights to pytorch weights
+
+## Usage
+### Setup
+install the dependencies
+```
+pip install -r requirements.txt
+```
+
+### Inference
+run with pretrained model
+```
+python demo.py -i <your_image_file_path> --arch lffd --config 560_25L_8S --weights ./models/original_lffd_560_25L_8S.pt
+```
+sample output;
+![alt text](resources/friends.jpg)
+
+
+### Evaluation
+
 ### Training
-- [x] add checkpoint support
+
+## TODO
+### Training
+- [x] add resume training
 - [x] add widerface dataset support
 - [ ] add FDDB dataset support
-- [ ] add LR Scheduler
+- [x] add LR Scheduler
 - [x] add detector train loop
 - [x] add detector val loop
-- [ ] add detector test loop
+- [x] add detector test loop
 - [x] support AP metric
-- [ ] convert AP metric to `pytorch_lightning.metrics.Metric`
+- [x] convert AP metric to `pytorch_lightning.metrics.Metric`
 - [ ] implement OHNM instead of random sampling
+- [ ] support lffd `320_20L_5scales` configuration
+- [ ] provide lffd model weights that training from scratch
 
 ### Inference
 - [ ] add demo.py
 - [ ] export APIs for package usage
-- [ ] create setup.py
+- [ ] add setup.py
+- [ ] support model download via io utility
 
 ### Depyloment
 - [ ] add bentoml support and guideline
@@ -26,5 +63,16 @@ Face detection implementation using [pytorch-lightning](https://www.pytorchlight
 - [ ] add mobile demo guideline
 - [ ] add torchscript support and C++ guideline
 
-### Style
-- [ ] Refactor README.md file
+## Reference
+- [LFFD Paper](https://arxiv.org/pdf/1904.10633.pdf)
+- [Official LFFD Implementation](https://github.com/YonghaoHe/A-Light-and-Fast-Face-Detector-for-Edge-Devices)
+
+## Citation
+```
+@inproceedings{LFFD,
+title={LFFD: A Light and Fast Face Detector for Edge Devices},
+author={He, Yonghao and Xu, Dezhong and Wu, Lifang and Jian, Meng and Xiang, Shiming and Pan, Chunhong},
+booktitle={arXiv:1904.10633},
+year={2019}
+}
+```
