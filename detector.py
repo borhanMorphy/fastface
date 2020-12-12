@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 import torch
 from typing import List,Dict
 import numpy as np
+import registry
 
 from archs import (
     get_arch_by_name,
@@ -87,6 +88,9 @@ class LightFaceDetector(pl.LightningModule):
         # build pl module
         pl_module = cls.build(arch_name, *args,
             config=config, metrics=metrics, **kwargs)
+
+        # checking if model downloadable
+        registry.handle_model_download(weights, arch_name, config)
 
         # load state dict
         st = torch.load(weights, map_location='cpu')

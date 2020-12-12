@@ -26,7 +26,17 @@ class LFFD(nn.Module):
             'scales': [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
-            ] # calculated for 640 image input
+            ], # calculated for 640 image input
+            'adapter': {
+                'type':'gdrive',
+                'key':'models/original_lffd_560_25L_8S.pt',
+                'args': ('1uE-_dha8g8akfACES_VsMjwst_b1ir37',),
+                'kwargs': {
+                    'overwrite': False,
+                    'unzip': False,
+                    'showsize': True
+                }
+            }
         }
         # TODO "320_20L_5S"
     }

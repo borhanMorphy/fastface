@@ -12,6 +12,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 - [Citation](#citation)
 
 ## Recent Update
+* `2020.12.13` added lffd 560_25L_8scales official weights that converted from mxnet to pytorch
 * `2020.12.11` tested training script and achived 75 ap score on `widerface easy` validation set using lffd (560_25L_8scales) with random weight initialization(defined in the paper)
 * `2020.12.11` added widerface evaluation metric under the `metrics/widerface_ap.py` as `pytorch_lightning.metrics.Metric`
 * `2020.12.06` added lffd weight conversion script under the `tools/lffd_mx2torch.py` to convert official mxnet model weights to pytorch weights
@@ -23,14 +24,15 @@ install the dependencies
 pip install -r requirements.txt
 ```
 
-### Inference
-run with pretrained model
+### Demo
+run demo with pretrained model
 ```
 python demo.py -i <your_image_file_path> --arch lffd --config 560_25L_8S --weights ./models/original_lffd_560_25L_8S.pt
 ```
 sample output;
 ![alt text](resources/friends.jpg)
 
+### Inference
 
 ### Evaluation
 
@@ -40,6 +42,7 @@ sample output;
 ### Training
 - [x] add resume training
 - [x] add widerface dataset support
+- [ ] add widerface dataset download adapter
 - [ ] add FDDB dataset support
 - [x] add LR Scheduler
 - [x] add detector train loop

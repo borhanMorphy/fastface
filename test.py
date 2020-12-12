@@ -31,7 +31,6 @@ def parse_arguments():
 
     ap.add_argument('--checkpoint-path', '-ckpt', type=str, default="./checkpoints/", help='checkpoint dir path')
     ap.add_argument('--model-path', '-mp', type=str, help='model path')
-    ap.add_argument('--debug', action='store_true')
 
     return ap.parse_args()
 
