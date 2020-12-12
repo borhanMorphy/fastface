@@ -1,9 +1,12 @@
 import pytorch_lightning as pl
-from models import get_detector_by_name
 import torch
 from typing import List,Dict
-
 import numpy as np
+
+from archs import (
+    get_arch_by_name,
+    get_arch_config_by_name
+)
 
 class LightFaceDetector(pl.LightningModule):
     def __init__(self, model, metrics:Dict={}):
@@ -14,8 +17,8 @@ class LightFaceDetector(pl.LightningModule):
     def forward(self, data:torch.Tensor):
         return self.model(data)
 
-    def predict(self, data:torch.Tensor):
-        return self.model.predict(data)
+    def predict(self, data:torch.Tensor, *args, **kwargs):
+        return self.model.predict(data, *args, **kwargs)
 
     def training_step(self, batch, batch_idx):
         return self.model.training_step(batch,batch_idx)
@@ -66,21 +69,31 @@ class LightFaceDetector(pl.LightningModule):
         return self.model.configure_optimizers()
 
     @classmethod
-    def build(cls, model_name:str, metrics:Dict=[],
+    def build(cls, arch_name:str, config:str='', metrics:Dict={},
             *args, **kwargs) -> pl.LightningModule:
-        model = get_detector_by_name(model_name,*args,**kwargs)
-        return cls(model, metrics=metrics)
+        # get architecture configuration
+        arch_config = get_arch_config_by_name(arch_name, config=config)
+
+        # get architecture nn.Module with given configuration
+        arch = get_arch_by_name(arch_name, *args, config=arch_config, **kwargs)
+
+        # build pl.LightninModule with given architecture
+        return cls(arch, metrics=metrics)
 
     @classmethod
-    def from_pretrained(cls, model_name:str, model_path:str,
-            *args,**kwargs):
-        metrics = kwargs.pop('metrics')
+    def from_pretrained(cls, arch_name:str, weights:str,
+            *args, config:str='', metrics:Dict={}, **kwargs) -> pl.LightningDataModule:
 
-        model = get_detector_by_name(model_name, *args, **kwargs)
-        st = torch.load(model_path, map_location='cpu')
-        pl_model = cls(model, metrics=metrics)
-        if model_path.endswith(".ckpt"):
-            pl_model.load_state_dict(st['state_dict'])
+        # build pl module
+        pl_module = cls.build(arch_name, *args,
+            config=config, metrics=metrics, **kwargs)
+
+        # load state dict
+        st = torch.load(weights, map_location='cpu')
+
+        # initialize state dict
+        if weights.endswith(".ckpt"):
+            pl_module.load_state_dict(st['state_dict'])
         else:
-            pl_model.load_state_dict(st)
-        return pl_model
+            pl_module.load_state_dict(st)
+        return pl_module

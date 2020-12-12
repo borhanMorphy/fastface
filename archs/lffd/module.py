@@ -4,33 +4,49 @@ import torch.nn.functional as F
 from torchvision.ops import boxes as box_ops
 
 from typing import Tuple,List,Dict
-from .conv import conv3x3
-from .resblock import ResBlock
-from .detection import DetectionHead
+from .blocks import (
+    conv3x3,
+    ResBlock,
+    DetectionHead
+)
+
 from utils.utils import random_sample_selection
+from cv2 import cv2
 
 import math
 import numpy as np
 
 class LFFD(nn.Module):
-    # these configs are for 8 headed lffd detector
-    __FILTERS__ = [64,64,64,64,128,128,128,128]
-    __RF_SIZES__ = [15, 20, 40, 70, 110, 250, 400, 560]
-    __RF_START_OFFSETS__ = [3, 3, 7, 7, 15, 31, 31, 31]
-    __RF_STRIDES__ = [4,4,8,8,16,32,32,32]
-    __SCALES__ = [(10,15),(15,20),(20,40),(40,70),(70,110),(110,250),(250,400),(400,560)] # calculated for 640 image input
+    __CONFIGS__ = {
+        "560_25L_8S":{
+            'filters': [64,64,64,64,128,128,128,128],
+            'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
+            'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
+            'rf_strides': [4,4,8,8,16,32,32,32],
+            'scales': [
+                (10,15),(15,20),(20,40),(40,70),
+                (70,110),(110,250),(250,400),(400,560)
+            ] # calculated for 640 image input
+        }
+        # TODO "320_20L_5S"
+    }
 
-    def __init__(self, in_channels:int=3, filters:List[int]=None,
-            rf_sizes:List[int]=None, rf_start_offsets:List[int]=None,
-            rf_strides:List[int]=None, scales:List[int]=None,
+    def __init__(self, in_channels:int=3, config:Dict={},
             num_classes:int=1, hyp:Dict={}, debug:bool=False):
         super(LFFD,self).__init__()
 
-        if filters is None: filters = LFFD.__FILTERS__
-        if rf_sizes is None: rf_sizes = LFFD.__RF_SIZES__
-        if rf_start_offsets is None: rf_start_offsets = LFFD.__RF_START_OFFSETS__
-        if rf_strides is None: rf_strides = LFFD.__RF_STRIDES__
-        if scales is None: scales = LFFD.__SCALES__
+        assert "filters" in config, "`filters` must be defined in the config"
+        assert "rf_sizes" in config, "`rf_sizes` must be defined in the config"
+        assert "rf_start_offsets" in config, "`rf_start_offsets` must be defined in the config"
+        assert "rf_strides" in config, "`rf_strides` must be defined in the config"
+        assert "scales" in config, "`scales` must be defined in the config"
+
+        filters = config.get('filters')
+        rf_sizes = config.get('rf_sizes')
+        rf_start_offsets = config.get('rf_start_offsets')
+        rf_strides = config.get('rf_strides')
+        scales = config.get('scales')
+
         self.num_classes = num_classes
         self.hyp = hyp
         self.__debug = debug
@@ -122,7 +138,8 @@ class LFFD(nn.Module):
         return cls_logits,reg_logits
 
     @torch.no_grad()
-    def predict(self, x:torch.Tensor) -> List[torch.Tensor]:
+    def predict(self, x:torch.Tensor, det_threshold:float=.95,
+            keep_n:int=10000, iou_threshold:float=.4) -> List[torch.Tensor]:
         if len(x.shape) == 3:
             x = x.unsqueeze(0)
         batch_size = x.size(0)
@@ -134,7 +151,7 @@ class LFFD(nn.Module):
 
             cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, -1, self.num_classes)
             reg_ = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
-            # TODO checkout here
+
             scores = torch.sigmoid(cls_.view(batch_size,fh,fw,self.num_classes))
             # original positive pred score dim is 0
             boxes = self.heads[i].apply_bbox_regression(
@@ -147,11 +164,11 @@ class LFFD(nn.Module):
 
         pred_boxes:List = []
         for i in range(batch_size):
-            selected_boxes = preds[i, preds[i,:,4] > 0.11, :]
-            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .4)
+            selected_boxes = preds[i, preds[i,:,4] > det_threshold, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], iou_threshold)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:10000,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:keep_n,:].cpu())
         return pred_boxes
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
