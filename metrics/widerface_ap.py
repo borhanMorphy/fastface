@@ -33,8 +33,11 @@ class WiderFaceAP(Metric):
 	def compute(self) -> float:
 		curve = np.zeros((self.threshold_steps,2), dtype=np.float32)
 
-		normalized_preds = self.normalize_scores(self.pred_boxes)
-		gt_boxes = [gt_boxes.cpu().numpy() for gt_boxes in self.gt_boxes]
+		normalized_preds = self.normalize_scores(
+			[pred.float().cpu().numpy() for pred in self.pred_boxes]
+		)
+
+		gt_boxes = [gt_boxes.cpu().float().numpy() for gt_boxes in self.gt_boxes]
 
 		total_faces = 0
 
@@ -92,11 +95,11 @@ class WiderFaceAP(Metric):
 		return ap
 
 	@staticmethod
-	def normalize_scores(batch_preds:List[torch.Tensor]) -> List[np.ndarray]:
+	def normalize_scores(batch_preds:List[np.ndarray]) -> List[np.ndarray]:
 		"""[summary]
 
 		Args:
-			preds (List[torch.Tensor]): [description]
+			preds (List[np.ndarray]): [description]
 
 		Returns:
 			List[np.ndarray]: [description]
@@ -105,20 +108,20 @@ class WiderFaceAP(Metric):
 		max_score = 0
 		min_score = 1
 		for preds in batch_preds:
-			if preds.size(0) == 0: continue
+			if preds.shape[0] == 0: continue
 
-			min_score = min(preds[:,-1].min().item(), min_score)
-			max_score = max(preds[:,-1].max().item(), max_score)
+			min_score = min(preds[:,-1].min(), min_score)
+			max_score = max(preds[:,-1].max(), max_score)
 
 		d = max_score - min_score
 
 		for preds in batch_preds:
-			n_preds = preds.clone()
-			if preds.size(0) == 0:
+			n_preds = preds.copy()
+			if preds.shape[0] == 0:
 				norm_preds.append(n_preds)
 				continue
 			n_preds[:, -1] = (n_preds[:, -1] - min_score) / d
-			norm_preds.append(n_preds.cpu().numpy())
+			norm_preds.append(n_preds)
 		return norm_preds
 
 	def evaluate_single_image(self, preds:np.ndarray, gts:np.ndarray,

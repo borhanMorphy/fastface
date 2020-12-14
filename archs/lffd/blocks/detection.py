@@ -4,13 +4,14 @@ import torch.nn.functional as F
 
 from typing import Tuple,List
 from .conv import conv1x1
-from utils.matcher import LFFDMatcher
+import math
 from utils.utils import random_sample_selection
+from utils.matcher import LFFDMatcher
 
 class DetectionHead(nn.Module):
     def __init__(self, head_idx:int, infeatures:int,
             features:int, rf_size:int, rf_start_offset:int, rf_stride:int,
-            lower_scale:int, upper_scale:int, num_classes:int=2):
+            lower_scale:int, upper_scale:int, num_classes:int=1):
 
         super(DetectionHead,self).__init__()
         self.head_idx = head_idx
@@ -41,7 +42,13 @@ class DetectionHead(nn.Module):
 
         self.apply(conv_xavier_init)
 
+        self.sl_range = (int(math.floor(lower_scale * 0.9)), lower_scale)
+        self.su_range = (upper_scale, int(math.ceil(upper_scale * 1.1)))
         self.matcher = LFFDMatcher(lower_scale,upper_scale)
+
+        self.anchors = self.gen_rf_anchors(30,30, device='cpu', dtype=torch.float32)
+        self._cached_fh = 30
+        self._cached_fw = 30
 
     def apply_bbox_regression(self, reg_logits:torch.Tensor) -> torch.Tensor:
         """Applies bounding box regression using regression logits
@@ -152,6 +159,132 @@ class DetectionHead(nn.Module):
 
         return t_cls,t_regs,ignore
 
+    def build_targets_v2(self, fmap:Tuple[int,int], batch_gt_boxes:List[torch.Tensor], device:str='cpu',
+            dtype:torch.dtype=torch.float32) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
+        """[summary]
+
+        Args:
+            fmap (Tuple[int,int]): fmap_h and fmap_w
+            batch_gt_boxes (List[torch.Tensor]): [N',4] as xmin,ymin,xmax,ymax
+            device (str, optional): target device. Defaults to 'cpu'.
+            dtype (torch.dtype, optional): target dtype. Defaults to torch.float32.
+
+        Returns:
+            Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
+                (0) target_cls          : bs,fh',fw'      | type: model.dtype         | device: model.device
+                (1) mask_cls            : bs,fh',fw'      | type: torch.bool          | device: model.device
+                (2) target_regs         : bs,fh',fw',4    | type: model.dtype         | device: model.device
+                (3) mask_regs           : bs,fh',fw'      | type: torch.bool          | device: model.device
+        """
+        batch_size = len(batch_gt_boxes)
+        fh,fw = fmap
+
+        target_cls = torch.zeros(*(batch_size,fh,fw), dtype=dtype, device=device)    # 0: bg  | 1: match
+        mask_cls = torch.ones(*(batch_size,fh,fw), dtype=torch.bool, device=device)  # False: ignore | True: accept
+        target_regs = torch.zeros(*(batch_size,fh,fw,4), dtype=dtype, device=device)
+        mask_regs = torch.zeros(*(batch_size,fh,fw), dtype=torch.bool, device=device) # False: ignore | True: accept
+
+        if fh != self._cached_fh or fw != self._cached_fw or device != self.anchors.device or dtype != self.anchors.dtype:
+            self.anchors = self.gen_rf_anchors(fh, fw, device=device, dtype=dtype)
+            self._cached_fh = fh
+            self._cached_fw = fw
+
+        rf_normalizer = self.rf_size/2
+        rf_centers = (self.anchors[:,:, [0,1]] + self.anchors[:,:, [2,3]]) / 2
+        # rf_anchors: fh x fw x 4 as xmin,ymin,xmax,ymax
+        for i in range(batch_size):
+            gt_boxes = batch_gt_boxes[i]
+            if gt_boxes.size(0) == 0: continue
+
+            # select max face dim as `face scale` (defined in the paper)
+            face_scales,_ = (gt_boxes[:,[2,3]] - gt_boxes[:,[0,1]]).max(dim=1)
+
+            # only select gt boxes that falls between scales
+            gt_select_cond = (face_scales >= self.sl_range[0]) & (face_scales <= self.su_range[1])
+
+            s_gt_boxes = gt_boxes[gt_select_cond, :]
+            face_scales = face_scales[gt_select_cond]
+
+            if s_gt_boxes.size(0) == 0: continue
+
+            # lookup ignores
+            lower_ignore_cond = (face_scales >= self.sl_range[0]) & (face_scales <= self.sl_range[1])
+            upper_ignore_cond = (face_scales >= self.su_range[0]) & (face_scales <= self.su_range[1])
+            gt_ignore_box_ids, = torch.where(lower_ignore_cond | upper_ignore_cond)
+
+            # lets match
+            for box_idx,(x1,y1,x2,y2) in enumerate(s_gt_boxes):
+                cond_x = (rf_centers[:,:,0] > x1) & (rf_centers[:,:,0] < x2)
+                cond_y = (rf_centers[:,:,1] > y1) & (rf_centers[:,:,1] < y2)
+                match = cond_x & cond_y
+                # match: fh,fw boolean
+
+                # if there is no match than continue
+                if match.sum() == 0:
+                    continue
+
+                # if falls in gray scale ignore
+                if box_idx in gt_ignore_box_ids:
+                    mask_cls[i, match] = False
+                    continue
+
+                # set as matched
+                target_cls[i, match] += 1
+
+                # set reg targets)
+
+                target_regs[i, match, [0]] = (rf_centers[match, [0]] - x1) / rf_normalizer
+                target_regs[i, match, [1]] = (rf_centers[match, [1]] - y1) / rf_normalizer
+                target_regs[i, match, [2]] = (rf_centers[match, [0]] - x2) / rf_normalizer
+                target_regs[i, match, [3]] = (rf_centers[match, [1]] - y2) / rf_normalizer
+
+        multi_matches = target_cls > 1
+        positive_matches = target_cls == 1
+
+        mask_cls[ multi_matches ] = False
+        target_cls[multi_matches] = 1
+        mask_regs[positive_matches] = True
+
+        return target_cls, mask_cls, target_regs, mask_regs
+
+    def compute_loss(self, cls_items:Tuple[torch.Tensor,torch.Tensor,torch.Tensor],
+            reg_items:Tuple[torch.Tensor,torch.Tensor,torch.Tensor]) -> torch.Tensor:
+        # (cls_logits,target_cls,mask_cls),
+        # (reg_logits,target_regs,mask_regs)
+        cls_logits,target_cls,mask_cls = cls_items
+        reg_logits,target_regs,mask_regs = reg_items
+
+        pos_mask = mask_cls & (target_cls == 1)
+        neg_mask = mask_cls & (target_cls == 0)
+
+        cls_loss = F.binary_cross_entropy_with_logits(cls_logits.squeeze(-1), target_cls, reduction='none')
+
+        positives = pos_mask.sum()
+        hnm_ratio = 5
+        neg_select_ratio = 0.1
+
+        if positives > 0:
+            negatives = min(int(hnm_ratio*positives), neg_mask.sum())
+        else:
+            negatives = int(mask_cls.view(-1).size(0) * neg_select_ratio)
+
+        th_index = cls_loss[neg_mask].argsort(descending=True)[negatives-1]
+        th_value = cls_loss[neg_mask][th_index]
+
+        select = torch.where((cls_loss >= th_value) & neg_mask)
+        neg_mask[:] = False
+        neg_mask[select] = True
+
+        cls_loss = cls_loss[ neg_mask | pos_mask ].mean()
+
+        if mask_regs.sum() > 0:
+            reg_loss = F.mse_loss(reg_logits[mask_regs, :], target_regs[mask_regs, :], reduction='mean')
+            loss = cls_loss + reg_loss
+        else:
+            loss = cls_loss
+
+        return loss
+
     def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         data = self.det_conv(x)
 
@@ -160,55 +293,3 @@ class DetectionHead(nn.Module):
         reg_logits = self.reg_head(data)
         # (b,c,h,w)
         return cls_logits,reg_logits
-
-    def compute_loss(self, cls_logits:torch.Tensor, reg_logits:torch.Tensor,
-            gt_boxes:List[torch.Tensor]) -> Tuple[torch.Tensor,torch.Tensor]:
-        fh,fw = cls_logits.shape[2:]
-        device = cls_logits.device
-        dtype = cls_logits.dtype
-        batch_size = cls_logits.size(0)
-        ratio = 5
-
-        cls_logits = cls_logits.permute(0,2,3,1)
-        reg_logits = reg_logits.permute(0,2,3,1)
-        target_cls, target_regs, ignore = self.build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
-        # target_cls     : bs,fh,fw      | type: model.dtype          | device: model.device
-        # target_regs    : bs,fh,fw,4    | type: model.dtype          | device: model.device
-        # ignore         : bs,fh,fw      | type: torch.bool           | device: model.device
-        """
-            16 torch.Size([20, 4])
-            cls_logits:  torch.Size([16, 160, 160, 1])
-            reg_logits:  torch.Size([16, 160, 160, 4])
-            target_cls:  torch.Size([16, 160, 160])
-            target_regs: torch.Size([16, 160, 160, 4])
-            ignore:  torch.Size([16, 160, 160]
-        """
-        pos_mask = (target_cls == 1) & (~ignore)
-        rpos_mask = target_cls == 1
-        neg_mask = (target_cls == 0) & (~ignore)
-        positives = pos_mask.sum()
-        if positives <= 0:
-            negatives = batch_size
-        else:
-            negatives = min(neg_mask.sum(), ratio*positives)
-
-        # *Random sample selection
-        ############################
-        neg_mask = neg_mask.view(-1)
-        ss, = torch.where(neg_mask)
-        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
-        neg_mask[:] = False
-        neg_mask[selections] = True
-        neg_mask = neg_mask.view(batch_size,fh,fw)
-        negatives = neg_mask.sum()
-        ###########################
-
-        cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask].unsqueeze(-1))
-
-        if rpos_mask.sum() <= 0:
-            reg_loss = torch.tensor(0, dtype=dtype, device=device, requires_grad=True)
-        else:
-            reg_loss = F.mse_loss(reg_logits[rpos_mask], target_regs[rpos_mask])
-
-        return cls_loss,reg_loss

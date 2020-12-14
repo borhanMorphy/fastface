@@ -189,89 +189,37 @@ class LFFD(nn.Module):
         device = imgs.device
         dtype = imgs.dtype
         batch_size = imgs.size(0)
-        ratio = 10
+        num_of_heads = len(self.heads)
 
-        cls_logits,reg_logits = self(imgs)
+        heads_cls_logits,heads_reg_logits = self(imgs)
 
-        target_cls:List = []
-        target_regs:List = []
+        losses:List[torch.Tensor] = []
 
-        ignore:List = []
-        rfs:List = []
-
-        debug_fmaps = [] # ? Debug
-        current = 0
-
-        for i in range(len(self.heads)):
+        for head_idx in range(num_of_heads):
             # *for each head
-            fh,fw = cls_logits[i].shape[2:]
+            fh,fw = heads_cls_logits[head_idx].shape[2:]
 
-            # ? Debug
-            start = current
-            current += (fh*fw)
-            debug_fmaps.append((fh,fw,start))
+            target_cls,mask_cls,target_regs,mask_regs = self.heads[head_idx].build_targets_v2(
+                (fh,fw), gt_boxes, device=device, dtype=dtype)
+            #target_cls          : bs,fh',fw'      | type: model.dtype         | device: model.device
+            #mask_cls            : bs,fh',fw'      | type: torch.bool          | device: model.device
+            #target_regs         : bs,fh',fw',4    | type: model.dtype         | device: model.device
+            #mask_regs           : bs,fh',fw'      | type: torch.bool          | device: model.device
 
-            t_cls,t_regs,ig = self.heads[i].build_targets((fh,fw), gt_boxes, device=device, dtype=dtype)
-            # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
-            # t_regs         : bs,fh',fw',4    | type: model.dtype          | device: model.device
-            # ig             : bs,fh',fw'      | type: torch.bool           | device: model.device
+            cls_logits = heads_cls_logits[head_idx].permute(0,2,3,1)
+            reg_logits = heads_reg_logits[head_idx].permute(0,2,3,1)
 
-            cls_logits[i] = cls_logits[i].permute(0,2,3,1).view(batch_size, -1)
-            reg_logits[i] = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
+            head_loss = self.heads[head_idx].compute_loss(
+                (cls_logits,target_cls,mask_cls),
+                (reg_logits,target_regs,mask_regs)
+            )
 
-            # TODO use cache
-            h_rfs = self.heads[i].gen_rf_anchors(fh, fw, device=device, dtype=dtype, clip=True)
-            rfs.append(h_rfs.view(-1,4))
-            # List[ (fh*fw,4) ]
+            losses.append(head_loss)
 
-            target_cls.append(t_cls.view(batch_size, -1))
-            target_regs.append(t_regs.view(batch_size,-1,4))
+        log = {f"h{head_idx+1}_loss":losses[head_idx] for head_idx in range(num_of_heads)}
+        log.update({'loss': sum(losses) / num_of_heads})
 
-            ignore.append(ig.view(batch_size,-1))
-
-        cls_logits = torch.cat(cls_logits, dim=1)
-        reg_logits = torch.cat(reg_logits, dim=1)
-        target_cls = torch.cat(target_cls, dim=1)
-        target_regs = torch.cat(target_regs, dim=1)
-        ignore = torch.cat(ignore, dim=1)
-
-        pos_mask = (target_cls == 1) & (~ignore)
-        rpos_mask = target_cls == 1
-        neg_mask = (target_cls == 0) & (~ignore)
-
-        positives = pos_mask.sum()
-        negatives = neg_mask.sum()
-        negatives = min(negatives,ratio*positives)
-
-        # *Random sample selection
-        ############################
-        neg_mask = neg_mask.view(-1)
-        ss, = torch.where(neg_mask)
-        selections = random_sample_selection(ss.cpu().numpy().tolist(), negatives)
-        neg_mask[:] = False
-        neg_mask[selections] = True
-        neg_mask = neg_mask.view(batch_size,-1)
-        ############################
-
-        #cls_loss = F.binary_cross_entropy_with_logits(cls_logits, target_cls, reduction='none')
-        #pos_cls_loss = cls_loss[pos_mask]
-        #neg_cls_loss,_ = cls_loss[neg_mask].topk(negatives)
-        #cls_loss = torch.cat([pos_cls_loss, neg_cls_loss], dim=0).mean()
-        ############################
-
-        cls_loss = F.binary_cross_entropy_with_logits(
-            cls_logits[pos_mask | neg_mask], target_cls[pos_mask | neg_mask])
-
-        reg_loss = F.mse_loss(reg_logits[rpos_mask, :], target_regs[rpos_mask, :])
-
-        ## ? Debug
-        if self.__debug:
-            #debug_show_rf_matches(imgs,rfs,gt_boxes)
-            debug_show_pos_neg_ig_with_gt(imgs,gt_boxes,rfs,debug_fmaps,pos_mask,neg_mask,ignore)
-
-        assert not torch.isnan(reg_loss) and not torch.isnan(cls_loss)
-
-        return cls_loss + reg_loss
+        return log
 
     def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int) -> Dict:
@@ -489,6 +437,5 @@ def debug_tensor2img(imgs:torch.Tensor) -> List[np.ndarray]:
     for img in imgs:
         nimg = (img*127.5 + 127.5).permute(1,2,0).cpu().numpy().astype(np.uint8)
         #nimg = cv2.UMat(nimg).get()
-        nimg = cv2.cvtColor(nimg, cv2.COLOR_RGB2BGR)
         np_imgs.append(nimg)
     return np_imgs

@@ -22,7 +22,12 @@ class LightFaceDetector(pl.LightningModule):
         return self.model.predict(data, *args, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        return self.model.training_step(batch,batch_idx)
+        losses = self.model.training_step(batch,batch_idx)
+        for k,v in losses.items():
+            if k != 'loss':
+                self.log(k,v,on_step=True, on_epoch=False, prog_bar=True, logger=True)
+
+        return losses['loss']
 
     def on_validation_epoch_start(self):
         for metric in self.metrics.values():
