@@ -70,10 +70,10 @@ python test.py --arch lffd --config 560_25L_8S -mp models/original_lffd_560_25L_
 - [ ] provide lffd model weights that training from scratch
 
 ### Inference
-- [ ] add demo.py
+- [x] add demo.py
 - [ ] export APIs for package usage
 - [ ] add setup.py
-- [ ] support model download via io utility
+- [x] support model download via io utility
 
 ### Depyloment
 - [ ] add bentoml support and guideline
