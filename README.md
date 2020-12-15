@@ -12,6 +12,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 - [Citation](#citation)
 
 ## Recent Update
+* `2020.12.15` [evaluation scripts and results](#evaluation) are added
 * `2020.12.13` added lffd 560_25L_8scales official weights that converted from mxnet to pytorch
 * `2020.12.11` tested training script and achived 75 ap score on `widerface easy` validation set using lffd (560_25L_8scales) with random weight initialization(defined in the paper)
 * `2020.12.11` added widerface evaluation metric under the `metrics/widerface_ap.py` as `pytorch_lightning.metrics.Metric`
@@ -35,6 +36,20 @@ sample output;
 ### Inference
 
 ### Evaluation
+Evaluation on Widerface Validation Set Using `LFFD 560_25L_8S` original weights
+Method|Easy Set|Medium Set|Hard Set
+------|--------|----------|--------
+**LFFD(paper)**|0.910     |0.881       |0.780
+**LFFD(this repository)**|0.893     |0.866       |0.756
+
+To get these results run the following scripts
+```
+python test.py --arch lffd --config 560_25L_8S -mp models/original_lffd_560_25L_8S.pt -ds widerface-easy
+
+python test.py --arch lffd --config 560_25L_8S -mp models/original_lffd_560_25L_8S.pt -ds widerface-medium
+
+python test.py --arch lffd --config 560_25L_8S -mp models/original_lffd_560_25L_8S.pt -ds widerface-hard
+```
 
 ### Training
 
