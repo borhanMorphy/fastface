@@ -193,7 +193,8 @@ class LFFD(nn.Module):
 
         heads_cls_logits,heads_reg_logits = self(imgs)
 
-        losses:List[torch.Tensor] = []
+        cls_loss:List[torch.Tensor] = []
+        reg_loss:List[torch.Tensor] = []
 
         for head_idx in range(num_of_heads):
             # *for each head
@@ -209,17 +210,16 @@ class LFFD(nn.Module):
             cls_logits = heads_cls_logits[head_idx].permute(0,2,3,1)
             reg_logits = heads_reg_logits[head_idx].permute(0,2,3,1)
 
-            head_loss = self.heads[head_idx].compute_loss(
+            head_cls_loss,head_reg_loss = self.heads[head_idx].compute_loss(
                 (cls_logits,target_cls,mask_cls),
                 (reg_logits,target_regs,mask_regs)
             )
 
-            losses.append(head_loss)
-
-        log = {f"h{head_idx+1}_loss":losses[head_idx] for head_idx in range(num_of_heads)}
-        log.update({'loss': sum(losses) / num_of_heads})
-
-        return log
+            cls_loss.append(head_cls_loss)
+            reg_loss.append(head_reg_loss)
+        cls_loss = torch.cat(cls_loss).mean()
+        reg_loss = torch.cat(reg_loss).mean()
+        return cls_loss + reg_loss
 
     def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int) -> Dict:

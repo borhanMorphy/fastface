@@ -248,42 +248,59 @@ class DetectionHead(nn.Module):
         return target_cls, mask_cls, target_regs, mask_regs
 
     def compute_loss(self, cls_items:Tuple[torch.Tensor,torch.Tensor,torch.Tensor],
-            reg_items:Tuple[torch.Tensor,torch.Tensor,torch.Tensor]) -> torch.Tensor:
+            reg_items:Tuple[torch.Tensor,torch.Tensor,torch.Tensor]) -> Tuple[torch.Tensor,torch.Tensor]:
         # (cls_logits,target_cls,mask_cls),
         # (reg_logits,target_regs,mask_regs)
         cls_logits,target_cls,mask_cls = cls_items
         reg_logits,target_regs,mask_regs = reg_items
 
+        device = reg_logits.device
+        dtype = reg_logits.dtype
+
+        bs,fh,fw = cls_logits.shape[:3]
+
         pos_mask = mask_cls & (target_cls == 1)
         neg_mask = mask_cls & (target_cls == 0)
-
-        cls_loss = F.binary_cross_entropy_with_logits(cls_logits.squeeze(-1), target_cls, reduction='none')
+        top_neg_mask = neg_mask.clone().view(-1)
+        top_neg_mask[:] = False
+        rand_neg_mask = neg_mask.clone().view(-1)
 
         positives = pos_mask.sum()
+        negatives = neg_mask.sum()
         hnm_ratio = 5
+        random_ratio = 5
         neg_select_ratio = 0.1
 
         if positives > 0:
-            negatives = min(int(hnm_ratio*positives), neg_mask.sum())
+            top_negatives = min(positives*hnm_ratio, negatives//2)
+            rand_negatives = min(positives*random_ratio, negatives//2)
         else:
-            negatives = int(mask_cls.view(-1).size(0) * neg_select_ratio)
+            top_negatives = min(int((pos_mask.view(-1).size(0) // 2) * neg_select_ratio), negatives//2)
+            rand_negatives = min(int((pos_mask.view(-1).size(0) // 2) * neg_select_ratio), negatives//2)
 
-        th_index = cls_loss[neg_mask].argsort(descending=True)[negatives-1]
-        th_value = cls_loss[neg_mask][th_index]
+        _,top_neg_ids = cls_logits.view(-1).topk(top_negatives)
+        top_neg_mask[top_neg_ids] = True
+        top_neg_mask = top_neg_mask.view(bs,fh,fw)
+        rand_neg_mask[top_neg_ids] = False
+        rand_negatives = min(rand_negatives,rand_neg_mask.sum())
 
-        select = torch.where((cls_loss >= th_value) & neg_mask)
-        neg_mask[:] = False
-        neg_mask[select] = True
+        rand_neg_ids, = torch.where(rand_neg_mask)
+        pick = random_sample_selection(rand_neg_ids.cpu().numpy().tolist(), rand_negatives)
+        rand_neg_mask[:] = False
+        rand_neg_mask[pick] = True
+        rand_neg_mask = rand_neg_mask.view(bs,fh,fw)
+        neg_mask = rand_neg_mask | top_neg_mask
 
-        cls_loss = cls_loss[ neg_mask | pos_mask ].mean()
+        cls_loss = F.binary_cross_entropy_with_logits(
+            cls_logits[pos_mask | neg_mask].squeeze(), target_cls[pos_mask | neg_mask], reduction='none')
 
         if mask_regs.sum() > 0:
-            reg_loss = F.mse_loss(reg_logits[mask_regs, :], target_regs[mask_regs, :], reduction='mean')
-            loss = cls_loss + reg_loss
+            reg_loss = F.mse_loss(
+                reg_logits[mask_regs, :], target_regs[mask_regs, :], reduction='none')
         else:
-            loss = cls_loss
+            reg_loss = torch.tensor([[0,0,0,0]], dtype=dtype, device=device, requires_grad=True)
 
-        return loss
+        return cls_loss,reg_loss
 
     def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         data = self.det_conv(x)
