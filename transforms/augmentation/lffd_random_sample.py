@@ -25,7 +25,7 @@ class LFFDRandomSample():
             Tuple[np.ndarray, np.ndarray]: transformed image and transformed boxes
         """
 
-        if boxes.shape[0] == 0:
+        if boxes.shape[0] == 0 or random.random() > 0.4:
             img,boxes = self.interpolate(img,boxes)
             img,boxes = self.padding(img,boxes)
             return img,boxes
