@@ -47,6 +47,7 @@ def parse_arguments():
     ap.add_argument('--val-num-workers', '-vnw', type=int, default=4, choices=range(0,16))
 
     ap.add_argument('--checkpoint-path', '-ckpt', type=str, default="./checkpoints/", help='checkpoint dir path')
+    ap.add_argument('--model-path', '-mp', type=str)
     ap.add_argument('--resume', action='store_true')
     ap.add_argument('--debug', action='store_true')
 
@@ -115,11 +116,14 @@ if __name__ == '__main__':
 
     detector = LightFaceDetector.build(args.arch, config=args.arch_config,
         metrics=metrics, hyp=hyp, debug=args.debug)
-    ckpt_path = None
-    if args.resume:
+
+    ckpt_path = args.model_path
+    if args.resume and not ckpt_path:
         best_ap_score,ckpt_path = get_best_checkpoint_path(
+            args.arch, args.arch_config,
             args.checkpoint_path, by='val_ap', mode='max')
-        print(f"resuming the training, best ap score: {best_ap_score}")
+    if args.resume:
+        print(f"resuming training with {ckpt_path}")
 
     trainer = pl.Trainer(
         gpus=1 if args.device=='cuda' else 0,
@@ -127,7 +131,7 @@ if __name__ == '__main__':
         resume_from_checkpoint=ckpt_path,
         checkpoint_callback=checkpoint_callback,
         max_epochs=args.epochs,
-        check_val_every_n_epoch=5,
+        check_val_every_n_epoch=2,
         precision=32,
         gradient_clip_val=100)
 

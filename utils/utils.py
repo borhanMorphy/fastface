@@ -13,11 +13,14 @@ def seed_everything(seed:int):
 def random_sample_selection(population:List, select_n:int) -> List:
     return random.sample(population, k=select_n)
 
-def get_best_checkpoint_path(checkpoint_dir:str, by:str='val_ap', mode:str='max') -> Tuple[float,str]:
+def get_best_checkpoint_path(arch:str,  arch_config:str,
+        checkpoint_dir:str, by:str='val_ap', mode:str='max') -> Tuple[float,str]:
+    #{args.arch}_{args.arch_config}-{dataset}-{epoch:02d}-{val_loss:.3f}-{val_ap:.2f}
     checkpoints = []
     for file_name in os.listdir(checkpoint_dir):
         pure_name,ext = os.path.splitext(file_name)
         for part in pure_name.split('-'):
+            if not pure_name.startswith(f"{arch}_{arch_config}"): continue
             if '=' not in part or by not in part:
                 continue
             _,v = part.split("=")
