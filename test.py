@@ -1,4 +1,4 @@
-from detector import LightFaceDetector
+from detector import FaceDetector
 from datasets import get_dataset, get_available_datasets
 from utils.utils import seed_everything, get_best_checkpoint_path
 import metrics
@@ -73,7 +73,7 @@ if __name__ == '__main__':
         best_ap_score,model_path = get_best_checkpoint_path(
                 args.checkpoint_path, by='ap', mode='max')
 
-    detector = LightFaceDetector.from_pretrained(args.arch, model_path, config=args.config, metrics=metrics)
+    detector = FaceDetector.from_pretrained(args.arch, model_path, config=args.config, metrics=metrics)
 
     trainer = pl.Trainer(gpus=1 if args.device=='cuda' else 0)
 

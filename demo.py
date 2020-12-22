@@ -5,7 +5,7 @@ import numpy as np
 from typing import List
 
 from utils.visualize import prettify_detections
-from detector import LightFaceDetector
+from detector import FaceDetector
 from transforms import (
     Compose,
     Interpolate,
@@ -44,7 +44,7 @@ def load_image(img_path:str):
 def main(img_path:str, arch_name:str, config:str, weights:str,
         det_threshold:float, iou_threshold:float):
     img = load_image(img_path)
-    model = LightFaceDetector.from_pretrained(arch_name, weights, config=config)
+    model = FaceDetector.from_pretrained(arch_name, weights, config=config)
 
     transforms = Compose(
         Interpolate(max_dim=640),
