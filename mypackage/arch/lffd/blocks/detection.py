@@ -4,8 +4,8 @@ import torch.nn.functional as F
 
 from typing import Tuple,List
 from .conv import conv1x1
-from utils.matcher import LFFDMatcher
-from utils.utils import random_sample_selection
+from mypackage.utils.matcher import LFFDMatcher
+from mypackage.utils.utils import random_sample_selection
 
 class DetectionHead(nn.Module):
     def __init__(self, head_idx:int, infeatures:int,

@@ -1,22 +1,19 @@
 import pytorch_lightning as pl
 import torch
-from typing import List,Dict,Any
+import torch.nn as nn
+from typing import List,Dict,Any,Union
 import numpy as np
-import registry
 
-from archs import (
-    get_arch_by_name,
-    get_arch_config_by_name
-)
+from .api import get_arch_config,get_arch_cls
 
 class FaceDetector(pl.LightningModule):
-    def __init__(self, arch):
+    def __init__(self, arch:nn.Module=None, hparams:Dict=None):
         super().__init__()
+        self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
 
-    def add_metric(self, metric:Dict[str,Any]):
-        # TODO fix Any
+    def add_metric(self, metric:Dict[str, pl.metrics.Metric]):
         self.__metrics.update(metric)
 
     def forward(self, data:torch.Tensor):
@@ -66,21 +63,50 @@ class FaceDetector(pl.LightningModule):
         return self.arch.configure_optimizers()
 
     @classmethod
-    def build(cls, arch:str, config:Union[str,Dict],
-            *args, **kwargs) -> pl.LightningModule:
+    def build(cls, arch:str, config:Union[str,Dict], **kwargs) -> pl.LightningModule:
 
-        # get architecture nn.Module with given configuration
-        arch = get_arch_by_name(arch, *args, config=config, **kwargs)
+        # get architecture configuration if needed
+        config = config if isinstance(config,Dict) else get_arch_config(arch,config)
 
+        # get architecture nn.Module class
+        arch_cls = get_arch_cls(arch)
+
+        # build nn.Module with given configuration
+        arch_module = arch_cls(config=config, **kwargs)
+
+        # create hparams
+        hparams = {}
+
+        # add config and arch information to the hparams
+        hparams.update({'config':config,'arch':arch})
+
+        # add kwargs to the hparams
+        hparams.update(kwargs)
+        
         # build pl.LightninModule with given architecture
-        return cls(arch, metrics=metrics)
+        return cls(arch=arch_module, hparams=hparams)
 
     @classmethod
-    def from_pretrained(cls, model:str, *args, **kwargs) -> pl.LightningModule:
-        # TODO validate model
+    def from_checkpoint(cls, ckpt_path:str) -> pl.LightningModule:
+        # build pl.LightninModule from checkpoint 
+        return cls.load_from_checkpoint(ckpt_path, map_location='cpu')
 
-        # TODO parse model
+    @classmethod
+    def from_pretrained(cls, model:str) -> pl.LightningModule:
+        raise NotImplementedError("coming soon...")
 
-        # TODO call arch.from_pretrained()
+    def on_load_checkpoint(self, checkpoint:Dict):
+        arch = checkpoint['hyper_parameters']['arch']
+        config = checkpoint['hyper_parameters']['config']
+        kwargs = checkpoint['hyper_parameters']['kwargs']
 
-        # TODO build pl.LightningModule
+        # get architecture nn.Module class
+        arch_cls = get_arch_cls(arch)
+
+        # get architecture configuration if needed
+        config = config if isinstance(config,Dict) else get_arch_config(arch,config)
+
+        # build nn.Module with given configuration
+        self.arch  = arch_cls(config=config, **kwargs)
+
+        

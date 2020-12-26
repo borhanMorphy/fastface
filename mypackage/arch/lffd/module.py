@@ -10,7 +10,7 @@ from .blocks import (
     DetectionHead
 )
 
-from utils.utils import random_sample_selection
+from mypackage.utils.utils import random_sample_selection
 from cv2 import cv2
 
 import math
@@ -42,7 +42,7 @@ class LFFD(nn.Module):
     }
 
     def __init__(self, in_channels:int=3, config:Dict={},
-            num_classes:int=1, hyp:Dict={}, debug:bool=False):
+            num_classes:int=1, debug:bool=False, **kwargs):
         super(LFFD,self).__init__()
 
         assert "filters" in config, "`filters` must be defined in the config"
@@ -58,7 +58,6 @@ class LFFD(nn.Module):
         scales = config.get('scales')
 
         self.num_classes = num_classes
-        self.hyp = hyp
         self.__debug = debug
 
         # TODO check if list lenghts are matched
@@ -182,14 +181,15 @@ class LFFD(nn.Module):
         return pred_boxes
 
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
-            batch_idx:int) -> torch.Tensor:
+            batch_idx:int, **hparams) -> torch.Tensor:
+
+        ratio = hparams.get("ratio", 10)
 
         imgs,gt_boxes = batch
 
         device = imgs.device
         dtype = imgs.dtype
         batch_size = imgs.size(0)
-        ratio = 10
 
         cls_logits,reg_logits = self(imgs)
 
@@ -274,7 +274,11 @@ class LFFD(nn.Module):
         return cls_loss + reg_loss
 
     def validation_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
-            batch_idx:int) -> Dict:
+            batch_idx:int, **hparams) -> Dict:
+
+        det_threshold = hparams.get('det_threshold', 0.11)
+        iou_threshold = hparams.get('iou_threshold', .4)
+        keep_n = hparams.get('keep_n', 10000)
 
         imgs,o_gt_boxes = batch
         gt_boxes = [gt[:,:4] for gt in o_gt_boxes]
@@ -282,7 +286,7 @@ class LFFD(nn.Module):
         device = imgs.device
         dtype = imgs.dtype
         batch_size = imgs.size(0)
-        ratio = 10
+        ratio = hparams.get('ratio', 10)
 
         cls_logits,reg_logits = self(imgs)
 
@@ -355,11 +359,11 @@ class LFFD(nn.Module):
         loss = cls_loss + reg_loss
         pred_boxes:List = []
         for i in range(batch_size):
-            selected_boxes = preds[i, preds[i,:,4] > 0.11, :]
-            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .4)
+            selected_boxes = preds[i, preds[i,:,4] > det_threshold, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], iou_threshold)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:10000,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:keep_n,:].cpu())
 
         return {
             'loss':loss.item(),
@@ -370,7 +374,11 @@ class LFFD(nn.Module):
         }
 
     def test_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
-            batch_idx:int) -> Dict:
+            batch_idx:int, **hparams) -> Dict:
+
+        det_threshold = hparams.get('det_threshold', 0.11)
+        iou_threshold = hparams.get('iou_threshold', .4)
+        keep_n = hparams.get('keep_n', 10000)
 
         imgs,o_gt_boxes = batch
         batch_size = imgs.size(0)
@@ -398,28 +406,28 @@ class LFFD(nn.Module):
         preds = torch.cat(preds, dim=1)
         pred_boxes:List = []
         for i in range(batch_size):
-            selected_boxes = preds[i, preds[i,:,4] > 0.11, :]
-            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], .4)
+            selected_boxes = preds[i, preds[i,:,4] > det_threshold, :]
+            pick = box_ops.nms(selected_boxes[:, :4], selected_boxes[:, 4], iou_threshold)
             selected_boxes = selected_boxes[pick,:]
             orders = selected_boxes[:, 4].argsort(descending=True)
-            pred_boxes.append(selected_boxes[orders,:][:10000,:].cpu())
+            pred_boxes.append(selected_boxes[orders,:][:keep_n,:].cpu())
 
         return {
             'preds': pred_boxes,
             'gts': [box.cpu() for box in o_gt_boxes]
         }
 
-    def configure_optimizers(self):
+    def configure_optimizers(self, **hparams):
         optimizer = torch.optim.SGD(
             self.parameters(),
-            lr=self.hyp.get('learning_rate',1e-1),
-            momentum=self.hyp.get('momentum',0.9),
-            weight_decay=self.hyp.get('weight_decay',1e-5))
+            lr=self.hparams.get('learning_rate', 1e-1),
+            momentum=self.hparams.get('momentum', 0.9),
+            weight_decay=self.hparams.get('weight_decay', 1e-5))
 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer,
-            milestones=[600000, 1000000, 1200000, 1400000],
-            gamma=0.1)
+            milestones=hparams.get("milestones", [600000, 1000000, 1200000, 1400000]),
+            gamma=hparams.get("gamma", 0.1))
 
         return [optimizer], [lr_scheduler]
 
