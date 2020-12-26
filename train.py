@@ -21,6 +21,9 @@ import argparse
 
 def parse_arguments():
     ap = argparse.ArgumentParser()
+    ap.add_argument('--arch', '-a', type=str, choices=archs.get_available_archs(), required=True)
+    ap.add_argument('--arch-config', '-c', type=str, required=True)
+
     ap.add_argument('--batch-size', '-bs', type=int, default=32)
     ap.add_argument('--accumulation', '-ac', type=int, default=1)
     ap.add_argument('--epochs', '-e', type=int, default=50)
@@ -36,25 +39,27 @@ def parse_arguments():
 
     ap.add_argument('--train-ds', '-tds',type=str,
         default="widerface", choices=get_available_datasets())
+    ap.add_argument('--train-num-workers', '-tnw', type=int, default=4, choices=range(0,16))
 
     ap.add_argument('--val-ds', '-vds', type=str,
         default="widerface-easy", choices=get_available_datasets())
+    ap.add_argument('--val-num-workers', '-vnw', type=int, default=4, choices=range(0,16))
 
     ap.add_argument('--checkpoint-path', '-ckpt', type=str, default="./checkpoints/", help='checkpoint dir path')
+    ap.add_argument('--model-path', '-mp', type=str)
     ap.add_argument('--resume', action='store_true')
     ap.add_argument('--debug', action='store_true')
 
     return ap.parse_args()
 
-def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None, **kwargs):
+def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None,
+        num_workers:int=0, **kwargs):
     ds = get_dataset(dataset_name, phase=phase, transforms=transforms, **kwargs)
 
     def collate_fn(data):
         imgs,gt_boxes = zip(*data)
         batch = torch.stack(imgs, dim=0)
         return batch,gt_boxes
-
-    num_workers = max(int(batch_size / 4),1)
 
     return DataLoader(ds, batch_size=batch_size, shuffle=phase=='train', pin_memory=True,
         num_workers=num_workers, collate_fn=collate_fn)
@@ -87,7 +92,7 @@ if __name__ == '__main__':
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=args.checkpoint_path,
         verbose=True,
-        filename='lffd-widerface-{epoch:02d}-{val_loss:.3f}-{val_ap:.2f}',
+        filename=f'{args.arch}_{args.arch_config}'+'-widerface-{epoch:02d}-{val_loss:.3f}-{val_ap:.2f}',
         monitor='val_loss',
         save_top_k=3,
         mode='min'
@@ -112,21 +117,26 @@ if __name__ == '__main__':
     ckpt_path = None
     if args.resume:
         best_ap_score,ckpt_path = get_best_checkpoint_path(
+            args.arch, args.arch_config,
             args.checkpoint_path, by='val_ap', mode='max')
-        print(f"resuming the training, best ap score: {best_ap_score}")
+    if args.resume:
+        print(f"resuming training with {ckpt_path}")
 
     trainer = pl.Trainer(
         gpus=1 if args.device=='cuda' else 0,
         accumulate_grad_batches=args.accumulation,
         resume_from_checkpoint=ckpt_path,
         checkpoint_callback=checkpoint_callback,
-        max_epochs=args.epochs)
+        max_epochs=args.epochs,
+        check_val_every_n_epoch=2,
+        precision=32,
+        gradient_clip_val=100)
 
     train_dl = generate_dl(args.train_ds, "train",
-        args.batch_size, transforms=train_transforms)
+        args.batch_size, transforms=train_transforms, num_workers=args.train_num_workers)
 
     val_dl = generate_dl(args.val_ds, "val",
-        args.batch_size, transforms=val_transforms)
+        args.batch_size, transforms=val_transforms, num_workers=args.val_num_workers)
 
     trainer.fit(detector,
         train_dataloader=train_dl,
