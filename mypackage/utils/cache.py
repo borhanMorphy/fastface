@@ -16,9 +16,9 @@ def get_cache_path() -> str:
     return os.path.join(os.path.expanduser("~"),".cache","mypackage")
 
 @ensure_path
-def get_model_cache_path() -> str:
-    return os.path.join(get_cache_path(), "models")
+def get_model_cache_path(suffix:str='') -> str:
+    return os.path.join(get_cache_path(), "models", suffix)
 
 @ensure_path
-def get_data_cache_path() -> str:
-    return os.path.join(get_cache_path(), "data")
+def get_data_cache_path(suffix:str='') -> str:
+    return os.path.join(get_cache_path(), "data", suffix)
