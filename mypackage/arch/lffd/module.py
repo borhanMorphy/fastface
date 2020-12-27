@@ -183,13 +183,10 @@ class LFFD(nn.Module):
     def training_step(self, batch:Tuple[torch.Tensor, List[torch.Tensor]],
             batch_idx:int, **hparams) -> torch.Tensor:
 
-        ratio = hparams.get("ratio", 10)
-
         imgs,gt_boxes = batch
 
         device = imgs.device
         dtype = imgs.dtype
-        batch_size = imgs.size(0)
         num_of_heads = len(self.heads)
 
         heads_cls_logits,heads_reg_logits = self(imgs)
@@ -369,9 +366,9 @@ class LFFD(nn.Module):
     def configure_optimizers(self, **hparams):
         optimizer = torch.optim.SGD(
             self.parameters(),
-            lr=self.hparams.get('learning_rate', 1e-1),
-            momentum=self.hparams.get('momentum', 0.9),
-            weight_decay=self.hparams.get('weight_decay', 1e-5))
+            lr=hparams.get('learning_rate', 1e-1),
+            momentum=hparams.get('momentum', 0.9),
+            weight_decay=hparams.get('weight_decay', 1e-5))
 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer,

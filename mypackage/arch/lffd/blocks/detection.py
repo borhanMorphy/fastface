@@ -6,6 +6,7 @@ from typing import Tuple,List
 from .conv import conv1x1
 from mypackage.utils.matcher import LFFDMatcher
 from mypackage.utils.utils import random_sample_selection
+import math
 
 class DetectionHead(nn.Module):
     def __init__(self, head_idx:int, infeatures:int,

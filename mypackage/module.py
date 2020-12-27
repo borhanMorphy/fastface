@@ -23,14 +23,14 @@ class FaceDetector(pl.LightningModule):
         return self.arch.predict(data, *args, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        return self.arch.training_step(batch,batch_idx)
+        return self.arch.training_step(batch,batch_idx,**self.hparams)
 
     def on_validation_epoch_start(self):
         for metric in self.__metrics.values():
             metric.reset()
 
     def validation_step(self, batch, batch_idx):
-        step_outputs = self.arch.validation_step(batch,batch_idx)
+        step_outputs = self.arch.validation_step(batch,batch_idx,**self.hparams)
         preds = step_outputs.pop('preds',[])
         gts = step_outputs.pop('gts',[])
         for metric in self.__metrics.values():
@@ -48,7 +48,7 @@ class FaceDetector(pl.LightningModule):
         self.log('val_loss', loss)
 
     def test_step(self, batch, batch_idx):
-        step_outputs = self.arch.test_step(batch,batch_idx)
+        step_outputs = self.arch.test_step(batch,batch_idx,**self.hparams)
         preds = step_outputs.pop('preds',[])
         gts = step_outputs.pop('gts',[])
         for metric in self.__metrics.values():
@@ -60,10 +60,10 @@ class FaceDetector(pl.LightningModule):
             self.log(key, metric.compute())
 
     def configure_optimizers(self):
-        return self.arch.configure_optimizers()
+        return self.arch.configure_optimizers(**self.hparams)
 
     @classmethod
-    def build(cls, arch:str, config:Union[str,Dict], **kwargs) -> pl.LightningModule:
+    def build(cls, arch:str, config:Union[str,Dict], hparams:Dict={}, **kwargs) -> pl.LightningModule:
 
         # get architecture configuration if needed
         config = config if isinstance(config,Dict) else get_arch_config(arch,config)
@@ -74,15 +74,12 @@ class FaceDetector(pl.LightningModule):
         # build nn.Module with given configuration
         arch_module = arch_cls(config=config, **kwargs)
 
-        # create hparams
-        hparams = {}
-
         # add config and arch information to the hparams
         hparams.update({'config':config,'arch':arch})
 
         # add kwargs to the hparams
-        hparams.update(kwargs)
-        
+        hparams.update({'kwargs':kwargs})
+
         # build pl.LightninModule with given architecture
         return cls(arch=arch_module, hparams=hparams)
 
