@@ -19,9 +19,7 @@ def parse_annotation_file(lines:List, ranges:List) -> Tuple[List,List]:
         img_file_name = lines[idx]
         img_idx = int(img_file_name.split("-")[0])
 
-
         bbox_count = int(lines[idx+1])
-
 
         if bbox_count == 0:
             idx += 3
@@ -43,8 +41,8 @@ def parse_annotation_file(lines:List, ranges:List) -> Tuple[List,List]:
     return ids,targets
 
 def get_validation_set(root_path:str, partition:str):
-    val_mat = loadmat(os.path.join(root_path,f'data/widerface/wider_face_split/wider_{partition}_val.mat'))
-    source_image_dir = os.path.join(root_path, f"data/widerface/WIDER_val/images")
+    val_mat = loadmat(os.path.join(root_path,f'eval_tools/eval_tools/ground_truth/wider_{partition}_val.mat'))
+    source_image_dir = os.path.join(root_path, f"WIDER_val/images")
     ids = []
     targets = []
     total = val_mat['file_list'].shape[0]
@@ -64,12 +62,19 @@ def get_validation_set(root_path:str, partition:str):
             targets.append(gt_boxes)
     return ids,targets
 
-class WiderFace(Dataset):
+class WiderFaceDataset(Dataset):
+    __urls__ = { # TODO move this to the datamodule
+        'widerface-train': '0B6eKvaijfFUDQUUwd21EckhUbWs',
+        'widerface-val': '0B6eKvaijfFUDd3dIRmpvSk8tLUk',
+
+        'widerface-annotations': 'http://mmlab.ie.cuhk.edu.hk/projects/WIDERFace/support/bbx_annotation/wider_face_split.zip',
+        'widerface-eval-code': 'http://shuoyang1213.me/WIDERFACE/support/eval_script/eval_tools.zip',
+    }
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
-    def __init__(self, phase:str='train', partitions:List=None,
-            transform=None, target_transform=None, transforms=None, root_path:str='./'):
+    def __init__(self, source_dir:str, phase:str='train', partitions:List=None,
+            transform=None, target_transform=None, transforms=None):
         assert phase in WiderFace.__phases__,f"given phase {phase} is not valid, must be one of: {WiderFace.__phases__}"
         if not partitions: partitions = WiderFace.__partitions__
         for partition in partitions: assert partition in WiderFace.__partitions__,"given partition is not in the defined list"
@@ -78,8 +83,8 @@ class WiderFace(Dataset):
             ranges = []
             for partition in partitions:
                 ranges += WiderFace.__partition_ranges__[WiderFace.__partitions__.index(partition)]
-            source_image_dir = os.path.join(root_path, f"data/widerface/WIDER_{phase}/images")
-            annotation_path = os.path.join(root_path, f"data/widerface/wider_face_split/wider_face_{phase}_bbx_gt.txt")
+            source_image_dir = os.path.join(source_dir, f"WIDER_{phase}/images") # TODO add assertion
+            annotation_path = os.path.join(source_dir, f"wider_face_split/wider_face_{phase}_bbx_gt.txt")
             with open(annotation_path,"r") as foo:
                 annotations = foo.read().split("\n")
             ids,targets = parse_annotation_file(annotations, ranges)
@@ -87,7 +92,7 @@ class WiderFace(Dataset):
             self.ids = list(map(lambda img_file_path: os.path.join(source_image_dir,img_file_path), ids))
             self.targets = [np.array(target, dtype=np.float32) for target in targets]
         else:
-            self.ids,self.targets = get_validation_set(root_path, partitions[0])
+            self.ids,self.targets = get_validation_set(source_dir, partitions[0])
 
         self.transform = transform
         self.target_transform = target_transform
