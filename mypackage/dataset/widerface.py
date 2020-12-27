@@ -41,7 +41,7 @@ def parse_annotation_file(lines:List, ranges:List) -> Tuple[List,List]:
     return ids,targets
 
 def get_validation_set(root_path:str, partition:str):
-    val_mat = loadmat(os.path.join(root_path,f'eval_tools/eval_tools/ground_truth/wider_{partition}_val.mat'))
+    val_mat = loadmat(os.path.join(root_path,f'eval_tools/ground_truth/wider_{partition}_val.mat'))
     source_image_dir = os.path.join(root_path, f"WIDER_val/images")
     ids = []
     targets = []
@@ -63,26 +63,19 @@ def get_validation_set(root_path:str, partition:str):
     return ids,targets
 
 class WiderFaceDataset(Dataset):
-    __urls__ = { # TODO move this to the datamodule
-        'widerface-train': '0B6eKvaijfFUDQUUwd21EckhUbWs',
-        'widerface-val': '0B6eKvaijfFUDd3dIRmpvSk8tLUk',
-
-        'widerface-annotations': 'http://mmlab.ie.cuhk.edu.hk/projects/WIDERFace/support/bbx_annotation/wider_face_split.zip',
-        'widerface-eval-code': 'http://shuoyang1213.me/WIDERFACE/support/eval_script/eval_tools.zip',
-    }
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
     def __init__(self, source_dir:str, phase:str='train', partitions:List=None,
             transform=None, target_transform=None, transforms=None):
-        assert phase in WiderFace.__phases__,f"given phase {phase} is not valid, must be one of: {WiderFace.__phases__}"
-        if not partitions: partitions = WiderFace.__partitions__
-        for partition in partitions: assert partition in WiderFace.__partitions__,"given partition is not in the defined list"
-        super(WiderFace,self).__init__()
+        assert phase in WiderFaceDataset.__phases__,f"given phase {phase} is not valid, must be one of: {WiderFaceDataset.__phases__}"
+        if not partitions: partitions = WiderFaceDataset.__partitions__
+        for partition in partitions: assert partition in WiderFaceDataset.__partitions__,f"given partition {partition} is not in the defined list: {self.__partitions__}"
+        super(WiderFaceDataset,self).__init__()
         if phase == 'train':
             ranges = []
             for partition in partitions:
-                ranges += WiderFace.__partition_ranges__[WiderFace.__partitions__.index(partition)]
+                ranges += WiderFaceDataset.__partition_ranges__[WiderFaceDataset.__partitions__.index(partition)]
             source_image_dir = os.path.join(source_dir, f"WIDER_{phase}/images") # TODO add assertion
             annotation_path = os.path.join(source_dir, f"wider_face_split/wider_face_{phase}_bbx_gt.txt")
             with open(annotation_path,"r") as foo:
