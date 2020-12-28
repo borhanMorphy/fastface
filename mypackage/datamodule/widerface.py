@@ -90,6 +90,16 @@ class WiderFaceDataModule(pl.LightningDataModule):
         default_val_kwargs.update(kwargs.get('val_kwargs',{}))
         self.val_kwargs = default_val_kwargs
 
+        default_test_kwargs = {
+            'batch_size': 32,
+            'pin_memory': True,
+            'shuffle': False,
+            'num_workers': 8,
+            'collate_fn': default_collate_fn
+        }
+        default_test_kwargs.update(kwargs.get('test_kwargs',{}))
+        self.test_kwargs = default_test_kwargs
+
         self.train_transform = kwargs.get('train_transform') 
         self.train_target_transform = kwargs.get('train_target_transform') 
         self.train_transforms = kwargs.get('train_transforms', Compose(
@@ -111,6 +121,14 @@ class WiderFaceDataModule(pl.LightningDataModule):
         self.val_transforms = kwargs.get('val_transforms', Compose(
                 Interpolate(max_dim=640),
                 Padding(target_size=(640,640), pad_value=0),
+                Normalize(mean=127.5, std=127.5),
+                ToTensor()
+            )
+        )
+
+        self.test_transform = kwargs.get('test_transform') 
+        self.test_target_transform = kwargs.get('test_target_transform') 
+        self.test_transforms = kwargs.get('test_transforms', Compose(
                 Normalize(mean=127.5, std=127.5),
                 ToTensor()
             )
@@ -142,7 +160,10 @@ class WiderFaceDataModule(pl.LightningDataModule):
             self.val_ds = WiderFaceDataset(self.source_dir,
                 phase="val", transform=self.val_transform, partitions=self.partitions,
                 target_transform=self.val_target_transform, transforms=self.val_transforms)
-
+        elif stage == 'test':
+            self.test_ds = WiderFaceDataset(self.source_dir,
+                phase="val", transform=self.test_transform, partitions=self.partitions,
+                target_transform=self.test_target_transform, transforms=self.test_transforms)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_ds, **self.train_kwargs)
@@ -151,4 +172,4 @@ class WiderFaceDataModule(pl.LightningDataModule):
         return DataLoader(self.val_ds, **self.val_kwargs)
 
     def test_dataloader(self) -> DataLoader:
-        raise NotImplementedError("not implemented")
+        return DataLoader(self.test_ds, **self.test_kwargs)

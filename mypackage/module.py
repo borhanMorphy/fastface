@@ -13,8 +13,8 @@ class FaceDetector(pl.LightningModule):
         self.arch = arch
         self.__metrics = {}
 
-    def add_metric(self, metric:Dict[str, pl.metrics.Metric]):
-        self.__metrics.update(metric)
+    def add_metric(self, name:str, metric:pl.metrics.Metric):
+        self.__metrics[name] = metric
 
     def forward(self, data:torch.Tensor):
         return self.arch(data)

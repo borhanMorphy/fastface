@@ -59,16 +59,20 @@ class DetectionHead(nn.Module):
             pred_boxes (torch.Tensor): bs,fh,fw,4 as xmin,ymin,xmax,ymax
         """
         fh,fw = reg_logits.shape[1:3]
+        device = reg_logits.device
+        dtype = reg_logits.dtype
+        
+        if fh != self._cached_fh or fw != self._cached_fw or device != self.anchors.device or dtype != self.anchors.dtype:
+            self.anchors = self.gen_rf_anchors(fh, fw, device=device, dtype=dtype)
+            self._cached_fh = fh
+            self._cached_fw = fw
 
-        rf_anchors = self.gen_rf_anchors(fh,fw,
-            device=reg_logits.device,
-            dtype=reg_logits.dtype)
-        # rf_anchors: fh,fw,4
+        # self.anchors: fh,fw,4
         rf_normalizer = self.rf_size/2
-        assert fh == rf_anchors.size(0)
-        assert fw == rf_anchors.size(1)
+        assert fh == self.anchors.size(0)
+        assert fw == self.anchors.size(1)
 
-        rf_centers = (rf_anchors[:,:, :2] + rf_anchors[:,:, 2:]) / 2
+        rf_centers = (self.anchors[:,:, :2] + self.anchors[:,:, 2:]) / 2
 
         pred_boxes = reg_logits.clone()
 
