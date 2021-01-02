@@ -1,82 +1,29 @@
-from detector import FaceDetector
-from datasets import get_dataset, get_available_datasets
-from utils.utils import seed_everything, get_best_checkpoint_path
-import metrics
-import archs
-
-from transforms import (
-    Compose,
-    Interpolate,
-    Padding,
-    Normalize,
-    ToTensor
-)
-
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader
 import torch
-import argparse
+import pytorch_lightning as pl
+import mypackage
+import time
 
-def parse_arguments():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--device','-d',type=str,
-        default='cuda' if torch.cuda.is_available() else 'cpu', choices=['cpu','cuda'])
+# TODO add argparse
 
-    ap.add_argument('--ds', '-ds', type=str,
-        default="widerface-easy", choices=get_available_datasets())
+def collate_fn(data):
+    imgs,gt_boxes = zip(*data)
+    batch = [img.unsqueeze(0) for img in imgs]
+    return batch,gt_boxes
 
-    ap.add_argument('--arch', '-a', type=str, choices=archs.get_available_archs(),
-        default='lffd', help='architecture to perform face detection')
+def main():
+    model = mypackage.module.from_pretrained(model='original_lffd_560_25L_8S')
+    metric = mypackage.metric.get_metric("widerface_ap")
+    model.add_metric("widerface_ap",metric)
 
-    ap.add_argument('--config', '-c', type=str,
-        default='560_25L_8S', help='architecture configuration')
+    dm = mypackage.datamodule.WiderFaceDataModule(partitions=['easy'],
+        test_kwargs={'batch_size':1, 'num_workers':1, 'collate_fn':collate_fn})
 
-    ap.add_argument('--checkpoint-path', '-ckpt', type=str, default="./checkpoints/", help='checkpoint dir path')
-    ap.add_argument('--model-path', '-mp', type=str, help='model path')
+    # TODO precision 16 is much more slower
+    trainer = pl.Trainer(
+        gpus=1 if torch.cuda.is_available() else 0,
+        precision=32)
 
-    ap.add_argument('--metric', '-m', type=str, choices=metrics.get_available_metrics(), default='widerface_ap')
+    trainer.test(model, datamodule=dm)
 
-    return ap.parse_args()
-
-def generate_dl(dataset_name:str, phase:str, batch_size:int, transforms=None, **kwargs):
-    ds = get_dataset(dataset_name, phase=phase, transforms=transforms, **kwargs)
-
-    def collate_fn(data):
-        imgs,gt_boxes = zip(*data)
-        batch = torch.stack(imgs, dim=0)
-        return batch,gt_boxes
-
-    num_workers = max(int(batch_size / 4),2)
-
-    return DataLoader(ds, batch_size=batch_size, pin_memory=True,
-        num_workers=num_workers, collate_fn=collate_fn)
-
-if __name__ == '__main__':
-    args = parse_arguments()
-
-    transforms = Compose(
-        Normalize(mean=127.5, std=127.5),
-        ToTensor()
-    )
-
-    metrics = {
-        args.metric : metrics.get_metric(args.metric)
-    }
-
-    print(f"testing on {args.ds} dataset")
-
-    if args.model_path:
-        print("loading using model path")
-        model_path = args.model_path
-    else:
-        print(f"Best checkpoint, using: {args.checkpoint_path}")
-        best_ap_score,model_path = get_best_checkpoint_path(
-                args.checkpoint_path, by='ap', mode='max')
-
-    detector = FaceDetector.from_pretrained(args.arch, model_path, config=args.config, metrics=metrics)
-
-    trainer = pl.Trainer(gpus=1 if args.device=='cuda' else 0)
-
-    dl = generate_dl(args.ds, "val", 1, transforms=transforms)
-
-    trainer.test(detector, test_dataloaders=dl)
+if __name__ == "__main__":
+    main()
