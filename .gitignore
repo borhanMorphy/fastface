@@ -1,11 +1,16 @@
-*.pyc
+# dev
 .vscode
-__pycache__
-data/
-lightning_logs/
-checkpoints
-outputs
+.idea
+mypackage.egg-info/
 
+# cache
+*.pyc
+__pycache__
+
+# logs 
+lightning_logs/
+
+# weights
 *.pt
 *.pth
 *.ckpt

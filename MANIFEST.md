@@ -1,0 +1,1 @@
+include mypackage/registry.yaml
