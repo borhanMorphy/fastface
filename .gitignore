@@ -1,7 +1,6 @@
 # dev
 .vscode
 .idea
-mypackage.egg-info/
 
 # cache
 *.pyc
@@ -14,3 +13,8 @@ lightning_logs/
 *.pt
 *.pth
 *.ckpt
+
+# package
+build/
+dist/
+mypackage.egg-info/
