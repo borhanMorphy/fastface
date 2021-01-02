@@ -1,4 +1,4 @@
-# MyPackage
+# FastFace
 Face detection implementations with [pytorch-lightning](https://www.pytorchlightning.ai/)
 
 ## GOAL
@@ -14,8 +14,8 @@ Supporting lightweight face detection implementations to train, test and deploy 
 ## Recent Update
 * `2021.01.02` added unittests for apis under the `tests/` directory
 * `2021.01.02` online hard negative mining is added for lffd training
-* `2021.01.02` caching is supported and by default it will use `~/.cache/mypackage`
-* `2021.01.02` with mypackage.adapters , models and datasets can be downloadable via gdrive or requests
+* `2021.01.02` caching is supported and by default it will use `~/.cache/fastface`
+* `2021.01.02` with fastface.adapters , models and datasets can be downloadable via gdrive or requests
 * `2021.01.02` now this repository can be usable as package
 * `2020.12.15` [evaluation scripts and results](#evaluation) are added
 * `2020.12.13` added lffd 560_25L_8scales official weights that converted from mxnet to pytorch
@@ -27,7 +27,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 ### Install
 From PyPI
 ```
-pip install mypackage -U
+pip install fastface -U
 ```
 
 From source
@@ -38,8 +38,8 @@ pip install .
 ### Inference
 Using package
 ```python
-import mypackage
-from mypackage.transform import (
+import fastface
+from fastface.transform import (
     Compose,
     Interpolate,
     Padding,
@@ -52,7 +52,7 @@ from cv2 import cv2
 img = cv2.imread("<your_image_file_path>")
 
 # build model with pretrained weights
-model = mypackage.module.from_pretrained("original_lffd_560_25L_8S")
+model = fastface.module.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
 
 # build required transforms

@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-import mypackage
+import fastface
 from typing import Dict
 import argparse
 import yaml
@@ -23,7 +23,7 @@ def parse_arguments() -> Dict:
     return ap.parse_args()
 
 def main(kwargs:Dict, resume:bool, seed:int):
-    if seed: mypackage.utils.random.seed_everything(seed)
+    if seed: fastface.utils.random.seed_everything(seed)
 
     ckpt_path = None
     arch = kwargs['arch']
@@ -36,7 +36,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
 
     checkpoint_dirpath = kwargs['checkpoint']['dirpath']
     if checkpoint_dirpath is None:
-        checkpoint_dirpath = mypackage.utils.cache.get_checkpoint_cache_path(f"{arch}_{config}")
+        checkpoint_dirpath = fastface.utils.cache.get_checkpoint_cache_path(f"{arch}_{config}")
 
     if resume:
         ckpt_path = choice_checkpoint(checkpoint_dirpath)
@@ -49,10 +49,10 @@ def main(kwargs:Dict, resume:bool, seed:int):
     checkpoint_save_top_k = kwargs['checkpoint']['save_top_k']
     checkpoint_mode = kwargs['checkpoint']['mode']
 
-    model = mypackage.module.build(arch, config, hparams=hparams,
+    model = fastface.module.build(arch, config, hparams=hparams,
         num_classes=1, in_channels=in_channels)
 
-    dm = mypackage.datamodule.WiderFaceDataModule(
+    dm = fastface.datamodule.WiderFaceDataModule(
         partitions=datamodule['partitions'],
         train_kwargs=datamodule['train'],
         val_kwargs=datamodule['val'])
@@ -70,6 +70,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
     )
 
     trainer = pl.Trainer(
+        default_root_dir=fastface.utils.cache.get_cache_path(),
         gpus=trainer_configs.get('gpus',1),
         accumulate_grad_batches=trainer_configs.get('accumulate_grad_batches',1),
         resume_from_checkpoint=ckpt_path,

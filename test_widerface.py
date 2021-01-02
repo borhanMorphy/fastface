@@ -1,13 +1,13 @@
 import torch
 import pytorch_lightning as pl
-import mypackage
+import fastface
 import argparse
 
 def parse_arguments():
     ap = argparse.ArgumentParser()
 
     ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
-        choices=mypackage.list_pretrained_models(), help='pretrained model to be used')
+        choices=fastface.list_pretrained_models(), help='pretrained model to be used')
 
     ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
         default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -24,14 +24,14 @@ def collate_fn(data):
 
 def main(model:str, device:str, partition:str,
         batch_size:int=1, num_workers:int=4):
-    model = mypackage.module.from_pretrained(model=model)
+    model = fastface.module.from_pretrained(model=model)
 
     model.summarize()
 
-    metric = mypackage.metric.get_metric("widerface_ap")
+    metric = fastface.metric.get_metric("widerface_ap")
     model.add_metric("widerface_ap",metric)
 
-    dm = mypackage.datamodule.WiderFaceDataModule(partitions=[partition],
+    dm = fastface.datamodule.WiderFaceDataModule(partitions=[partition],
         test_kwargs={'batch_size':batch_size, 'num_workers':num_workers, 'collate_fn':collate_fn})
 
     # TODO precision 16 is much more slower

@@ -13,7 +13,7 @@ def ensure_path(fun):
 
 @ensure_path
 def get_cache_path() -> str:
-    return os.path.join(os.path.expanduser("~"),".cache","mypackage")
+    return os.path.join(os.path.expanduser("~"),".cache","fastface")
 
 @ensure_path
 def get_model_cache_path(suffix:str='') -> str:

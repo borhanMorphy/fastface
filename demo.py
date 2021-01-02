@@ -4,9 +4,9 @@ from cv2 import cv2
 import numpy as np
 from typing import List
 
-import mypackage
-from mypackage.utils.visualize import prettify_detections
-from mypackage.transform import (
+import fastface
+from fastface.utils.visualize import prettify_detections
+from fastface.transform import (
     Compose,
     Interpolate,
     Padding,
@@ -18,7 +18,7 @@ def get_arguments():
     ap = argparse.ArgumentParser()
 
     ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
-        choices=mypackage.list_pretrained_models(), help='pretrained model to be used')
+        choices=fastface.list_pretrained_models(), help='pretrained model to be used')
 
     ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
         default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -43,7 +43,7 @@ def main(model:str, device:str, img_path:str,
     img = load_image(img_path)
 
     # get pretrained model
-    model = mypackage.module.from_pretrained(model=model)
+    model = fastface.module.from_pretrained(model=model)
 
     # build required transforms
     transforms = Compose(

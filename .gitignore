@@ -17,4 +17,4 @@ lightning_logs/
 # package
 build/
 dist/
-mypackage.egg-info/
+fastface.egg-info/

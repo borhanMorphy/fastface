@@ -19,7 +19,7 @@ from ..transform import (
     RandomHorizontalFlip
 )
 
-logger = logging.getLogger("mypackage.datamodule")
+logger = logging.getLogger("fastface.datamodule")
 
 class WiderFaceDataModule(pl.LightningDataModule):
     __URLS__ = {
@@ -37,7 +37,7 @@ class WiderFaceDataModule(pl.LightningDataModule):
             'check':'WIDER_val',
             'kwargs':{
                 'file_id':'0B6eKvaijfFUDd3dIRmpvSk8tLUk',
-                'file_name': 'WIDER_train.zip',
+                'file_name': 'WIDER_val.zip',
                 'unzip': True
             }
         },

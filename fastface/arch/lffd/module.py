@@ -10,7 +10,7 @@ from .blocks import (
     DetectionHead
 )
 
-from mypackage.utils.random import random_sample_selection
+from fastface.utils.random import random_sample_selection
 from cv2 import cv2
 
 import math

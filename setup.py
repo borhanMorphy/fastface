@@ -1,6 +1,6 @@
 import sys
 from setuptools import setup
-from mypackage import __version__
+from fastface import __version__
 
 __author__ = {
     "name" : "Ömer BORHAN",
@@ -16,8 +16,8 @@ with open("requirements.txt", "r") as foo:
     requirements = foo.read().split("\n")
 
 setup(
-    # package name `pip install mypackage`
-    name="mypackage",
+    # package name `pip install fastface`
+    name="fastface",
     # package version `major.minor.patch`
     version=__version__,
     # small description
@@ -35,7 +35,7 @@ setup(
     # package license
     license='MIT',
     # package root directory
-    packages=["mypackage"],
+    packages=["fastface"],
 
     install_requires=requirements,
     include_package_data=True,
