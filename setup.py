@@ -51,10 +51,8 @@ setup(
         'Environment :: Console',
         'Natural Language :: English',
         'Intended Audience :: Developers',
-        'Intended Audience :: Researchers',
+        'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Scientific/Engineering :: Object Detection',
-        'Topic :: Scientific/Engineering :: Face Detection',
 
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7'
