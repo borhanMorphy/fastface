@@ -1,9 +1,11 @@
 import os
 import importlib
-from typing import List,Tuple,Generator
+from typing import List,Tuple,Generator,Dict
+import yaml
 
 __all__ = [
     'get_pkg_root_path', 'get_pkg_arch_path',
+    'get_registry_path', 'get_registry',
     'discover_archs', 'get_arch_pkg', 'get_arch_cls'
 ]
 
@@ -16,6 +18,16 @@ def get_pkg_root_path() -> str:
 def get_pkg_arch_path() -> str:
     root_path = get_pkg_root_path()
     return os.path.join(root_path,"arch")
+
+def get_registry_path() -> str:
+    root_path = get_pkg_root_path()
+    return os.path.join(root_path,"registry.yaml")
+
+def get_registry() -> Dict:
+    registry_path = get_registry_path()
+    with open(registry_path,"r") as foo:
+        registry = yaml.load(foo, Loader=yaml.FullLoader)
+    return registry
 
 def discover_archs() -> Generator:
     """yields tuple as architecture name and full path of the module
