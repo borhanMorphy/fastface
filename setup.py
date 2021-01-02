@@ -1,6 +1,10 @@
 import sys
-from setuptools import setup
-from fastface import __version__
+from setuptools import setup,find_packages
+
+def get_version() -> str:
+    with open("fastface/version.py","r") as foo:
+        version = foo.read().split("=")[-1].replace("'","").strip()
+    return version
 
 __author__ = {
     "name" : "Ömer BORHAN",
@@ -19,7 +23,7 @@ setup(
     # package name `pip install fastface`
     name="fastface",
     # package version `major.minor.patch`
-    version=__version__,
+    version=get_version(),
     # small description
     description="A face detection framework for edge devices using pytorch lightning",
     # long description
@@ -35,7 +39,7 @@ setup(
     # package license
     license='MIT',
     # package root directory
-    packages=["fastface"],
+    packages=find_packages(),
 
     install_requires=requirements,
     include_package_data=True,
