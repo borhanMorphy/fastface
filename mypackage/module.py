@@ -5,7 +5,6 @@ from typing import List,Dict,Any,Union
 import numpy as np
 import os
 
-
 from .api import (
     get_arch_config,
     download_pretrained_model
@@ -31,7 +30,7 @@ class FaceDetector(pl.LightningModule):
         return self.arch(data)
 
     def predict(self, data:torch.Tensor, *args, **kwargs):
-        return self.arch.predict(data, *args, **kwargs)
+        return self.arch.predict(data.to(self.device), *args, **kwargs)
 
     def training_step(self, batch, batch_idx):
         return self.arch.training_step(batch,batch_idx,**self.hparams)

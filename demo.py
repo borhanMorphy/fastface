@@ -17,6 +17,12 @@ from mypackage.transform import (
 def get_arguments():
     ap = argparse.ArgumentParser()
 
+    ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
+        choices=mypackage.list_pretrained_models(), help='pretrained model to be used')
+
+    ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
+        default='cuda' if torch.cuda.is_available() else 'cpu')
+
     ap.add_argument('--input', '-i', type=str,
         required=True, help='image file path')
 
@@ -31,12 +37,13 @@ def get_arguments():
 def load_image(img_path:str) -> np.ndarray:
     return cv2.imread(img_path)
 
-def main(img_path:str, det_threshold:float, iou_threshold:float):
+def main(model:str, device:str, img_path:str,
+        det_threshold:float, iou_threshold:float):
     # load image
     img = load_image(img_path)
 
     # get pretrained model
-    model = mypackage.module.from_pretrained(model="original_lffd_560_25L_8S")
+    model = mypackage.module.from_pretrained(model=model)
 
     # build required transforms
     transforms = Compose(
@@ -51,6 +58,9 @@ def main(img_path:str, det_threshold:float, iou_threshold:float):
 
     # reset queue
     transforms.flush()
+
+    # move model to selected device
+    model.to(device)
 
     # set model to eval mode
     model.eval()
@@ -82,4 +92,5 @@ def main(img_path:str, det_threshold:float, iou_threshold:float):
 
 if __name__ == '__main__':
     args = get_arguments()
-    main(args.input, args.det_threshold, args.iou_threshold)
+    main(args.model, args.device, args.input,
+        args.det_threshold, args.iou_threshold)

@@ -1,4 +1,4 @@
 from . import cache
 from . import config
-from . import utils
+from . import random
 from . import visualize

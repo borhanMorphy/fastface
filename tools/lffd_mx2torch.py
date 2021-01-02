@@ -1,6 +1,5 @@
-import sys;sys.path.append('./')
 import mxnet as mx
-from detector import FaceDetector
+import mypackage
 from typing import List,Dict
 from collections import OrderedDict
 import torch
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     assert args.input_mx_model.endswith(".params"),f"given mxnet model extension must be `.params`"
 
     logging.info(f"building the lffd architecture with {args.model_configuration} configuration")
-    model = FaceDetector.build("lffd", config=args.model_configuration)
+    model = mypackage.module.build("lffd", config=args.model_configuration, num_classes=1, in_channels=3)
 
     logging.info("extracting the state dictionary")
     t_d = model.state_dict()

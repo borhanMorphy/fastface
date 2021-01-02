@@ -10,7 +10,7 @@ from .blocks import (
     DetectionHead
 )
 
-from mypackage.utils.utils import random_sample_selection
+from mypackage.utils.random import random_sample_selection
 from cv2 import cv2
 
 import math
@@ -269,7 +269,7 @@ class LFFD(nn.Module):
             # TODO test batched nms
             select = self.nms(_preds[:, :4], _preds[:, -1], iou_threshold)
             orders = _preds[select, -1].argsort(descending=True)
-            selected_preds.append(_preds[orders, :][keep_n])
+            selected_preds.append(_preds[orders, :][:keep_n, :])
 
         return {
             'loss':loss,

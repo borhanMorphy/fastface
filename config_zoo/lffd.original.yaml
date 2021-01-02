@@ -2,8 +2,6 @@ arch: "lffd"
 config: "560_25L_8S"
 in_channels: 3
 
-checkpoint_path: null
-
 hparams:
   learning_rate: 0.1
   momentum: 0.9
@@ -11,8 +9,8 @@ hparams:
   milestones: [600000, 1000000, 1200000, 1400000]
   gamma: 0.1
   ratio: 10
-  det_threshold: 0.11
-  iou_threshold: 0.4
+  det_threshold: 0.01
+  iou_threshold: 0.3
   keep_n: 10000
 
 datamodule:
@@ -37,6 +35,6 @@ trainer:
   gpus: 1
   accumulate_grad_batches: 4
   max_epochs: 100
-  check_val_every_n_epoch: 2
+  check_val_every_n_epoch: 1
   precision: 32
   gradient_clip_val: 100

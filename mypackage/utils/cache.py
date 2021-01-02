@@ -22,3 +22,9 @@ def get_model_cache_path(suffix:str='') -> str:
 @ensure_path
 def get_data_cache_path(suffix:str='') -> str:
     return os.path.join(get_cache_path(), "data", suffix)
+
+@ensure_path
+def get_checkpoint_cache_path(suffix:str='') -> str:
+    return os.path.join(get_cache_path(), "checkpoints", suffix)
+
+    
