@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 from typing import Tuple,List
 from .conv import conv1x1
-from mypackage.utils.matcher import LFFDMatcher
 from mypackage.utils.utils import random_sample_selection
 import math
 
@@ -44,7 +43,6 @@ class DetectionHead(nn.Module):
 
         self.sl_range = (int(math.floor(lower_scale * 0.9)), lower_scale)
         self.su_range = (upper_scale, int(math.ceil(upper_scale * 1.1)))
-        self.matcher = LFFDMatcher(lower_scale,upper_scale)
 
         self.anchors = self.gen_rf_anchors(30,30, device='cpu', dtype=torch.float32)
         self._cached_fh = 30
@@ -125,47 +123,9 @@ class DetectionHead(nn.Module):
 
         return rfs
 
-    def build_targets(self, fmap:Tuple[int,int], gt_boxes:List[torch.Tensor], device:str='cpu',
-            dtype:torch.dtype=torch.float32) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
-        """[summary]
-
-        Args:
-            fmap (Tuple[int,int]): fmap_h and fmap_w
-            gt_boxes (List[torch.Tensor]): [N',4] as xmin,ymin,xmax,ymax
-            device (str, optional): target device. Defaults to 'cpu'.
-            dtype (torch.dtype, optional): target dtype. Defaults to torch.float32.
-
-        Returns:
-            Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]: [description]
-        """
-        # t_cls          : bs,fh',fw'      | type: model.dtype          | device: model.device
-        # t_regs         : bs,fh',fw',4    | type: model.dtype          | device: model.device
-        # ig             : bs,fh',fw'      | type: torch.bool           | device: model.device
-        batch_size = len(gt_boxes)
-        fh,fw = fmap
-
-        t_cls = torch.zeros(*(batch_size,fh,fw), dtype=dtype, device=device)
-        t_regs = torch.zeros(*(batch_size,fh,fw,4), dtype=dtype, device=device)
-        ignore = torch.zeros(*(batch_size,fh,fw), dtype=torch.bool, device=device)
-
-        # TODO cache rf anchors
-        rf_anchors = self.gen_rf_anchors(fh, fw, device=device, dtype=dtype)
-
-        # rf_anchors: fh x fw x 4 as xmin,ymin,xmax,ymax
-        for i in range(batch_size):
-            cls_mask,reg_targets,ignore_mask = self.matcher(rf_anchors,
-                gt_boxes[i], self.rf_size/2, device=device, dtype=dtype)
-
-            t_cls[i, cls_mask] = 1
-
-            t_regs[i, :,:,:] = reg_targets
-            ignore[i, :,:] = ignore_mask
-
-        return t_cls,t_regs,ignore
-
-    def build_targets_v2(self, fmap:Tuple[int,int], batch_gt_boxes:List[torch.Tensor], device:str='cpu',
+    def build_targets(self, fmap:Tuple[int,int], batch_gt_boxes:List[torch.Tensor], device:str='cpu',
             dtype:torch.dtype=torch.float32) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
-        """[summary]
+        """Generates target cls and regs with masks, using ground truth boxes
 
         Args:
             fmap (Tuple[int,int]): fmap_h and fmap_w

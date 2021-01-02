@@ -11,5 +11,5 @@ __adapters__ = {
 }
 
 def download_object(adapter:str, dest_path:str=None, **kwargs):
-    assert adapter in __adapters__.keys(),f"given adapter {adapter} not defined"
+    assert adapter in __adapters__.keys(),f"given adapter {adapter} is not defined"
     return __adapters__[adapter].download(dest_path, **kwargs)

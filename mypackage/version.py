@@ -1,1 +1,1 @@
-__version__ = 'master'
+__version__ = '0.0.0'

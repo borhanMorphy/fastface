@@ -3,8 +3,19 @@ import torch
 import torch.nn as nn
 from typing import List,Dict,Any,Union
 import numpy as np
+import os
 
-from .api import get_arch_config,get_arch_cls
+
+from .api import (
+    get_arch_config,
+    download_pretrained_model
+)
+
+from .utils.config import (
+    get_arch_cls
+)
+
+from .utils.cache import get_model_cache_path
 
 class FaceDetector(pl.LightningModule):
     def __init__(self, arch:nn.Module=None, hparams:Dict=None):
@@ -85,12 +96,19 @@ class FaceDetector(pl.LightningModule):
 
     @classmethod
     def from_checkpoint(cls, ckpt_path:str) -> pl.LightningModule:
-        # build pl.LightninModule from checkpoint 
+        # build pl.LightninModule from checkpoint
         return cls.load_from_checkpoint(ckpt_path, map_location='cpu')
 
     @classmethod
-    def from_pretrained(cls, model:str) -> pl.LightningModule:
-        raise NotImplementedError("coming soon...")
+    def from_pretrained(cls, model:str=None, model_path:str=None,
+            target_path:str=None) -> pl.LightningModule:
+
+        if model_path is None:
+            assert model is not None,"model cannot be `None` if model path is `None`"
+            model_path = download_pretrained_model(model, target_path=target_path)
+        else:
+            assert os.path.isfile(model_path),f"model path is given but not found in the disk: {model_path}"
+        return cls.load_from_checkpoint(model_path, map_location='cpu')        
 
     def on_load_checkpoint(self, checkpoint:Dict):
         arch = checkpoint['hyper_parameters']['arch']

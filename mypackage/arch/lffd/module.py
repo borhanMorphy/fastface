@@ -26,17 +26,7 @@ class LFFD(nn.Module):
             'scales': [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
-            ], # calculated for 640 image input
-            'adapter': {
-                'type':'gdrive',
-                'key':'models/original_lffd_560_25L_8S.pt',
-                'args': ('1uE-_dha8g8akfACES_VsMjwst_b1ir37',),
-                'kwargs': {
-                    'overwrite': False,
-                    'unzip': False,
-                    'showsize': True
-                }
-            }
+            ] # calculated for 640 image input
         }
         # TODO "320_20L_5S"
     }
@@ -198,7 +188,7 @@ class LFFD(nn.Module):
             # *for each head
             fh,fw = heads_cls_logits[head_idx].shape[2:]
 
-            target_cls,mask_cls,target_regs,mask_regs = self.heads[head_idx].build_targets_v2(
+            target_cls,mask_cls,target_regs,mask_regs = self.heads[head_idx].build_targets(
                 (fh,fw), gt_boxes, device=device, dtype=dtype)
             #target_cls          : bs,fh',fw'      | type: model.dtype         | device: model.device
             #mask_cls            : bs,fh',fw'      | type: torch.bool          | device: model.device
@@ -244,7 +234,7 @@ class LFFD(nn.Module):
             # *for each head
             fh,fw = heads_cls_logits[head_idx].shape[2:]
 
-            target_cls,mask_cls,target_regs,mask_regs = self.heads[head_idx].build_targets_v2(
+            target_cls,mask_cls,target_regs,mask_regs = self.heads[head_idx].build_targets(
                 (fh,fw), gt_boxes, device=device, dtype=dtype)
             #target_cls          : bs,fh',fw'      | type: model.dtype         | device: model.device
             #mask_cls            : bs,fh',fw'      | type: torch.bool          | device: model.device
@@ -274,12 +264,12 @@ class LFFD(nn.Module):
         preds = torch.cat(preds, dim=1)
         pick = preds[:,:,-1] > det_threshold
         selected_preds:List[torch.Tensor] = []
-        for head_idx in range(num_of_heads):
-            head_preds = preds[head_idx, pick[head_idx], :]
+        for batch_idx in range(batch_size):
+            _preds = preds[batch_idx, pick[batch_idx], :]
             # TODO test batched nms
-            select = self.nms(head_preds[:, :4], head_preds[:, -1], iou_threshold)
-            orders = head_preds[select, -1].argsort(descending=True)
-            selected_preds.append(head_preds[orders, :][keep_n])
+            select = self.nms(_preds[:, :4], _preds[:, -1], iou_threshold)
+            orders = _preds[select, -1].argsort(descending=True)
+            selected_preds.append(_preds[orders, :][keep_n])
 
         return {
             'loss':loss,
