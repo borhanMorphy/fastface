@@ -164,11 +164,11 @@ python train_widerface.py --yaml config_zoo/lffd.original.yaml
 - [Official LFFD Implementation](https://github.com/YonghaoHe/A-Light-and-Fast-Face-Detector-for-Edge-Devices)
 
 ## Citation
-```
+```bibtex
 @inproceedings{LFFD,
-title={LFFD: A Light and Fast Face Detector for Edge Devices},
-author={He, Yonghao and Xu, Dezhong and Wu, Lifang and Jian, Meng and Xiang, Shiming and Pan, Chunhong},
-booktitle={arXiv:1904.10633},
-year={2019}
+    title={LFFD: A Light and Fast Face Detector for Edge Devices},
+    author={He, Yonghao and Xu, Dezhong and Wu, Lifang and Jian, Meng and Xiang, Shiming and Pan, Chunhong},
+    booktitle={arXiv:1904.10633},
+    year={2019}
 }
 ```
