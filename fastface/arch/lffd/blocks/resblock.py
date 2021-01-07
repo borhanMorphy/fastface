@@ -11,7 +11,8 @@ class ResBlock(nn.Module):
         self.conv2 = conv3x3(features,features)
         self.relu2 = nn.ReLU()
 
-    def forward(self, activated_input:torch.Tensor, residual_input:torch.Tensor) -> torch.Tensor:
+    def forward(self, activated_input:torch.Tensor,
+            residual_input:torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         x = self.conv1(activated_input)   # c(i) => c(i+1)
         x = self.relu1(x)
         x = self.conv2(x)   # c(i+1) => c(i+2)

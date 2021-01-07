@@ -5,8 +5,8 @@ from torchvision.ops import boxes as box_ops
 
 from typing import Tuple,List,Dict
 from .blocks import (
-    conv3x3,
-    ResBlock,
+    LFFDBackboneV1,
+    LFFDBackboneV2,
     DetectionHead
 )
 
@@ -19,7 +19,22 @@ import numpy as np
 class LFFD(nn.Module):
     __CONFIGS__ = {
         "560_25L_8S":{
-            'filters': [64,64,64,64,128,128,128,128],
+            "backbone_name": "560_25L_8S", 
+            'head_infeatures': [64,64,64,64,128,128,128,128],
+            'head_outfeatures': [128,128,128,128,128,128,128,128],
+            'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
+            'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
+            'rf_strides': [4,4,8,8,16,32,32,32],
+            'scales': [
+                (10,15),(15,20),(20,40),(40,70),
+                (70,110),(110,250),(250,400),(400,560)
+            ] # calculated for 640 image input
+        },
+
+        "320_20L_5S":{
+            "backbone_name": "320_20L_5S",
+            'head_infeatures': [64,64,64,64,128,128,128,128],
+            'head_outfeatures': [128,128,128,128,128,128,128,128],
             'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
             'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
             'rf_strides': [4,4,8,8,16,32,32,32],
@@ -28,20 +43,23 @@ class LFFD(nn.Module):
                 (70,110),(110,250),(250,400),(400,560)
             ] # calculated for 640 image input
         }
-        # TODO "320_20L_5S"
     }
 
     def __init__(self, in_channels:int=3, config:Dict={},
             num_classes:int=1, debug:bool=False, **kwargs):
         super(LFFD,self).__init__()
 
-        assert "filters" in config, "`filters` must be defined in the config"
+        assert "backbone_name" in config, "`backbone_name` must be defined in the config"
+        assert "head_infeatures" in config, "`head_infeatures` must be defined in the config"
+        assert "head_outfeatures" in config, "`head_outfeatures` must be defined in the config"
         assert "rf_sizes" in config, "`rf_sizes` must be defined in the config"
         assert "rf_start_offsets" in config, "`rf_start_offsets` must be defined in the config"
         assert "rf_strides" in config, "`rf_strides` must be defined in the config"
         assert "scales" in config, "`scales` must be defined in the config"
 
-        filters = config.get('filters')
+        backbone_name = config.get('backbone_name')
+        head_infeatures = config.get('head_infeatures')
+        head_outfeatures = config.get('head_outfeatures')
         rf_sizes = config.get('rf_sizes')
         rf_start_offsets = config.get('rf_start_offsets')
         rf_strides = config.get('rf_strides')
@@ -52,86 +70,31 @@ class LFFD(nn.Module):
         self.__debug = debug
 
         # TODO check if list lenghts are matched
-
-        # *tiny part
-        self.conv1_dw = conv3x3(in_channels, 64, stride=2, padding=0)
-        self.relu1 = nn.ReLU()
-
-        self.conv2_dw = conv3x3(64, 64, stride=2, padding=0)
-        self.relu2 = nn.ReLU()
-
-        self.res_block1 = ResBlock(64)
-        self.res_block2 = ResBlock(64)
-        self.res_block3 = ResBlock(64)
-        self.res_block4 = ResBlock(64)
-
-        # *small part
-        self.conv3_dw = conv3x3(64, 64, stride=2, padding=0)
-        self.relu3 = nn.ReLU()
-
-        self.res_block5 = ResBlock(64)
-        self.res_block6 = ResBlock(64)
-
-        # *medium part
-        self.conv4_dw = conv3x3(64, 128, stride=2, padding=0)
-        self.relu4 = nn.ReLU()
-        self.res_block7 = ResBlock(128)
-
-        # *large part
-        self.conv5_dw = conv3x3(128, 128, stride=2, padding=0)
-        self.relu5 = nn.ReLU()
-        self.res_block8 = ResBlock(128)
-        self.res_block9 = ResBlock(128)
-        self.res_block10 = ResBlock(128)
+        if backbone_name == "560_25L_8S":
+            self.backbone = LFFDBackboneV1(in_channels)
+        elif backbone_name == "320_20L_5S":
+            #self.backbone = LFFDBackboneV2(in_channels)
+            raise NotImplementedError()
+        else:
+            raise ValueError(f"given backbone name: {backbone_name} is not valid")
 
         self.heads = nn.ModuleList([
-            DetectionHead(idx+1,infeatures,128,
+            DetectionHead(idx+1,infeatures,outfeatures,
                 rf_size,rf_start_offset,rf_stride,
                 lower_scale,upper_scale,
                 num_classes=num_classes)
-            for idx,(infeatures, rf_size, rf_start_offset, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(
-                filters,rf_sizes,rf_start_offsets,rf_strides,scales))
+            for idx,(infeatures,outfeatures, rf_size, rf_start_offset, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(
+                head_infeatures,head_outfeatures,rf_sizes,rf_start_offsets,rf_strides,scales))
         ])
 
     def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
-        # *tiny part
-        c1 = self.conv1_dw(x)         # 3 => 64
-        r1 = self.relu1(c1)
-
-        c2 = self.conv2_dw(r1)          # 64 => 64
-        r2 = self.relu2(c2)
-
-        r4,c4 = self.res_block1(r2,c2)        # 64 => 64
-        r6,c6 = self.res_block2(r4,c4)        # 64 => 64
-        r8,c8 = self.res_block3(r6,c6)        # 64 => 64
-        r10,_ = self.res_block4(r8,c8)      # 64 => 64
-
-        # *small part
-        c11 = self.conv3_dw(r10)       # 64 => 64
-        r11 = self.relu3(c11)
-
-        r13,c13 = self.res_block5(r11,c11)      # 64 => 64
-        r15,_ = self.res_block6(r13,c13)      # 64 => 64
-
-        # *medium part
-        c16 = self.conv4_dw(r15)       # 64 => 128
-        r16 = self.relu4(c16)
-
-        r18,_ = self.res_block7(r16,c16)      # 128 => 128
-
-        # *large part
-        c19 = self.conv5_dw(r18)       # 128 => 128
-        r19 = self.relu5(c19)
-
-        r21,c21 = self.res_block8(r19,c19)      # 128 => 128
-        r23,c23 = self.res_block9(r21,c21)      # 128 => 128
-        r25,_ = self.res_block10(r23,c23)     # 128 => 128
+        logits = self.backbone(x)
 
         cls_logits:List = []
         reg_logits:List = []
 
-        for i,logit in enumerate([r8,r10,r13,r15,r18,r21,r23,r25]):
-            cls_l,reg_l = self.heads[i](logit)
+        for head,logit in zip(self.heads,logits):
+            cls_l,reg_l = head(logit)
             cls_logits.append(cls_l)
             reg_logits.append(reg_l)
 

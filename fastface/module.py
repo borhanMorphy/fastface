@@ -107,7 +107,7 @@ class FaceDetector(pl.LightningModule):
             model_path = download_pretrained_model(model, target_path=target_path)
         else:
             assert os.path.isfile(model_path),f"model path is given but not found in the disk: {model_path}"
-        return cls.load_from_checkpoint(model_path, map_location='cpu')        
+        return cls.load_from_checkpoint(model_path, map_location='cpu')
 
     def on_load_checkpoint(self, checkpoint:Dict):
         arch = checkpoint['hyper_parameters']['arch']
