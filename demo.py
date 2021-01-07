@@ -4,21 +4,14 @@ from cv2 import cv2
 import numpy as np
 from typing import List
 
-import fastface
+import fastface as ff
 from fastface.utils.visualize import prettify_detections
-from fastface.transform import (
-    Compose,
-    Interpolate,
-    Padding,
-    Normalize,
-    ToTensor
-)
 
 def get_arguments():
     ap = argparse.ArgumentParser()
 
     ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
-        choices=fastface.list_pretrained_models(), help='pretrained model to be used')
+        choices=ff.list_pretrained_models(), help='pretrained model to be used')
 
     ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
         default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -43,14 +36,14 @@ def main(model:str, device:str, img_path:str,
     img = load_image(img_path)
 
     # get pretrained model
-    model = fastface.module.from_pretrained(model=model)
+    model = ff.module.from_pretrained(model=model)
 
     # build required transforms
-    transforms = Compose(
-        Interpolate(max_dim=640),
-        Padding(target_size=(640,640)),
-        Normalize(mean=127.5, std=127.5),
-        ToTensor()
+    transforms = ff.transform.Compose(
+        ff.transform.Interpolate(max_dim=640),
+        ff.transform.Padding(target_size=(640,640)),
+        ff.transform.Normalize(mean=127.5, std=127.5),
+        ff.transform.ToTensor()
     )
 
     # enable tracking to perform postprocess after inference 
