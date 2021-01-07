@@ -5,23 +5,14 @@ Face detection implementations with [pytorch-lightning](https://www.pytorchlight
 Supporting lightweight face detection implementations to train, test and deploy in a scalable and maintainable manner.
 
 ## CONTENTS
-- [Recent Update](#recent-update)
+- [Recent Updates](#recent-updates)
 - [Usage](#usage)
 - [TODO](#todo)
 - [Reference](#reference)
 - [Citation](#citation)
 
-## Recent Update
-* `2021.01.02` added unittests for apis under the `tests/` directory
-* `2021.01.02` online hard negative mining is added for lffd training
-* `2021.01.02` caching is supported and by default it will use `~/.cache/fastface`
-* `2021.01.02` with fastface.adapters , models and datasets can be downloadable via gdrive or requests
-* `2021.01.02` now this repository can be usable as package
-* `2020.12.15` [evaluation scripts and results](#evaluation) are added
-* `2020.12.13` added lffd 560_25L_8scales official weights that converted from mxnet to pytorch
-* `2020.12.11` tested training script and after 50 epochs, achived 75 ap score on widerface-easy validation set using lffd (560_25L_8scales) with random weight initialization(defined in the paper)
-* `2020.12.11` added widerface evaluation metric under the `metrics/widerface_ap.py` as `pytorch_lightning.metrics.Metric`
-* `2020.12.06` added lffd weight conversion script under the `tools/lffd_mx2torch.py` to convert official mxnet model weights to pytorch weights
+## Recent Updates
+* `2021.01.03` version 0.0.1 is out. Can be downloadable with `pip install fastface`
 
 ## Usage
 ### Install
@@ -38,29 +29,22 @@ pip install .
 ### Inference
 Using package
 ```python
-import fastface
-from fastface.transform import (
-    Compose,
-    Interpolate,
-    Padding,
-    Normalize,
-    ToTensor
-)
+import fastface as ff
 from cv2 import cv2
 
-# load image
+# load image as BGR
 img = cv2.imread("<your_image_file_path>")
 
 # build model with pretrained weights
-model = fastface.module.from_pretrained("original_lffd_560_25L_8S")
+model = ff.module.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
 
 # build required transforms
-transforms = Compose(
-    Interpolate(max_dim=640),
-    Padding(target_size=(640,640)),
-    Normalize(mean=127.5, std=127.5),
-    ToTensor()
+transforms = ff.transform.Compose(
+    ff.transform.Interpolate(max_dim=640),
+    ff.transform.Padding(target_size=(640,640)),
+    ff.transform.Normalize(mean=127.5, std=127.5),
+    ff.transform.ToTensor()
 )
 
 # enable tracking to perform postprocess after inference 
@@ -84,13 +68,8 @@ preds = model.predict(batch, det_threshold=.8, iou_threshold=.4)
 # postprocess to adjust predictions
 preds = [transforms.adjust(pred.cpu().numpy()) for pred in preds]
 
-print(preds)
-"""
-[
-    np.array(N,5), # as x1,y1,x2,y2,score
-    ...
-]
-"""
+# preds: [np.ndarray(N,5), ...] as x1,y1,x2,y2,score
+
 ```
 
 Using [demo.py](/demo.py) script
@@ -134,24 +113,10 @@ python train_widerface.py --yaml config_zoo/lffd.original.yaml
 - [ ] add `FDDB` datamodule
 
 ### Training
-- [x] add resume training
-- [x] add widerface dataset support
-- [x] add widerface dataset download adapter
 - [ ] add FDDB dataset support
-- [x] add LR Scheduler
-- [x] add detector train loop
-- [x] add detector val loop
-- [x] add detector test loop
-- [x] support AP metric
-- [x] convert AP metric to `pytorch_lightning.metrics.Metric`
-- [x] implement OHNM instead of random sampling
-- [ ] provide lffd model weights that training from scratch
+- [ ] provide lffd model weights that trained from scratch
 
 ### Inference
-- [x] add demo.py
-- [x] export APIs for package usage
-- [x] add setup.py
-- [x] support model download via io utility
 
 ### Depyloment
 - [ ] add bentoml support and guideline
