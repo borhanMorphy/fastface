@@ -1,5 +1,6 @@
 import os
 from functools import wraps
+from ..version import __version__
 
 def ensure_path(fun):
     @wraps(fun)
@@ -13,7 +14,7 @@ def ensure_path(fun):
 
 @ensure_path
 def get_cache_path() -> str:
-    return os.path.join(os.path.expanduser("~"),".cache","fastface")
+    return os.path.join(os.path.expanduser("~"),".cache","fastface",__version__)
 
 @ensure_path
 def get_model_cache_path(suffix:str='') -> str:
