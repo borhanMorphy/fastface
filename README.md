@@ -3,6 +3,12 @@ Face detection implementations with [pytorch-lightning](https://www.pytorchlight
 
 ## GOAL
 Supporting lightweight face detection implementations to train, test and deploy in a scalable and maintainable manner.
+<br>
+
+![PyPI](https://img.shields.io/pypi/v/fastface)
+![PyPI - License](https://img.shields.io/pypi/l/fastface)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/fastface)
 
 ## CONTENTS
 - [Recent Updates](#recent-updates)
