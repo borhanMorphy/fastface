@@ -13,15 +13,14 @@ def parse_arguments():
         type=str, help='mxnet .params model to convert', required=True)
 
     ap.add_argument('--model-configuration', '-mc', type=str,
-        choices=['560_25L_8S'], default='560_25L_8S')
+        choices=fastface.list_arch_configs("lffd"), default='560_25L_8S')
 
-    ap.add_argument('--output-path', '-o', type=str, default='./models')
+    ap.add_argument('--output-path', '-o', type=str, default='./')
 
     return ap.parse_args()
 
-def re_order_mx_keys(mx_items:Dict):
-    b_list = range(25)
-    h_list = [8,10,13,15,18,21,23,25]
+def re_order_mx_keys(mx_items:Dict, b_list=None, h_list=None):
+
     # arg:conv{i}_weight
     # arg:conv{i}_bias
     backbone_keys = []
@@ -45,7 +44,7 @@ def re_order_mx_keys(mx_items:Dict):
         head_keys.append(f"arg:conv{h}_3_bbox_weight")
         head_keys.append(f"arg:conv{h}_3_bbox_bias")
     model_keys = backbone_keys + head_keys
-    assert len(model_keys) == len(list(mx_items.keys()))
+    assert len(model_keys) == len(list(mx_items.keys())),f"torch: {len(model_keys)} mxnet: {len(list(mx_items.keys()))}"
     st = OrderedDict()
     for k in model_keys:
         st[k] = torch.from_numpy(mx_items[k].asnumpy())
@@ -76,7 +75,10 @@ if __name__ == "__main__":
     logging.info("loading mxnet model")
     mx_d = mx.nd.load(args.input_mx_model)
 
-    t_mx = re_order_mx_keys(mx_d)
+    t_mx = re_order_mx_keys(mx_d,
+        b_list = range(25) if args.model_configuration == "560_25L_8S" else range(20),
+        h_list = [8,10,13,15,18,21,23,25] if args.model_configuration == "560_25L_8S" else [8,11,14,17,20]
+    )
     n_st = OrderedDict()
 
     for k1,k2 in zip(t_d.keys(),t_mx.keys()):

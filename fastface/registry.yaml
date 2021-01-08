@@ -7,3 +7,12 @@ original_lffd_560_25L_8S:
       overwrite: false
       unzip: false
       showsize: true
+original_lffd_320_20L_5S:
+  adapter:
+    type: "gdrive"
+    kwargs:
+      file_name: "original_lffd_320_20L_5S.pt"
+      file_id: "1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN"
+      overwrite: false
+      unzip: false
+      showsize: true

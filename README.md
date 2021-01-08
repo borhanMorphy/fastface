@@ -12,13 +12,23 @@ Supporting lightweight face detection implementations to train, test and deploy 
 
 ## CONTENTS
 - [Recent Updates](#recent-updates)
+- [Pretrained Models](#pretrained-models)
 - [Usage](#usage)
 - [TODO](#todo)
 - [Reference](#reference)
 - [Citation](#citation)
 
 ## Recent Updates
+* `2021.01.08` "original_lffd_320_20L_5S" pretrained model added to the registry and can be used via fastface.module.from_pretrained api
+* `2021.01.08` "320_20L_5S" configuration added to "lffd" architecture
 * `2021.01.03` version 0.0.1 is out. Can be downloadable with `pip install fastface`
+
+## Pretrained Models
+Pretrained models can be accessable via `fastface.module.from_pretrained(<name>)`
+Name|Architecture|Configuration|Parameters|Model Size|Link
+:------:|:------:|:--------:|:--------:|:----------:|:--------:
+**original_lffd_560_25L_8S**|**LFFD**|560_25L_8S|2.3M|8.8mb|[gdrive](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
+**original_lffd_320_20L_5S**|**LFFD**|320_20L_5S|1.5M|5.9mb|[gdrive](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
 
 ## Usage
 ### Install
@@ -44,6 +54,9 @@ img = cv2.imread("<your_image_file_path>")
 # build model with pretrained weights
 model = ff.module.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
+
+# get model summary
+model.summarize()
 
 # build required transforms
 transforms = ff.transform.Compose(
@@ -86,35 +99,33 @@ sample output;
 ![alt text](resources/friends.jpg)
 
 ### Evaluation
-Evaluation on Widerface Validation Set Using `LFFD 560_25L_8S` original weights
-Method|Easy Set|Medium Set|Hard Set
-------|--------|----------|--------
-**LFFD(paper)**|0.910     |0.881       |0.780
-**LFFD(this repository)**|0.893     |0.866       |0.756
+Evaluation on Widerface Validation Set
+Architecture|Configuration|Easy Set|Medium Set|Hard Set
+------|--------|--------|----------|--------
+**LFFD(paper)**|560_25L_8S     |0.910     |0.881       |0.780
+**LFFD**|560_25L_8S     |0.893     |0.866       |0.756
+**LFFD**|320_20L_5S     |0.854     |0.845       |0.735
 
 To get these results, run the following scripts
 ```
 # for easy set
-python test_widerface.py --model original_lffd_560_25L_8S --device cuda --partition easy
+python test_widerface.py --model <pretrained_model> --device cuda --partition easy
 
 # for medium set
-python test_widerface.py --model original_lffd_560_25L_8S --device cuda --partition medium
+python test_widerface.py --model <pretrained_model> --device cuda --partition medium
 
 # for hard set
-python test_widerface.py --model original_lffd_560_25L_8S --device cuda --partition hard
+python test_widerface.py --model <pretrained_model> --device cuda --partition hard
 ```
 
 ### Training
-Train `LFFD 560_25L_8S` on widerface dataset
-```
-python train_widerface.py --yaml config_zoo/lffd.original.yaml
-```
+
 
 ## TODO
 ### Feature
-- [ ] add lffd `320_20L_5S` configuration to the arch
-- [ ] add lffd `320_20L_5S` pytorch model to the registry using original repository
-- [ ] add lffd `320_20L_5S` training configuration to config_zoo
+- [x] add lffd `320_20L_5S` configuration to the arch
+- [x] add lffd `320_20L_5S` pytorch model to the registry using original repository
+- [x] add lffd `320_20L_5S` training configuration to config_zoo
 - [ ] add `FDDB` dataset
 - [ ] add `FDDB` datamodule
 

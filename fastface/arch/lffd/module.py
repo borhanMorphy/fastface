@@ -20,11 +20,11 @@ class LFFD(nn.Module):
     __CONFIGS__ = {
         "560_25L_8S":{
             "backbone_name": "560_25L_8S", 
-            'head_infeatures': [64,64,64,64,128,128,128,128],
+            'head_infeatures': [64,64,64,128,128,128,128],
             'head_outfeatures': [128,128,128,128,128,128,128,128],
             'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
             'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
-            'rf_strides': [4,4,8,8,16,32,32,32],
+            'rf_strides': [4, 4, 8, 8, 16, 32, 32, 32],
             'scales': [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
@@ -33,14 +33,13 @@ class LFFD(nn.Module):
 
         "320_20L_5S":{
             "backbone_name": "320_20L_5S",
-            'head_infeatures': [64,64,64,64,128,128,128,128],
-            'head_outfeatures': [128,128,128,128,128,128,128,128],
-            'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
-            'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
-            'rf_strides': [4,4,8,8,16,32,32,32],
+            'head_infeatures': [64,64,64,128,128],
+            'head_outfeatures': [128,128,128,128,128],
+            'rf_sizes': [20, 40, 80, 160, 320],
+            'rf_start_offsets': [3, 7, 15, 31, 63],
+            'rf_strides': [4, 8, 16, 32, 64],
             'scales': [
-                (10,15),(15,20),(20,40),(40,70),
-                (70,110),(110,250),(250,400),(400,560)
+                (10,20),(20,40),(40,80),(80,160),(160,320)
             ] # calculated for 640 image input
         }
     }
@@ -73,8 +72,7 @@ class LFFD(nn.Module):
         if backbone_name == "560_25L_8S":
             self.backbone = LFFDBackboneV1(in_channels)
         elif backbone_name == "320_20L_5S":
-            #self.backbone = LFFDBackboneV2(in_channels)
-            raise NotImplementedError()
+            self.backbone = LFFDBackboneV2(in_channels)
         else:
             raise ValueError(f"given backbone name: {backbone_name} is not valid")
 

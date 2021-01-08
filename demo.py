@@ -38,6 +38,9 @@ def main(model:str, device:str, img_path:str,
     # get pretrained model
     model = ff.module.from_pretrained(model=model)
 
+    # get model summary
+    model.summarize()
+
     # build required transforms
     transforms = ff.transform.Compose(
         ff.transform.Interpolate(max_dim=640),
