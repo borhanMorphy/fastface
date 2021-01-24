@@ -19,8 +19,8 @@ import numpy as np
 class LFFD(nn.Module):
     __CONFIGS__ = {
         "560_25L_8S":{
-            "backbone_name": "560_25L_8S", 
-            'head_infeatures': [64,64,64,128,128,128,128],
+            "backbone_name": "560_25L_8S",
+            'head_infeatures': [64,64,64,64,128,128,128,128],
             'head_outfeatures': [128,128,128,128,128,128,128,128],
             'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
             'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
