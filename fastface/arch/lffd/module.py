@@ -78,8 +78,6 @@ class LFFD(nn.Module):
 
         self.heads = nn.ModuleList([
             DetectionHead(idx+1,infeatures,outfeatures,
-                rf_size,rf_start_offset,rf_stride,
-                lower_scale,upper_scale,
                 num_classes=num_classes)
             for idx,(infeatures,outfeatures, rf_size, rf_start_offset, rf_stride, (lower_scale,upper_scale)) in enumerate(zip(
                 head_infeatures,head_outfeatures,rf_sizes,rf_start_offsets,rf_strides,scales))
@@ -151,10 +149,11 @@ class LFFD(nn.Module):
 
             target_cls,mask_cls,target_regs,mask_regs = self.heads[head_idx].build_targets(
                 (fh,fw), gt_boxes, device=device, dtype=dtype)
-            #target_cls          : bs,fh',fw'      | type: model.dtype         | device: model.device
-            #mask_cls            : bs,fh',fw'      | type: torch.bool          | device: model.device
-            #target_regs         : bs,fh',fw',4    | type: model.dtype         | device: model.device
-            #mask_regs           : bs,fh',fw'      | type: torch.bool          | device: model.device
+
+            # target_cls          : bs,fh',fw'      | type: model.dtype         | device: model.device
+            # mask_cls            : bs,fh',fw'      | type: torch.bool          | device: model.device
+            # target_regs         : bs,fh',fw',4    | type: model.dtype         | device: model.device
+            # mask_regs           : bs,fh',fw'      | type: torch.bool          | device: model.device
 
             cls_logits = heads_cls_logits[head_idx].permute(0,2,3,1)
             reg_logits = heads_reg_logits[head_idx].permute(0,2,3,1)
