@@ -17,7 +17,7 @@ datamodule:
   dataset: 'widerface'
   partitions: ['easy']
   train:
-    batch_size: 4
+    batch_size: 8
     num_workers: 4
   val:
     batch_size: 4
