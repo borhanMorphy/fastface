@@ -1,4 +1,4 @@
 from .module import LFFD
-from .utils import Matcher,AnchorGenerator
+from .matcher import Matcher
 
 arch_cls = LFFD

@@ -62,6 +62,7 @@ def get_arch_cls(arch:str):
         abs_m_p = module_path.replace(arch_path,'',1).replace(".py", '',-1)
         abs_m_p = abs_m_p.replace(os.path.sep,"",1) if abs_m_p.startswith(os.path.sep) else abs_m_p
         abs_m_p = abs_m_p.replace(os.path.sep,".")
+        print(abs_m_p)
         api = importlib.import_module(f"fastface.arch.{abs_m_p}")
 
         for d in dir(api):

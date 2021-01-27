@@ -26,8 +26,8 @@ class FaceDetector(pl.LightningModule):
     def add_metric(self, name:str, metric:pl.metrics.Metric):
         self.__metrics[name] = metric
 
-    def forward(self, data:torch.Tensor):
-        return self.arch(data)
+    def forward(self, *args, **kwargs):
+        return self.arch(*args, **kwargs)
 
     def predict(self, data:torch.Tensor, *args, **kwargs):
         return self.arch.predict(data.to(self.device), *args, **kwargs)

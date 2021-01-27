@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-import fastface
+import fastface as ff
 from typing import Dict
 import argparse
 import yaml
@@ -23,7 +23,7 @@ def parse_arguments() -> Dict:
     return ap.parse_args()
 
 def main(kwargs:Dict, resume:bool, seed:int):
-    if seed: fastface.utils.random.seed_everything(seed)
+    if seed: ff.utils.random.seed_everything(seed)
 
     ckpt_path = None
     arch = kwargs['arch']
@@ -34,9 +34,18 @@ def main(kwargs:Dict, resume:bool, seed:int):
     datamodule = kwargs['datamodule']
     trainer_configs = kwargs['trainer']
 
+    arch_configs = ff.get_arch_config(arch, config)
+
+    arch_pkg = ff.utils.config.get_arch_pkg(arch)
+
+    matcher = arch_pkg.Matcher(**arch_configs)
+
+    datamodule['train'].update({"collate_fn":arch_pkg.Matcher.collate_fn})
+    datamodule['val'].update({"collate_fn":arch_pkg.Matcher.collate_fn})
+
     checkpoint_dirpath = kwargs['checkpoint']['dirpath']
     if checkpoint_dirpath is None:
-        checkpoint_dirpath = fastface.utils.cache.get_checkpoint_cache_path(f"{arch}_{config}")
+        checkpoint_dirpath = ff.utils.cache.get_checkpoint_cache_path(f"{arch}_{config}")
 
     if resume:
         ckpt_path = choice_checkpoint(checkpoint_dirpath)
@@ -49,13 +58,19 @@ def main(kwargs:Dict, resume:bool, seed:int):
     checkpoint_save_top_k = kwargs['checkpoint']['save_top_k']
     checkpoint_mode = kwargs['checkpoint']['mode']
 
-    model = fastface.module.build(arch, config, hparams=hparams,
+    model = ff.module.build(arch, config, hparams=hparams,
         num_classes=1, in_channels=in_channels)
 
-    dm = fastface.datamodule.WiderFaceDataModule(
-        partitions=datamodule['partitions'],
-        train_kwargs=datamodule['train'],
-        val_kwargs=datamodule['val'])
+    metric = ff.metric.get_metric("widerface_ap")
+    model.add_metric("widerface_ap",metric)
+
+    dm = ff.datamodule.WiderFaceDataModule(
+            partitions=datamodule['partitions'],
+            train_kwargs=datamodule['train'],
+            train_target_transform=matcher,
+            val_kwargs=datamodule['val'],
+            val_target_transform=matcher
+        )
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath= checkpoint_dirpath,
@@ -70,7 +85,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
     )
 
     trainer = pl.Trainer(
-        default_root_dir=fastface.utils.cache.get_cache_path(),
+        default_root_dir=ff.utils.cache.get_cache_path(),
         gpus=trainer_configs.get('gpus',1),
         accumulate_grad_batches=trainer_configs.get('accumulate_grad_batches',1),
         resume_from_checkpoint=ckpt_path,

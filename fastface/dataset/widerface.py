@@ -96,6 +96,7 @@ class WiderFaceDataset(Dataset):
         target_boxes = self.targets[idx].copy()
         has_ignore = target_boxes.shape[0] > 0 and target_boxes.shape[1] == 5
         if has_ignore:
+            # TODO add ignores
             ignores = target_boxes[:,[4]]
             target_boxes = target_boxes[:,:4]
 
@@ -105,16 +106,14 @@ class WiderFaceDataset(Dataset):
         if self.transform:
             img = self.transform(img)
 
+        if has_ignore:
+            if isinstance(target_boxes, np.ndarray):
+                target_boxes = np.concatenate([target_boxes, ignores], axis=-1)
+            else:
+                target_boxes = torch.cat([target_boxes, torch.from_numpy(ignores)], dim=-1)
+
         if self.target_transform:
             target_boxes = self.target_transform(target_boxes)
-
-        if not has_ignore:
-            return img,target_boxes
-
-        if isinstance(target_boxes,np.ndarray):
-            target_boxes = np.concatenate([target_boxes,ignores], axis=1)
-        else:
-            target_boxes = torch.cat([target_boxes, torch.from_numpy(ignores)], dim=1)
 
         return img,target_boxes
 
