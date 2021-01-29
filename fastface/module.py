@@ -68,6 +68,14 @@ class FaceDetector(pl.LightningModule):
     def test_epoch_end(self, test_outputs:List):
         for key,metric in self.__metrics.items():
             self.log(key, metric.compute())
+        loss = []
+        for test_output in test_outputs:
+            if 'loss' in test_output:
+                loss.append(test_output['loss'])
+
+        if len(loss) != 0:
+            loss = sum(loss) / len(loss)
+            self.log("test_loss: ", loss)
 
     def configure_optimizers(self):
         return self.arch.configure_optimizers(**self.hparams)
@@ -122,5 +130,3 @@ class FaceDetector(pl.LightningModule):
 
         # build nn.Module with given configuration
         self.arch  = arch_cls(config=config, **kwargs)
-
-        

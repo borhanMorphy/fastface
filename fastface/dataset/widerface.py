@@ -60,6 +60,7 @@ def get_validation_set(root_path:str, partition:str):
             ids.append(os.path.join(source_image_dir,event_name,file_name+".jpg"))
             gt_boxes = np.concatenate([gt_boxes, ignore], axis=1)
             targets.append(gt_boxes)
+
     return ids,targets
 
 class WiderFaceDataset(Dataset):

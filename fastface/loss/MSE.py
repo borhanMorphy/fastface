@@ -10,5 +10,5 @@ class L2Loss(nn.Module):
         dtype = input.dtype
         device = input.device
         if input.size(0) == 0:
-            return torch.tensor([[0 for _ in range(target.size(-1))]], dtype=dtype, device=device, requires_grad=True)
-        return F.mse_loss(input, target, reduction='none')
+            return torch.tensor(0, dtype=dtype, device=device, requires_grad=True)
+        return F.mse_loss(input, target)

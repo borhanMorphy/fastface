@@ -100,8 +100,8 @@ class WiderFaceDataModule(pl.LightningDataModule):
         default_test_kwargs.update(kwargs.get('test_kwargs',{}))
         self.test_kwargs = default_test_kwargs
 
-        self.train_transform = kwargs.get('train_transform') 
-        self.train_target_transform = kwargs.get('train_target_transform') 
+        self.train_transform = kwargs.get('train_transform')
+        self.train_target_transform = kwargs.get('train_target_transform')
         self.train_transforms = kwargs.get('train_transforms', Compose(
                 FaceDiscarder(min_face_scale=2),
                 LFFDRandomSample( # TODO handle different configurations
@@ -116,8 +116,8 @@ class WiderFaceDataModule(pl.LightningDataModule):
             )
         )
 
-        self.val_transform = kwargs.get('val_transform') 
-        self.val_target_transform = kwargs.get('val_target_transform') 
+        self.val_transform = kwargs.get('val_transform')
+        self.val_target_transform = kwargs.get('val_target_transform')
         self.val_transforms = kwargs.get('val_transforms', Compose(
                 Interpolate(max_dim=640),
                 Padding(target_size=(640,640), pad_value=0),
@@ -126,8 +126,8 @@ class WiderFaceDataModule(pl.LightningDataModule):
             )
         )
 
-        self.test_transform = kwargs.get('test_transform') 
-        self.test_target_transform = kwargs.get('test_target_transform') 
+        self.test_transform = kwargs.get('test_transform')
+        self.test_target_transform = kwargs.get('test_target_transform')
         self.test_transforms = kwargs.get('test_transforms', Compose(
                 Normalize(mean=127.5, std=127.5),
                 ToTensor()

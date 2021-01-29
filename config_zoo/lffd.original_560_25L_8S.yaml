@@ -3,7 +3,7 @@ config: "560_25L_8S"
 in_channels: 3
 
 hparams:
-  learning_rate: 0.1
+  learning_rate: 0.01
   momentum: 0.9
   weight_decay: 0.00001
   milestones: [600000, 1000000, 1200000, 1400000]

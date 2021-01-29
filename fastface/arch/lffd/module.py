@@ -143,10 +143,10 @@ class LFFD(nn.Module):
         {
             "heads": [
                 {
-                    "target_cls":       fh',fw'   | torch.float,
-                    "ignore_cls_mask":  fh',fw'   | torch.bool,
+                    "target_cls":       fh',fw'    | torch.float,
+                    "ignore_cls_mask":  fh',fw'    | torch.bool,
                     "target_regs":      fh', fw',4 | torch.float,
-                    "reg_mask":         fh',fw'   | torch.bool
+                    "reg_mask":         fh',fw'    | torch.bool
                 }
             ],
             "gt_boxes": torch.Tensor
@@ -155,8 +155,7 @@ class LFFD(nn.Module):
 
         num_of_heads = len(self.heads)
         heads_cls_logits,heads_reg_logits = self(imgs)
-        cls_losses = []
-        reg_losses = []
+        head_losses:List = []
         heads = targets['heads']
 
         for i in range(num_of_heads):
@@ -179,19 +178,17 @@ class LFFD(nn.Module):
             reg_loss = self.reg_loss_fn(_reg_logits, _target_regs)
 
             if torch.isnan(cls_loss).any():
+                print(cls_loss)
                 print(_cls_logits.shape, _target_cls.shape)
                 print((_target_cls == 1).sum())
 
             if torch.isnan(reg_loss).any():
+                print(_reg_logits)
                 print(_reg_logits.shape, _target_regs.shape)
 
-            cls_losses.append( cls_loss )
-            reg_losses.append( reg_loss )
+            head_losses.append( cls_loss + reg_loss )
 
-        cls_losses = torch.cat(cls_losses).mean()
-        reg_losses = torch.cat(reg_losses).mean()
-        loss = cls_losses + reg_losses
-        return loss
+        return sum(head_losses)
 
     @torch.no_grad()
     def validation_step(self, batch:Tuple[torch.Tensor, Dict],
@@ -223,8 +220,7 @@ class LFFD(nn.Module):
 
         num_of_heads = len(self.heads)
         heads_cls_logits,heads_reg_logits = self(imgs)
-        cls_losses = []
-        reg_losses = []
+        head_losses:List = []
         heads = targets['heads']
         gt_boxes = targets['gt_boxes']
 
@@ -252,10 +248,15 @@ class LFFD(nn.Module):
 
             _reg_logits = reg_logits[reg_mask]
             _target_regs = target_regs[reg_mask]
-
-            cls_losses.append( self.cls_loss_fn(_cls_logits, _target_cls) )
-            reg_losses.append( self.reg_loss_fn(_reg_logits, _target_regs) )
-
+            cls_loss = self.cls_loss_fn(_cls_logits, _target_cls)
+            reg_loss = self.reg_loss_fn(_reg_logits, _target_regs)
+            if torch.isnan(cls_loss):
+                print("class loss is nan: ",_cls_logits, _target_cls)
+                exit(0)
+            if torch.isnan(reg_loss):
+                print("regression loss is nan: ",reg_loss, _target_regs.shape)
+                exit(0)
+            head_losses.append( cls_loss + reg_loss )
 
         preds = torch.cat(preds, dim=1)
         pred_boxes:List = []
@@ -266,12 +267,8 @@ class LFFD(nn.Module):
             orders = selected_boxes[:, 4].argsort(descending=True)
             pred_boxes.append(selected_boxes[orders,:][:keep_n,:])
 
-        cls_losses = torch.cat(cls_losses).mean()
-        reg_losses = torch.cat(reg_losses).mean()
-        loss = cls_losses + reg_losses
-
         return {
-            'loss': loss,
+            'loss': sum(head_losses),
             'preds': pred_boxes,
             'gts': gt_boxes
         }
@@ -279,6 +276,8 @@ class LFFD(nn.Module):
     @torch.no_grad()
     def test_step(self, batch:Tuple[torch.Tensor, Dict],
             batch_idx:int, **hparams) -> Dict:
+
+        return self.validation_step(batch, batch_idx, **hparams)
 
         imgs,gt_boxes = batch
         batch_size = len(imgs)
@@ -298,7 +297,7 @@ class LFFD(nn.Module):
 
                 cls_logits = heads_cls_logits[i].permute(0,2,3,1)
                 reg_logits = heads_reg_logits[i].permute(0,2,3,1)
-                
+
                 pred_boxes = self.heads[i].anchor_box_gen.logits_to_boxes(reg_logits)
 
                 scores = torch.sigmoid(cls_logits)
