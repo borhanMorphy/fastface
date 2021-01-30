@@ -20,7 +20,7 @@ def parse_arguments():
 
 def main(model:str, device:str, partition:str,
         batch_size:int=1, num_workers:int=4):
-    model = ff.module.from_pretrained(model=model)
+    model = ff.module.from_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/checkpoints/lffd_560_25L_8S/lffd_560_25L_8S_widerface-epoch=00-val_loss=0.363-val_ap=0.00.ckpt")
 
     model.summarize()
 

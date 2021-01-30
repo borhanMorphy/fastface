@@ -46,6 +46,13 @@ class BinaryCrossEntropy(nn.Module):
             num_of_negatives = min(max_num_of_negatives, num_of_negatives)
             num_of_negatives = max(num_of_negatives,1) # for safety
             s_neg = random.sample(s_neg.cpu().numpy().tolist(), k=num_of_negatives)
+            if len(s_neg) == 0:
+                print("zero negatives found! ")
+                print("min_num_of_negatives: ",min_num_of_negatives)
+                print("max_num_of_negatives: ",max_num_of_negatives)
+                print("num_of_negatives: ",num_of_negatives)
+                print("s_pos: ",s_pos)
+                exit(0)
             if s_pos.size(0) == 0:
                 return loss[s_neg].mean()
             return torch.cat([loss[s_neg],loss[s_pos]]).mean()

@@ -39,6 +39,7 @@ class FaceDetector(pl.LightningModule):
         for metric in self.__metrics.values():
             metric.reset()
 
+    @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         step_outputs = self.arch.validation_step(batch,batch_idx,**self.hparams)
         preds = step_outputs.pop('preds',[])
@@ -57,6 +58,7 @@ class FaceDetector(pl.LightningModule):
             self.log(key, metric.compute())
         self.log('val_loss', loss)
 
+    @torch.no_grad()
     def test_step(self, batch, batch_idx):
         step_outputs = self.arch.test_step(batch,batch_idx,**self.hparams)
         preds = step_outputs.pop('preds',[])

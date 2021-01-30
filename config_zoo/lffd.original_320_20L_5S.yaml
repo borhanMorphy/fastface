@@ -26,7 +26,7 @@ datamodule:
 checkpoint:
   dirpath: null
   verbose: true
-  filename: "{arch}_{config}_{dataset}-{{epoch:02d}}-{{val_loss:.3f}}-{{val_ap:.2f}}"
+  filename: "{arch}_{config}_{dataset}-{{epoch:02d}}-{{val_loss:.3f}}-{{widerface_ap:.2f}}"
   monitor: "val_loss"
   save_top_k: 3
   mode: "min"
