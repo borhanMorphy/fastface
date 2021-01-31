@@ -27,6 +27,9 @@ class FaceDetector(pl.LightningModule):
     def add_metric(self, name:str, metric:pl.metrics.Metric):
         self.__metrics[name] = metric
 
+    def get_metrics(self) -> Dict[str, pl.metrics.Metric]:
+        return {k:v for k,v in self.__metrics.items()}
+
     def forward(self, *args, **kwargs):
         return self.arch(*args, **kwargs)
 
@@ -40,14 +43,13 @@ class FaceDetector(pl.LightningModule):
         for metric in self.__metrics.values():
             metric.reset()
 
-    @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         step_outputs = self.arch.validation_step(batch,batch_idx,**self.hparams)
-        preds = step_outputs.pop('preds',[])
-        gts = step_outputs.pop('gts',[])
-        for metric in self.__metrics.values():
-            metric(preds,gts)
-
+        if "preds" in step_outputs and "gts" in step_outputs:
+            preds = step_outputs.pop('preds',[])
+            gts = step_outputs.pop('gts',[])
+            for metric in self.__metrics.values():
+                metric(preds,gts)
         return step_outputs
 
     def validation_epoch_end(self, val_outputs:List):
@@ -59,25 +61,29 @@ class FaceDetector(pl.LightningModule):
             self.log(key, metric.compute())
         self.log('val_loss', loss)
 
-    @torch.no_grad()
+    def on_test_epoch_start(self):
+        for metric in self.__metrics.values():
+            metric.reset()
+
     def test_step(self, batch, batch_idx):
         step_outputs = self.arch.test_step(batch,batch_idx,**self.hparams)
-        preds = step_outputs.pop('preds',[])
-        gts = step_outputs.pop('gts',[])
-        for metric in self.__metrics.values():
-            metric(preds,gts)
+        if "preds" in step_outputs and "gts" in step_outputs:
+            preds = step_outputs.pop('preds',[])
+            gts = step_outputs.pop('gts',[])
+            for metric in self.__metrics.values():
+                metric(preds,gts)
         return step_outputs
 
     def test_epoch_end(self, test_outputs:List):
         for key,metric in self.__metrics.items():
             self.log(key, metric.compute())
-        loss = []
+        losses = []
         for test_output in test_outputs:
-            if 'loss' in test_output:
-                loss.append(test_output['loss'])
+            if 'loss' not in test_output: continue
+            losses.append(test_output['loss'])
 
-        if len(loss) != 0:
-            loss = sum(loss) / len(loss)
+        if len(losses) != 0:
+            loss = sum(losses) / len(losses)
             self.log("test_loss: ", loss)
 
     def configure_optimizers(self):

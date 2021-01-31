@@ -28,7 +28,7 @@ def main(model:str, device:str, partition:str,
 
     model.summarize()
 
-    metric = fastface.metric.get_metric("widerface_ap")
+    metric = fastface.metric.get_metric_by_name("widerface_ap")
     model.add_metric("widerface_ap",metric)
 
     dm = fastface.datamodule.WiderFaceDataModule(partitions=[partition],

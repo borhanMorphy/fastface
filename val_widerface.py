@@ -48,7 +48,7 @@ def main(model:str, device:str, partition:str,
             test_transforms=transforms
         )
 
-    metric = ff.metric.get_metric("widerface_ap")
+    metric = ff.metric.get_metric_by_name("widerface_ap")
     model.add_metric("widerface_ap",metric)
 
     # TODO precision 16 is much more slower

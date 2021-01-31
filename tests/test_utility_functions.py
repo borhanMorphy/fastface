@@ -1,5 +1,5 @@
+import fastface as ff
 import pytest
-import fastface
 
 @pytest.mark.parametrize("func",
     [
@@ -8,7 +8,7 @@ import fastface
     ]
 )
 def test_cache_func_exists(func:str):
-    assert func in dir(fastface.utils.cache),f"{func} not found in the fastface.utils.cache"
+    assert func in dir(ff.utils.cache),f"{func} not found in the fastface.utils.cache"
 
 @pytest.mark.parametrize("func",
     [
@@ -18,7 +18,7 @@ def test_cache_func_exists(func:str):
     ]
 )
 def test_config_func_exists(func:str):
-    assert func in dir(fastface.utils.config),f"{func} not found in the fastface.utils.config"
+    assert func in dir(ff.utils.config),f"{func} not found in the fastface.utils.config"
 
 
 @pytest.mark.parametrize("func",
@@ -27,9 +27,9 @@ def test_config_func_exists(func:str):
     ]
 )
 def test_random_func_exists(func:str):
-    assert func in dir(fastface.utils.random),f"{func} not found in the fastface.utils.random"
+    assert func in dir(ff.utils.random),f"{func} not found in the fastface.utils.random"
 
 
 @pytest.mark.parametrize("func",["prettify_detections"])
 def test_visualize_func_exists(func:str):
-    assert func in dir(fastface.utils.visualize),f"{func} not found in the fastface.utils.visualize"
+    assert func in dir(ff.utils.visualize),f"{func} not found in the fastface.utils.visualize"

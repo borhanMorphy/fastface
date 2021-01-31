@@ -106,7 +106,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
     checkpoint_save_top_k = kwargs['checkpoint']['save_top_k']
     checkpoint_mode = kwargs['checkpoint']['mode']
 
-    metric = ff.metric.get_metric("widerface_ap")
+    metric = ff.metric.get_metric_by_name("widerface_ap")
     model.add_metric("widerface_ap",metric)
 
     dm = ff.datamodule.WiderFaceDataModule(

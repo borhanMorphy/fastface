@@ -1,5 +1,5 @@
 __all__ = [
-    "get_loss_by_name", "get_available_losses",
+    "get_loss_by_name", "list_losses",
     "BinaryCrossEntropy",
     "L2Loss"
 ]
@@ -28,4 +28,4 @@ def get_loss_by_name(loss:str, **kwargs) -> nn.Module:
     ckwargs.update(kwargs)
     return cls(*ckwargs)
 
-def get_available_losses() -> List[str]: return __loss_mapper__.keys()
+def list_losses() -> List[str]: return list(__loss_mapper__.keys())
