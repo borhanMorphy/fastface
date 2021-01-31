@@ -24,7 +24,7 @@ def collate_fn(data):
 
 def main(model:str, device:str, partition:str,
         batch_size:int=1, num_workers:int=4):
-    model = fastface.module.from_pretrained(model=model)
+    model = fastface.module.from_pretrained(model)
 
     model.summarize()
 

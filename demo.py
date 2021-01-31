@@ -11,7 +11,7 @@ def get_arguments():
     ap = argparse.ArgumentParser()
 
     ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
-        choices=ff.list_pretrained_models(), help='pretrained model to be used')
+        help=f"pretrained models {','.join(ff.list_pretrained_models())} or checkpoint path")
 
     ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
         default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -36,7 +36,7 @@ def main(model:str, device:str, img_path:str,
     img = load_image(img_path)
 
     # get pretrained model
-    model = ff.module.from_pretrained(model=model)
+    model = ff.module.from_pretrained(model)
 
     # get model summary
     model.summarize()

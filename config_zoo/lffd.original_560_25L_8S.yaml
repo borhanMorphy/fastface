@@ -33,7 +33,7 @@ checkpoint:
 
 trainer:
   gpus: 1
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 8
   max_epochs: 100
   check_val_every_n_epoch: 1
   precision: 32

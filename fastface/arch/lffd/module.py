@@ -82,7 +82,7 @@ class LFFD(nn.Module):
                 head_infeatures,head_outfeatures,rf_sizes,rf_start_offsets,rf_strides))
         ])
 
-        self.cls_loss_fn = ff.loss.BinaryCrossEntropy(negative_selection_rule="random")
+        self.cls_loss_fn = ff.loss.BinaryCrossEntropy(negative_selection_rule="mix")
         self.reg_loss_fn = ff.loss.L2Loss()
 
     def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:

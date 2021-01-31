@@ -46,13 +46,7 @@ class BinaryCrossEntropy(nn.Module):
             num_of_negatives = min(max_num_of_negatives, num_of_negatives)
             num_of_negatives = max(num_of_negatives,1) # for safety
             s_neg = random.sample(s_neg.cpu().numpy().tolist(), k=num_of_negatives)
-            if len(s_neg) == 0:
-                print("zero negatives found! ")
-                print("min_num_of_negatives: ",min_num_of_negatives)
-                print("max_num_of_negatives: ",max_num_of_negatives)
-                print("num_of_negatives: ",num_of_negatives)
-                print("s_pos: ",s_pos)
-                exit(0)
+            assert len(s_neg) > 0,"selected negative samples is zero, this may cause loss to become `nan`"
             if s_pos.size(0) == 0:
                 return loss[s_neg].mean()
             return torch.cat([loss[s_neg],loss[s_pos]]).mean()
@@ -61,15 +55,39 @@ class BinaryCrossEntropy(nn.Module):
             num_of_negatives = min(num_of_negatives, num_of_positives*self.ohem_ratio)
             num_of_negatives = max(min_num_of_negatives, num_of_negatives)
             num_of_negatives = min(max_num_of_negatives, num_of_negatives)
+            num_of_negatives = max(num_of_negatives,1) # for safety
+            assert num_of_negatives > 0,"selected negative samples is zero, this may cause loss to become `nan`"
             pos_loss = loss[s_pos]
             neg_loss = loss[s_neg]
-            s_neg = neg_loss.argsort(descending=True)
-            neg_loss = neg_loss[s_neg][:num_of_negatives]
+            sorted_negs = neg_loss.argsort(descending=True)
+            neg_loss = neg_loss[sorted_negs][:num_of_negatives]
             if pos_loss.size(0) == 0:
                 return neg_loss.mean()
             return torch.cat([pos_loss,neg_loss]).mean()
         elif self.neg_select_rule == 'mix':
             # use ohem and random selection
-            raise NotImplementedError("not yet implemented, use another")
+            pos_loss = loss[s_pos]
+            neg_loss = loss[s_neg]
+            # ohem selection
+            num_of_negatives = min(num_of_negatives//2, (num_of_positives//2)*self.ohem_ratio)
+            num_of_negatives = max(min_num_of_negatives//2, num_of_negatives)
+            num_of_negatives = min(max_num_of_negatives//2, num_of_negatives)
+            num_of_negatives = max(num_of_negatives,1) # for safety
+            sorted_negs = neg_loss.argsort(descending=True)
+            ohem_loss = neg_loss[sorted_negs[:num_of_negatives]]
+            #
+            random_loss = neg_loss[sorted_negs[num_of_negatives:]]
+            # random selection
+            num_of_negatives = int(num_of_positives//2*self.random_ratio)
+            num_of_negatives = max(min_num_of_negatives//2, num_of_negatives)
+            num_of_negatives = min(random_loss.size(0), num_of_negatives)
+            num_of_negatives = max(num_of_negatives,1) # for safety
+            random_selection = random.sample(
+                [i for i in range(random_loss.size(0))], k=num_of_negatives)
+
+            random_loss = random_loss[random_selection]
+            if pos_loss.size(0) == 0:
+                return torch.cat([ohem_loss,random_loss], dim=0).mean()
+            return torch.cat([ohem_loss,random_loss,pos_loss], dim=0).mean()
         else:
             raise AssertionError("this line should not be show up!!")
