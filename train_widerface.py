@@ -93,9 +93,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
             model.hparams.update(hparams)
             print(f"resuming training with pretrained: {ckpt_path}")
         else:
-            model = ff.module.from_checkpoint(ckpt_path)
-            model.hparams.update(hparams)
-            print(f"resuming training with selected: {ckpt_path} checkpoint")
+            model = ff.module.build(arch, config, hparams=hparams, num_classes=1, in_channels=in_channels)
     else:
         model = ff.module.build(arch, config, hparams=hparams,
             num_classes=1, in_channels=in_channels)
@@ -140,7 +138,8 @@ def main(kwargs:Dict, resume:bool, seed:int):
         default_root_dir=ff.utils.cache.get_cache_path(),
         gpus=trainer_configs.get('gpus',1),
         accumulate_grad_batches=trainer_configs.get('accumulate_grad_batches',1),
-        checkpoint_callback=checkpoint_callback,
+        callbacks=[checkpoint_callback],
+        resume_from_checkpoint=ckpt_path,
         max_epochs=trainer_configs.get('max_epochs', 100),
         check_val_every_n_epoch=trainer_configs.get('check_val_every_n_epoch', 1),
         precision=trainer_configs.get('precision', 32),
