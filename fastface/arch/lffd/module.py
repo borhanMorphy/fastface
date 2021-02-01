@@ -44,6 +44,13 @@ class LFFD(nn.Module):
         }
     }
 
+    _transforms = ff.transform.Compose(
+        ff.transform.Interpolate(max_dim=640),
+        ff.transform.Padding(target_size=(640,640)),
+        ff.transform.Normalize(mean=127.5, std=127.5),
+        ff.transform.ToTensor()
+    )
+
     def __init__(self, in_channels:int=3, config:Dict={},
             num_classes:int=1, debug:bool=False, **kwargs):
         super(LFFD,self).__init__()

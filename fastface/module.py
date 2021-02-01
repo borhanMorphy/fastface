@@ -1,3 +1,11 @@
+from .transform import (
+    Compose,
+    Interpolate,
+    Padding,
+    Normalize,
+    ToTensor
+)
+
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -18,11 +26,20 @@ from .utils.config import (
 from .utils.cache import get_model_cache_path
 
 class FaceDetector(pl.LightningModule):
-    def __init__(self, arch:nn.Module=None, hparams:Dict=None):
+    def __init__(self, arch:nn.Module=None, transforms:Compose=None, hparams:Dict=None):
         super().__init__()
+        if isinstance(transforms,type(None)):
+            transforms = Compose(
+                Interpolate(max_dim=640),
+                Padding(target_size=(640,640)),
+                Normalize(mean=127.5, std=127.5),
+                ToTensor()
+            )
+        assert isinstance(transforms, Compose),f"given transforms must be instance of Compose, but found:{type(transforms)}"
         self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
+        self.__transforms = transforms
 
     def add_metric(self, name:str, metric:pl.metrics.Metric):
         self.__metrics[name] = metric
@@ -33,8 +50,41 @@ class FaceDetector(pl.LightningModule):
     def forward(self, *args, **kwargs):
         return self.arch(*args, **kwargs)
 
-    def predict(self, data:torch.Tensor, *args, **kwargs):
-        return self.arch.predict(data.to(self.device), *args, **kwargs)
+    @torch.no_grad()
+    def predict(self, images:Union[np.ndarray,List], *args, **kwargs) -> Union[Dict,List]:
+        assert isinstance(images, (np.ndarray,List)),"given image(s) must be np.ndarray or list of np.ndarrays"
+        single_input = type(images) == np.ndarray
+        if single_input:
+            batch = [images]
+        else:
+            batch = images
+
+        for image in batch: assert isinstance(image,np.ndarray) and len(image.shape) == 3,"unsupported image type"
+
+        # enable tracking to perform postprocess after inference 
+        self.__transforms.enable_tracking()
+        # reset queue
+        self.__transforms.flush()
+
+        # apply transforms
+        batch = torch.stack([self.__transforms(image) for image in batch], dim=0).to(self.device)
+
+        preds:List = []
+
+        for pred in self.arch.predict(batch, *args, **kwargs):
+            # postprocess to adjust predictions
+            pred = self.__transforms.adjust(pred.cpu().numpy())
+            # pred np.ndarray(N,5) as x1,y1,x2,y2,score
+            payload = [{'box':person[:4].astype(np.int32).tolist(), 'score':person[4]} for person in pred]
+            preds.append(payload)
+
+        # reset queue
+        self.__transforms.flush()
+
+        # disable tracking
+        self.__transforms.disable_tracking()
+
+        return preds[0] if single_input else preds
 
     def training_step(self, batch, batch_idx):
         return self.arch.training_step(batch,batch_idx,**self.hparams)
@@ -134,4 +184,5 @@ class FaceDetector(pl.LightningModule):
         config = config if isinstance(config,Dict) else get_arch_config(arch,config)
 
         # build nn.Module with given configuration
-        self.arch  = arch_cls(config=config, **kwargs)
+        self.arch = arch_cls(config=config, **kwargs)
+        self.__transforms = arch_cls._transforms

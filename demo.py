@@ -41,44 +41,15 @@ def main(model:str, device:str, img_path:str,
     # get model summary
     model.summarize()
 
-    # build required transforms
-    transforms = ff.transform.Compose(
-        ff.transform.Interpolate(max_dim=640),
-        ff.transform.Padding(target_size=(640,640)),
-        ff.transform.Normalize(mean=127.5, std=127.5),
-        ff.transform.ToTensor()
-    )
-
-    # enable tracking to perform postprocess after inference 
-    transforms.enable_tracking()
-
-    # reset queue
-    transforms.flush()
-
-    # move model to selected device
-    model.to(device)
-
     # set model to eval mode
     model.eval()
-
-    # freeze model in order to disable gradient tracking
-    model.freeze()
-
-    # apply transforms
-    batch = transforms(img)
+    
+    # move model to given device
+    model.to(device)
 
     # model feed forward
-    preds = model.predict(batch, det_threshold=det_threshold,
-        iou_threshold=iou_threshold)[0].cpu().numpy()
-
-    # postprocess to adjust predictions
-    preds = transforms.adjust(preds)
-
-    # reset queue
-    transforms.flush()
-
-    # disable tracking
-    transforms.disable_tracking()
+    preds = model.predict(img, det_threshold=det_threshold,
+        iou_threshold=iou_threshold)
 
     # visualize predictions
     pretty_img = prettify_detections(img, preds)
