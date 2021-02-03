@@ -25,13 +25,13 @@ import pytorch_lightning as pl
 import torch
 ```
 
-Get pretrained model, for this tutorial `original_lffd_560_25L_8S` is selected but you can also select another model
+Build pretrained model. For this tutorial `original_lffd_560_25L_8S` is selected but you can also select another model
 ```python
 model = ff.module.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
 ```
 
-If you dont have pretrained model in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`
+If you don't have pretrained model weights in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`
 
 ![plot](../../resources/tutorial_1_0.png)
 
@@ -44,7 +44,7 @@ metric = ff.metric.WiderFaceAP(iou_threshold=0.5)
 model.add_metric("widerface_ap",metric)
 ```
 
-Get widerface datamodule, for this tutorial `easy` partition is selected but `medium` or `hard` partitions are also available<br>
+Define widerface datamodule. For this tutorial `easy` partition is selected but `medium` or `hard` partitions are also available<br>
 `Warning!` Do not use `batch_size` > 1, because tensors can not be stacked due to different size of images. Also using fixed image size drops metric performance.
 ```python
 dm = ff.datamodule.WiderFaceDataModule(

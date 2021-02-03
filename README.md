@@ -21,6 +21,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 - [Citations](#citations)
 
 ## Recent Updates
+* `2012.02.03` added [widerface benchmark tutorial](./tutorials/widerface_benchmark/README.md) to replicate results.
 * `2021.02.01` updated `module.predict` api to perform transform operation under the hood for simplicity.
 * `2021.01.08` "original_lffd_320_20L_5S" pretrained model added to the registry and can be used via fastface.module.from_pretrained api
 * `2021.01.08` "320_20L_5S" configuration added to "lffd" architecture
@@ -50,8 +51,8 @@ Architecture|Configuration|Parameters|Model Size|
 Pretrained models can be accessable via `fastface.module.from_pretrained(<name>)`
 Name|Widerface-Easy Val AP|Widerface-Medium Val AP|Widerface-Hard Val AP|Link
 :------:|:------:|:------:|:------:|:------:
-**original_lffd_560_25L_8S**|0.893|0.866|0.756|[gdrive](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
-**original_lffd_320_20L_5S**|0.854|0.845|0.735|[gdrive](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
+**original_lffd_560_25L_8S**|0.893|0.866|0.756|[weights](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
+**original_lffd_320_20L_5S**|0.854|0.845|0.735|[weights](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
 
 ## Demo
 Using package
