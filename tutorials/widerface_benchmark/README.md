@@ -38,14 +38,14 @@ If you dont have pretrained model in your PC, `fastface` will automatically down
 Add widerface average precision(defined in the widerface competition) metric to the model
 ```python
 metric = ff.metric.WiderFaceAP(iou_threshold=0.5)
-# metric: pl.metric.Metric
+# metric: pl.metrics.Metric
 
 # add metric to the model
 model.add_metric("widerface_ap",metric)
 ```
 
 Get widerface datamodule, for this tutorial `easy` partition is selected but `medium` or `hard` partitions are also available<br>
-`Warning!` Do not use `batch_size` > 1, because tensors cannot be stacked due to different size of images. Also using fixed image size drops metric performance.
+`Warning!` Do not use `batch_size` > 1, because tensors can not be stacked due to different size of images. Also using fixed image size drops metric performance.
 ```python
 dm = ff.datamodule.WiderFaceDataModule(
     partitions=["easy"],

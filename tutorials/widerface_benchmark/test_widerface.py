@@ -16,7 +16,7 @@ model = ff.module.from_pretrained("original_lffd_560_25L_8S")
 
 # get widerface average precision metric, defined in the competition
 metric = ff.metric.WiderFaceAP(iou_threshold=0.5)
-# metric: pl.metric.Metric
+# metric: pl.metrics.Metric
 
 # add metric to the model
 model.add_metric("widerface_ap",metric)
