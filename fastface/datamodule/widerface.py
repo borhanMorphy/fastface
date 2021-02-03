@@ -139,6 +139,10 @@ class WiderFaceDataModule(pl.LightningDataModule):
         # TODO use stage
         logger.info(f"checking folders for widerface({stage}) datamodule...")
         for k,v in self.__URLS__.items():
+            if stage == 'test' and k == 'widerface-train':
+                # skip downloading train data when stage is `test`
+                continue
+
             logger.debug(f"checking {k}")
             check = v.get('check')
             check_path = os.path.join(self.source_dir,check)

@@ -95,6 +95,7 @@ sample output;
 ![alt text](resources/friends.jpg)
 
 ## Tutorials
+* [Widerface Benchmark](./tutorials/widerface_benchmark/README.md)
 
 ## References
 - [LFFD Paper](https://arxiv.org/pdf/1904.10633.pdf)

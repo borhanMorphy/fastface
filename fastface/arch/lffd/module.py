@@ -197,7 +197,6 @@ class LFFD(nn.Module):
 
         return sum(head_losses)
 
-    @torch.no_grad()
     def validation_step(self, batch:Tuple[torch.Tensor, Dict],
             batch_idx:int, **hparams) -> Dict:
 
@@ -280,14 +279,11 @@ class LFFD(nn.Module):
             'gts': gt_boxes
         }
 
-    @torch.no_grad()
     def test_step(self, batch:Tuple[torch.Tensor, Dict],
             batch_idx:int, **hparams) -> Dict:
 
-        return self.validation_step(batch, batch_idx, **hparams)
-
         imgs,gt_boxes = batch
-        batch_size = len(imgs)
+        batch_size = imgs.size(0)
 
         det_threshold = hparams.get('det_threshold', 0.11)
         iou_threshold = hparams.get('iou_threshold', .4)
@@ -295,25 +291,22 @@ class LFFD(nn.Module):
 
         num_of_heads = len(self.heads)
 
+        heads_cls_logits,heads_reg_logits = self(imgs)
+
         preds:List = []
-        for img in imgs:
-            heads_cls_logits,heads_reg_logits = self(img)
-            _preds:List = []
-            for i in range(num_of_heads):
-                # *for each head
+        for i in range(num_of_heads):
+            # *for each head
+            cls_logits = heads_cls_logits[i].permute(0,2,3,1)
+            reg_logits = heads_reg_logits[i].permute(0,2,3,1)
 
-                cls_logits = heads_cls_logits[i].permute(0,2,3,1)
-                reg_logits = heads_reg_logits[i].permute(0,2,3,1)
+            pred_boxes = self.heads[i].anchor_box_gen.logits_to_boxes(reg_logits)
 
-                pred_boxes = self.heads[i].anchor_box_gen.logits_to_boxes(reg_logits)
+            scores = torch.sigmoid(cls_logits)
+            pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
+            # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
+            preds.append(pred_boxes)
 
-                scores = torch.sigmoid(cls_logits)
-                pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
-                # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
-                _preds.append(pred_boxes.squeeze(0))
-            preds.append(torch.cat(_preds, dim=0))
-
-        preds = torch.stack(preds, dim=0)
+        preds = torch.cat(preds, dim=1)
 
         pred_boxes:List = []
         for i in range(batch_size):
