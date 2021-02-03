@@ -21,7 +21,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 - [Citations](#citations)
 
 ## Recent Updates
-* `2012.02.03` added [widerface benchmark tutorial](./tutorials/widerface_benchmark/README.md) to replicate results.
+* `2021.02.03` added [widerface benchmark tutorial](./tutorials/widerface_benchmark/README.md) to replicate results.
 * `2021.02.01` updated `module.predict` api to perform transform operation under the hood for simplicity.
 * `2021.01.08` "original_lffd_320_20L_5S" pretrained model added to the registry and can be used via fastface.module.from_pretrained api
 * `2021.01.08` "320_20L_5S" configuration added to "lffd" architecture
