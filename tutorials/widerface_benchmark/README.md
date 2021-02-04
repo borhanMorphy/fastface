@@ -11,7 +11,7 @@ pip install fastface -U
 ```
 python -c "import fastface as ff;print(ff.list_pretrained_models())"
 ```
-Output may seem like
+Output will be look like
 ```
 ['original_lffd_560_25L_8S', 'original_lffd_320_20L_5S']
 ```
