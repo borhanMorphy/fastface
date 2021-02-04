@@ -8,7 +8,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 ![PyPI](https://img.shields.io/pypi/v/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/fastface)
+[![Downloads](https://pepy.tech/badge/fastface)](https://pepy.tech/project/fastface)
 
 ## CONTENTS
 - [Recent Updates](#recent-updates)
