@@ -2,7 +2,7 @@ import numpy as np
 from typing import List,Tuple
 import random
 import math
-from cv2 import cv2
+from PIL import Image
 from ..pad import Padding
 from ..interpolate import Interpolate
 
@@ -81,7 +81,9 @@ class LFFDRandomSample():
 
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
 
-        aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
+        # TODO control this line
+        #aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
+        aimg = np.array(Image.fromarray(aimg).resize((int(aimg.shape[1]*sf), int(aimg.shape[0]*sf))))
 
         aimg = aimg[:self.target_size[1], : self.target_size[0]]
 

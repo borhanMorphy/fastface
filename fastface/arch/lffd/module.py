@@ -10,7 +10,6 @@ from .blocks import (
     DetectionHead
 )
 
-from cv2 import cv2
 import fastface as ff
 
 import math
@@ -105,6 +104,7 @@ class LFFD(nn.Module):
 
         return cls_logits,reg_logits
 
+    @torch.no_grad()
     def predict(self, x:torch.Tensor, det_threshold:float=.95,
             keep_n:int=10000, iou_threshold:float=.4) -> List[torch.Tensor]:
         if len(x.shape) == 3:
@@ -334,72 +334,3 @@ class LFFD(nn.Module):
             gamma=hparams.get("gamma", 0.1))
 
         return [optimizer], [lr_scheduler]
-
-def debug_show_rf_matches(tensor_imgs:torch.Tensor,
-        head_rfs:List[torch.Tensor], batch_gt_boxes:List[torch.Tensor]):
-    imgs = debug_tensor2img(tensor_imgs)
-    np_gt_boxes = [gt_boxes.cpu().long().numpy() for gt_boxes in batch_gt_boxes]
-    np_head_rfs = [rfs.cpu().long().numpy() for rfs in head_rfs]
-    for img,gt_boxes in zip(imgs,np_gt_boxes):
-        timg = img.copy()
-        for x1,y1,x2,y2 in gt_boxes:
-            timg = cv2.rectangle(timg, (x1,y1),(x2,y2),(0,255,0))
-
-        for i,rfs in enumerate(np_head_rfs):
-            print(f"for head {i+1}")
-            values,pick = box_ops.box_iou(torch.tensor(rfs),torch.tensor(gt_boxes)).max(dim=0)
-            pick = pick.cpu().numpy().tolist()
-            nimg = timg.copy()
-            for j,(x1,y1,x2,y2) in enumerate(rfs[pick,:]):
-                print("iou: ",values[j])
-                nimg = cv2.rectangle(nimg, (x1,y1), (x2,y2),(0,0,255),2)
-            cv2.imshow("",nimg)
-            cv2.waitKey(0)
-
-def debug_show_pos_neg_ig_with_gt(tensor_imgs:torch.Tensor,
-        batch_gt_boxes:List[torch.Tensor], head_rfs:List[torch.Tensor],
-        debug_fmaps:List[Tuple], opos_mask:torch.Tensor,
-        oneg_mask:torch.Tensor, oig_mask:torch.Tensor):
-
-    pos_mask = opos_mask.cpu()
-    neg_mask = oneg_mask.cpu()
-    ig_mask = oig_mask.cpu()
-
-    imgs = debug_tensor2img(tensor_imgs)
-    np_gt_boxes = [gt_boxes.cpu().long().numpy() for gt_boxes in batch_gt_boxes]
-    np_head_rfs = [rfs.cpu().long().numpy() for rfs in head_rfs]
-    for img,gt_boxes,p_mask,n_mask,i_mask in zip(imgs, np_gt_boxes,
-            pos_mask, neg_mask, ig_mask):
-        # p_mask: 66800,
-        print(f"positives: {p_mask.sum()} negatives:{n_mask.sum()} ignore:{i_mask.sum()}")
-        timg = img.copy()
-        for x1,y1,x2,y2 in gt_boxes:
-            timg = cv2.rectangle(timg,(x1,y1),(x2,y2),(255,0,0),2)
-        for (fh,fw,start),rfs in zip(debug_fmaps,np_head_rfs):
-            # rfs  : 25600,4 as xmin,ymin,xmax,ymax
-            crfs = ((rfs[:, [2,3]] + rfs[:, [0,1]]) // 2).astype(np.int32)
-            # crfs : 25600,2 as cx,cy
-            p_crfs = crfs[p_mask[start: start+fh*fw], :]
-            n_crfs = crfs[n_mask[start: start+fh*fw], :]
-            i_crfs = crfs[i_mask[start: start+fh*fw], :]
-
-            for cx,cy in p_crfs:
-                timg = cv2.circle(timg, (cx,cy), 4, (0,255,0))
-
-            for cx,cy in n_crfs:
-                timg = cv2.circle(timg, (cx,cy), 4, (0,0,255))
-
-            for cx,cy in i_crfs:
-                timg = cv2.circle(timg, (cx,cy), 4, (0,255,255))
-
-        cv2.imshow("",timg)
-        if cv2.waitKey(0) == 27:
-            exit(0)
-
-def debug_tensor2img(imgs:torch.Tensor) -> List[np.ndarray]:
-    np_imgs = []
-    for img in imgs:
-        nimg = (img*127.5 + 127.5).permute(1,2,0).cpu().numpy().astype(np.uint8)
-        #nimg = cv2.UMat(nimg).get()
-        np_imgs.append(nimg)
-    return np_imgs

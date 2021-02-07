@@ -1,6 +1,6 @@
 import torch
 import argparse
-from cv2 import cv2
+import imageio
 import numpy as np
 from typing import List
 
@@ -28,7 +28,24 @@ def get_arguments():
     return ap.parse_args()
 
 def load_image(img_path:str) -> np.ndarray:
-    return cv2.imread(img_path)
+    """loads rgb image using given file path
+
+    Args:
+        img_path (str): image file path to load
+
+    Returns:
+        np.ndarray: rgb image as np.ndarray
+    """
+    img = imageio.imread(img_path)
+    if not img.flags['C_CONTIGUOUS']:
+        # if img is not contiguous than fix it
+        img = np.ascontiguousarray(img, dtype=img.dtype)
+
+    if len(img.shape) == 4:
+        # found RGBA
+        img = img[:,:,:3]
+
+    return img
 
 def main(model:str, device:str, img_path:str,
         det_threshold:float, iou_threshold:float):
@@ -53,9 +70,9 @@ def main(model:str, device:str, img_path:str,
 
     # visualize predictions
     pretty_img = prettify_detections(img, preds)
-    cv2.imshow("demo", pretty_img)
 
-    if cv2.waitKey(0) == 27: pass
+    # show image
+    pretty_img.show()
 
 if __name__ == '__main__':
     args = get_arguments()

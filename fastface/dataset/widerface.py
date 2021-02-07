@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import os
 from typing import List,Tuple
 import numpy as np
-from cv2 import cv2
+import imageio
 from scipy.io import loadmat
 import torch
 
@@ -123,4 +123,21 @@ class WiderFaceDataset(Dataset):
 
     @staticmethod
     def _load_image(img_file_path:str):
-        return cv2.imread(img_file_path)
+        """loads rgb image using given file path
+
+        Args:
+            img_path (str): image file path to load
+
+        Returns:
+            np.ndarray: rgb image as np.ndarray
+        """
+        img = imageio.imread(img_file_path)
+        if not img.flags['C_CONTIGUOUS']:
+            # if img is not contiguous than fix it
+            img = np.ascontiguousarray(img, dtype=img.dtype)
+
+        if len(img.shape) == 4:
+            # found RGBA
+            img = img[:,:,:3]
+
+        return img

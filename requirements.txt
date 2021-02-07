@@ -2,7 +2,6 @@ pytorch-lightning>=1.0.0
 torch>=1.6
 torchvision
 scipy~=1.4.1
-opencv-python~=4.1.0.25
 googledrivedownloader
 requests
 PyYAML~=5.3.1

@@ -58,10 +58,10 @@ Name|Widerface-Easy Val AP|Widerface-Medium Val AP|Widerface-Hard Val AP|Link
 Using package
 ```python
 import fastface as ff
-from cv2 import cv2
+import imageio
 
-# load image as BGR
-img = cv2.imread("<your_image_file_path>")
+# load image as RGB
+img = imageio.imread("<your_image_file_path>")[:,:,:3]
 
 # build model with pretrained weights
 model = ff.module.from_pretrained("original_lffd_560_25L_8S")
