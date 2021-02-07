@@ -8,7 +8,7 @@ import numpy as np
 from typing import List
 import torch
 
-@env(infer_pip_packages=True)
+@env(pip_dependencies=["fastface"])
 @artifacts([
     PytorchModelArtifact('model'),
     JSONArtifact('config'),
@@ -16,7 +16,7 @@ import torch
 ])
 class FaceDetectionService(BentoService):
 
-    @api(input=ImageInput(), batch=True)
+    @api(input=ImageInput(), batch=True, mb_max_batch_size=8, mb_max_latency=1000)
     def detect(self, imgs:List[np.ndarray]):
         # initialize model if not initialized yet
         if not self.artifacts.config['initialized']:
@@ -24,13 +24,12 @@ class FaceDetectionService(BentoService):
             self.artifacts.model.eval()
             # move model to specifed device
             self.artifacts.model.to(self.artifacts.config['device'])
+
+            # enable tracking to perform postprocess after inference 
+            self.artifacts.preprocess.enable_tracking()
+
             # set initialize flag true
             self.artifacts.config['initialized'] = True
-
-        # enable tracking to perform postprocess after inference 
-        self.artifacts.preprocess.enable_tracking()
-        # reset queue
-        self.artifacts.preprocess.flush()
 
         # apply transforms
         imgs = torch.stack([
@@ -48,8 +47,5 @@ class FaceDetectionService(BentoService):
 
         # reset queue
         self.artifacts.preprocess.flush()
-
-        # disable tracking
-        self.artifacts.preprocess.disable_tracking()
 
         return preds

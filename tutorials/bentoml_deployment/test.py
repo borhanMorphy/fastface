@@ -1,25 +1,20 @@
-from PIL import Image, ImageDraw, ImageColor
+import requests
+from fastface.utils.visualize import prettify_detections
 import imageio
-import random
 
-color = random.choice(list(ImageColor.colormap.keys()))
+url = "http://localhost:5000/detect"
 
-img = imageio.imread("/home/morphy/Desktop/download.jpeg")
+payload={}
+files=[
+  ('image',('friends2.jpg',open('../../resources/friends2.jpg','rb'),'image/jpeg'))
+]
+headers = {}
 
-h,w = img.shape[:2]
-x1,y1 = (0,0)
-x2,y2 = (w//2,h//2)
-shift = 5
+response = requests.request("POST", url, headers=headers, data=payload, files=files)
 
-img_pil = Image.fromarray(img)
+print(response.json())
 
-for i in range(3):
-    x1 += i*shift
-    y1 += i*shift
-    x2 += i*shift
-    y2 += i*shift
+pretty_img = prettify_detections(imageio.imread('../../resources/friends2.jpg'), response.json())
 
-    # create line image
-    ImageDraw.Draw(img_pil).rectangle([(x1,y1),(x2,y2)], outline=color, width=3)
-
-img_pil.show()
+# show image
+pretty_img.show()

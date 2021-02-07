@@ -26,6 +26,6 @@ def get_loss_by_name(loss:str, **kwargs) -> nn.Module:
     cls = __loss_mapper__[loss]['cls']
     ckwargs = __loss_mapper__[loss]['kwargs'].copy()
     ckwargs.update(kwargs)
-    return cls(*ckwargs)
+    return cls(**ckwargs)
 
 def list_losses() -> List[str]: return list(__loss_mapper__.keys())

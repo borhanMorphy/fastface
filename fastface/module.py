@@ -39,7 +39,7 @@ class FaceDetector(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
-        self._transforms = transforms
+        self.preprocess = transforms
 
     def add_metric(self, name:str, metric:pl.metrics.Metric):
         self.__metrics[name] = metric
@@ -62,27 +62,27 @@ class FaceDetector(pl.LightningModule):
         for image in batch: assert isinstance(image,np.ndarray) and len(image.shape) == 3,"unsupported image type"
 
         # enable tracking to perform postprocess after inference 
-        self._transforms.enable_tracking()
+        self.preprocess.enable_tracking()
         # reset queue
-        self._transforms.flush()
+        self.preprocess.flush()
 
         # apply transforms
-        batch = torch.stack([self._transforms(image) for image in batch], dim=0).to(self.device)
+        batch = torch.stack([self.preprocess(image) for image in batch], dim=0).to(self.device)
 
         preds:List = []
 
         for pred in self.arch.predict(batch, *args, **kwargs):
             # postprocess to adjust predictions
-            pred = self._transforms.adjust(pred.cpu().numpy())
+            pred = self.preprocess.adjust(pred.cpu().numpy())
             # pred np.ndarray(N,5) as x1,y1,x2,y2,score
             payload = [{'box':person[:4].astype(np.int32).tolist(), 'score':person[4]} for person in pred]
             preds.append(payload)
 
         # reset queue
-        self._transforms.flush()
+        self.preprocess.flush()
 
         # disable tracking
-        self._transforms.disable_tracking()
+        self.preprocess.disable_tracking()
 
         return preds[0] if single_input else preds
 
@@ -185,4 +185,4 @@ class FaceDetector(pl.LightningModule):
 
         # build nn.Module with given configuration
         self.arch = arch_cls(config=config, **kwargs)
-        self._transforms = arch_cls._transforms
+        self.preprocess = arch_cls._transforms

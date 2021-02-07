@@ -1,19 +1,24 @@
+from typing import Tuple,List,Dict
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torchvision.ops import boxes as box_ops
 
-from typing import Tuple,List,Dict
+from ...transform import (
+    Compose,
+    Interpolate,
+    Padding,
+    Normalize,
+    ToTensor
+)
+
+from ...loss import get_loss_by_name
+
 from .blocks import (
     LFFDBackboneV1,
     LFFDBackboneV2,
     DetectionHead
 )
-
-import fastface as ff
-
-import math
-import numpy as np
 
 class LFFD(nn.Module):
     __CONFIGS__ = {
@@ -43,11 +48,11 @@ class LFFD(nn.Module):
         }
     }
 
-    _transforms = ff.transform.Compose(
-        ff.transform.Interpolate(max_dim=640),
-        ff.transform.Padding(target_size=(640,640)),
-        ff.transform.Normalize(mean=127.5, std=127.5),
-        ff.transform.ToTensor()
+    _transforms = Compose(
+        Interpolate(max_dim=640),
+        Padding(target_size=(640,640)),
+        Normalize(mean=127.5, std=127.5),
+        ToTensor()
     )
 
     def __init__(self, in_channels:int=3, config:Dict={},
@@ -88,8 +93,8 @@ class LFFD(nn.Module):
                 head_infeatures,head_outfeatures,rf_sizes,rf_start_offsets,rf_strides))
         ])
 
-        self.cls_loss_fn = ff.loss.BinaryCrossEntropy(negative_selection_rule="mix")
-        self.reg_loss_fn = ff.loss.L2Loss()
+        self.cls_loss_fn = get_loss_by_name("BCE", negative_selection_rule="mix")
+        self.reg_loss_fn = get_loss_by_name("MSE")
 
     def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         logits = self.backbone(x)
@@ -109,6 +114,7 @@ class LFFD(nn.Module):
             keep_n:int=10000, iou_threshold:float=.4) -> List[torch.Tensor]:
         if len(x.shape) == 3:
             x = x.unsqueeze(0)
+
         batch_size = x.size(0)
         cls_logits,reg_logits = self.forward(x)
         preds:List = []
