@@ -21,6 +21,7 @@ Supporting lightweight face detection implementations to train, test and deploy 
 - [Citations](#citations)
 
 ## Recent Updates
+* `2021.02.07` added [bentoml deployment tutorial](./tutorials/bentoml_deployment/README.md) for deploying `fastface` models into production
 * `2021.02.03` added [widerface benchmark tutorial](./tutorials/widerface_benchmark/README.md) to replicate results.
 * `2021.02.01` updated `module.predict` api to perform transform operation under the hood for simplicity.
 * `2021.01.08` "original_lffd_320_20L_5S" pretrained model added to the registry and can be used via fastface.module.from_pretrained api
@@ -97,6 +98,7 @@ sample output;
 
 ## Tutorials
 * [Widerface Benchmark](./tutorials/widerface_benchmark/README.md)
+* [BentoML Deployment](./tutorials/bentoml_deployment/README.md)
 
 ## References
 - [LFFD Paper](https://arxiv.org/pdf/1904.10633.pdf)
