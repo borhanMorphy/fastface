@@ -103,7 +103,7 @@ python build.py
 
 ## Serving The Model In Production Mode
 
-To serve model in production mode run the following
+To serve model in production mode run the following (model will be served from http://0.0.0.0:5000).
 ```
 bentoml serve-gunicorn FaceDetectionService:latest -w 1
 ```
