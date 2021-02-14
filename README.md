@@ -1,14 +1,17 @@
 # FastFace
 Lightweight face detection framework using [pytorch-lightning](https://www.pytorchlightning.ai/)
 
+* :fire: Easy to use pretrained models for inference
+* :hammer_and_wrench: Train & Test pre-defined architectures with open source datasets or custom datasets
+* :rocket: Deploy trained models into production
+
 ## Goal
-Supporting lightweight face detection implementations to train, test and deploy in a scalable and maintainable manner.
-<br>
+The first step of most face analysis tasks is **face detection**, **fastface** aims to provide, simple and easy to use **face detection models** into your pipeline.
 
 ![PyPI](https://img.shields.io/pypi/v/fastface)
-![PyPI - License](https://img.shields.io/pypi/l/fastface)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 [![Downloads](https://pepy.tech/badge/fastface)](https://pepy.tech/project/fastface)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
+![PyPI - License](https://img.shields.io/pypi/l/fastface)
 
 ## Contents
 - [Recent Updates](#recent-updates)

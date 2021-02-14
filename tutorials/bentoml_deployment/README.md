@@ -1,4 +1,4 @@
-# FastFace BentoML Deployment
+# fastface BentoML Deployment
 **[BentoML](https://www.bentoml.ai/) is a model serving framework, enabling to deliver prediction services in a fast, repeatable, and scalable way.<br>
 This tutorial will explain how to use bentoml to deploy [fastface](https://github.com/borhanMorphy/light-face-detection) models into production as a service.**
 

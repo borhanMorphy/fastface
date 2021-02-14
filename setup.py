@@ -19,6 +19,12 @@ with open("README.md", "r") as foo:
 with open("requirements.txt", "r") as foo:
     requirements = foo.read().split("\n")
 
+dev_require = ["sphinxemoji", "pytest", "pytest-pylint"]
+
+extras_require = {
+    "dev": dev_require
+}
+
 setup(
     # package name `pip install fastface`
     name="fastface",
@@ -41,7 +47,12 @@ setup(
     # package root directory
     packages=find_packages(),
 
+    # requirements
     install_requires=requirements,
+
+    # extra requirements
+    extras_require=extras_require,
+
     include_package_data=True,
     # keywords that resemble this package
     keywords=["pytorch_lightning", "face detection", "edge AI", "LFFD"],
