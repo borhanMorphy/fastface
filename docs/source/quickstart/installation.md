@@ -23,6 +23,6 @@ pip install fastface==x.x.x
 ```
 git clone https://github.com/borhanMorphy/light-face-detection.git
 cd light-face-detection
-git checkout tag 
+git checkout vx.x.x
 pip install .
 ```
