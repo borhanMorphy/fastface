@@ -21,7 +21,8 @@ with open("requirements.txt", "r") as foo:
 
 test_require = [
     "pytest",
-    "pytest-pylint"
+    "pytest-pylint",
+    "pytest-cov"
 ]
 
 doc_require = [
