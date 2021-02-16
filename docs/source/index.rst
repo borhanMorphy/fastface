@@ -7,7 +7,7 @@
 ====================================
 |:zap:| FastFace Documentation
 ====================================
-**Release**: v|release|
+**Version**: |release|
 
 **Lightweight face detection framework using** `pytorch-lightning <https://www.pytorchlightning.ai/>`_
 
@@ -25,21 +25,21 @@ Goal
    :maxdepth: 2
    :caption: Getting Started
 
-   quickstart/installation
-   quickstart/architectures
-   quickstart/pretrained_models
+   quickstart/installation.md
+   quickstart/architectures.rst
+   quickstart/pretrained_models.rst
 
 .. toctree::
    :maxdepth: 2
    :caption: Core Concepts
 
-   concepts/inference
-   concepts/training
-   concepts/testing
-   concepts/deployment
+   concepts/inference.rst
+   concepts/training.rst
+   concepts/testing.rst
+   concepts/deployment.rst
 
 .. toctree::
    :maxdepth: 2
    :caption: API Reference
 
-   api/index
+   api/index.rst

@@ -19,7 +19,13 @@ with open("README.md", "r") as foo:
 with open("requirements.txt", "r") as foo:
     requirements = foo.read().split("\n")
 
-dev_require = ["sphinxemoji", "pytest", "pytest-pylint"]
+dev_require = [
+    "pytest",
+    "pytest-pylint",
+    "sphinxemoji",
+    "sphinx_rtd_theme",
+    "recommonmark"
+]
 
 extras_require = {
     "dev": dev_require
