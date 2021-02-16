@@ -25,18 +25,13 @@ Goal
    :maxdepth: 2
    :caption: Getting Started
 
-   quickstart/installation.md
-   quickstart/architectures.rst
-   quickstart/pretrained_models.rst
+   quickstart/index.rst
 
 .. toctree::
    :maxdepth: 2
    :caption: Core Concepts
 
-   concepts/inference.rst
-   concepts/training.rst
-   concepts/testing.rst
-   concepts/deployment.rst
+   concepts/index.rst
 
 .. toctree::
    :maxdepth: 2

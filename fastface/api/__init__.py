@@ -25,10 +25,14 @@ from ..adapter import download_object
 """
 
 def list_pretrained_models() -> List[str]:
-    """returns available pretrained model names
+    """Returns available pretrained model names
 
     Returns:
         List[str]: list of pretrained model names
+
+    >>> import fastface as ff
+    >>> ff.list_pretrained_models()
+    ['original_lffd_560_25L_8S', 'original_lffd_320_20L_5S']
     """
     return list(get_registry().keys())
 
@@ -62,26 +66,36 @@ def download_pretrained_model(model:str, target_path:str=None) -> str:
     return model_path
 
 def list_archs() -> List[str]:
-    """returns available architecture names
+    """Returns available architecture names
 
     Returns:
         List[str]: list of arch names
+    
+    >>> import fastface as ff
+    >>> ff.list_archs()
+    ['lffd']
+
     """
     return [arch for arch,_ in discover_archs()]
 
 def list_arch_configs(arch:str) -> List[str]:
-    """returns available architecture configurations as list
+    """Returns available architecture configurations as list
 
     Args:
         arch (str): architecture name
 
     Returns:
         List[str]: list of arch config names
+
+    >>> import fastface as ff
+    >>> ff.list_arch_configs('lffd')
+    ['560_25L_8S', '320_20L_5S']
+
     """
     return list(get_arch_cls(arch).__CONFIGS__.keys())
 
 def get_arch_config(arch:str, config:str) -> Dict:
-    """returns configuration dictionary for given arch and config names
+    """Returns configuration dictionary for given arch and config names
 
     Args:
         arch (str): architecture name
@@ -89,6 +103,11 @@ def get_arch_config(arch:str, config:str) -> Dict:
 
     Returns:
         Dict: configuration details as dictionary
+
+    >>> import fastface as ff
+    >>> ff.get_arch_config('lffd', '320_20L_5S')
+    {'backbone_name': '320_20L_5S', 'head_infeatures': [64, 64, 64, 128, 128], 'head_outfeatures': [128, 128, 128, 128, 128], 'rf_sizes': [20, 40, 80, 160, 320], 'rf_start_offsets': [3, 7, 15, 31, 63], 'rf_strides': [4, 8, 16, 32, 64], 'scales': [(10, 20), (20, 40), (40, 80), (80, 160), (160, 320)]}
+
     """
     arch_cls = get_arch_cls(arch)
     return arch_cls.__CONFIGS__[config].copy()

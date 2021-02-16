@@ -26,6 +26,9 @@ from .utils.config import (
 from .utils.cache import get_model_cache_path
 
 class FaceDetector(pl.LightningModule):
+    """Generic pl.LightningModule definition for face detection
+    """
+
     def __init__(self, arch:nn.Module=None, transforms:Compose=None, hparams:Dict=None):
         super().__init__()
         if isinstance(transforms,type(None)):
@@ -167,6 +170,26 @@ class FaceDetector(pl.LightningModule):
 
     @classmethod
     def from_pretrained(cls, model:str, target_path:str=None) -> pl.LightningModule:
+        """Classmethod for creating `fastface.module.FaceDetector` instance with pretrained weights
+
+        Args:
+            model (str): pretrained model name.
+            target_path (str, optional): path to check for model weights, if not given it will use cache path. Defaults to None.
+
+        Returns:
+            pl.LightningModule: fastface.module.FaceDetector instance with pretrained weights
+
+        >>> import fastface as ff
+        >>> import imageio
+        >>> model = ff.module.from_pretrained('original_lffd_560_25L_8S').eval()
+        >>> type(model)
+        <class 'fastface.module.FaceDetector'>
+
+        >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
+        >>> model.predict(img)
+        [{'box': [1049, 178, 1187, 359], 'score': 0.99633336}, {'box': [561, 220, 710, 401], 'score': 0.99252045}]
+
+        """
         if model in list_pretrained_models():
             model = download_pretrained_model(model, target_path=target_path)
         assert os.path.isfile(model),f"given {model} not found in the disk"
