@@ -70,7 +70,7 @@ def list_archs() -> List[str]:
 
     Returns:
         List[str]: list of arch names
-    
+
     >>> import fastface as ff
     >>> ff.list_archs()
     ['lffd']

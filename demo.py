@@ -43,7 +43,7 @@ def load_image(img_path:str) -> np.ndarray:
 
     if len(img.shape) == 4:
         # found RGBA
-        img = img[:,:,:3]
+        img = img[:, :, :3]
 
     return img
 

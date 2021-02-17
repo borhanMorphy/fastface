@@ -1,0 +1,3 @@
+- [ ] add pytest.ini or setup.cfg
+- [ ] add ci/cd for unittest, linting test and doc test
+- [ ] add coverage badge and pipeline
