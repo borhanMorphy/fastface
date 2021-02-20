@@ -7,10 +7,10 @@
 - fastface.list_arch_configs
 - fastface.get_arch_config
 
-## Module APIs
-- fastface.module.build
-- fastface.module.from_pretrained
-- fastface.module.from_checkpoint
+## Model APIs
+- fastface.FaceDetector.build
+- fastface.FaceDetector.from_pretrained
+- fastface.FaceDetector.from_checkpoint
 
 ## Metric APIs
 - fastface.metric.get_metric_by_name

@@ -3,6 +3,8 @@ import numpy as np
 from typing import Tuple
 
 class FaceDiscarder():
+    """Discard face boxes using min and max scale
+    """
 
     def __init__(self, min_face_scale:0, max_face_scale:int=math.inf):
         self.min_face_scale = min_face_scale

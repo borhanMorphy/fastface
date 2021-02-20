@@ -15,15 +15,6 @@ from ..utils.cache import get_model_cache_path
 
 from ..adapter import download_object
 
-"""
-- list_pretrained_models() -> List[str]
-- download_pretrained_model(model:str, target_path:str=None) -> str
-- list_archs() -> List[str]
-- list_arch_configs(arch:str) -> List[str]
-- get_arch_config(arch:str, config:str) -> Dict
-
-"""
-
 def list_pretrained_models() -> List[str]:
     """Returns available pretrained model names
 

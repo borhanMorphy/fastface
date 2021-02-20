@@ -5,12 +5,17 @@ import torchvision.ops.boxes as box_ops
 import numpy as np
 
 class WiderFaceAP(Metric):
-	# this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
-	"""Calculates WiderFace Average Precision"""
+	"""pytorch_lightning.metrics.Metric instance to calculate widerface average precision
 
-	def __init__(self, dist_sync_on_step=False, iou_threshold:float=.5):
+	Args:
+		iou_threshold (float): widerface AP score IoU threshold, default is 0.5
+
+	"""
+	# this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
+
+	def __init__(self, iou_threshold:float=.5):
 		super().__init__(
-			dist_sync_on_step=dist_sync_on_step,
+			dist_sync_on_step=False,
 			compute_on_step=False)
 
 		self.iou_threshold = iou_threshold

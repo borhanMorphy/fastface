@@ -2,6 +2,8 @@ from typing import Tuple
 import numpy as np
 
 class Compose():
+    """Compose transforms given
+    """
     def __init__(self, *ts):
         self.ts = ts
         self.__ops_cache = []

@@ -3,6 +3,8 @@ import numpy as np
 from typing import Tuple
 
 class RandomHorizontalFlip():
+    """Applies random horizontal flip for the image and updated boxes"""
+
     def __init__(self, p:float=0.5):
         assert p >= 0 and p <= 1
         self.p = p

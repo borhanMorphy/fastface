@@ -45,9 +45,21 @@ class FaceDetector(pl.LightningModule):
         self.preprocess = transforms
 
     def add_metric(self, name:str, metric:pl.metrics.Metric):
+        """Adds given metric with name key
+
+        Args:
+            name (str): name of the metric
+            metric (pl.metrics.Metric): Metric object
+        """
+        # TODO add warnings if override happens
         self.__metrics[name] = metric
 
     def get_metrics(self) -> Dict[str, pl.metrics.Metric]:
+        """Return metrics defined in the `FaceDetector` instance
+
+        Returns:
+            Dict[str, pl.metrics.Metric]: defined model metrics with names
+        """
         return {k:v for k,v in self.__metrics.items()}
 
     def forward(self, *args, **kwargs):
@@ -55,6 +67,22 @@ class FaceDetector(pl.LightningModule):
 
     @torch.no_grad()
     def predict(self, images:Union[np.ndarray,List], *args, **kwargs) -> Union[Dict,List]:
+        """Performs face detection using given image or images
+
+        Args:
+            images (Union[np.ndarray,List]): numpy RGB image or list of RGB images
+
+        Returns:
+            Union[Dict, List]: prediction result as dictionary. If list of images are given, output also will be list of dictionaries.
+
+        >>> import fastface as ff
+        >>> import imageio
+        >>> model = ff.FaceDetector.from_pretrained('original_lffd_560_25L_8S').eval()
+        >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
+        >>> model.predict(img)
+        [{'box': [1049, 178, 1187, 359], 'score': 0.99633336}, {'box': [561, 220, 710, 401], 'score': 0.99252045}]
+
+        """
         assert isinstance(images, (np.ndarray,List)),"given image(s) must be np.ndarray or list of np.ndarrays"
         single_input = isinstance(images,np.ndarray)
         if single_input:
@@ -144,6 +172,16 @@ class FaceDetector(pl.LightningModule):
 
     @classmethod
     def build(cls, arch:str, config:Union[str,Dict], hparams:Dict={}, **kwargs) -> pl.LightningModule:
+        """Classmethod for creating `fastface.FaceDetector` instance from scratch
+
+        Args:
+            arch (str): architecture name
+            config (Union[str,Dict]): configuration name or configuration dictionary
+            hparams (Dict, optional): hyper parameters for the model. Defaults to {}.
+
+        Returns:
+            pl.LightningModule: fastface.FaceDetector instance with random weights initialization
+        """
 
         # get architecture configuration if needed
         config = config if isinstance(config,Dict) else get_arch_config(arch,config)
@@ -165,30 +203,26 @@ class FaceDetector(pl.LightningModule):
 
     @classmethod
     def from_checkpoint(cls, ckpt_path:str) -> pl.LightningModule:
-        # build pl.LightninModule from checkpoint
+        """Classmethod for creating `fastface.FaceDetector` instance with given checkpoint weights
+
+        Args:
+            ckpt_path (str): file path of the checkpoint
+
+        Returns:
+            pl.LightningModule: fastface.FaceDetector instance with checkpoint weights
+        """
         return cls.load_from_checkpoint(ckpt_path, map_location='cpu')
 
     @classmethod
     def from_pretrained(cls, model:str, target_path:str=None) -> pl.LightningModule:
-        """Classmethod for creating `fastface.module.FaceDetector` instance with pretrained weights
+        """Classmethod for creating `fastface.FaceDetector` instance with pretrained weights
 
         Args:
             model (str): pretrained model name.
             target_path (str, optional): path to check for model weights, if not given it will use cache path. Defaults to None.
 
         Returns:
-            pl.LightningModule: fastface.module.FaceDetector instance with pretrained weights
-
-        >>> import fastface as ff
-        >>> import imageio
-        >>> model = ff.module.from_pretrained('original_lffd_560_25L_8S').eval()
-        >>> type(model)
-        <class 'fastface.module.FaceDetector'>
-
-        >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
-        >>> model.predict(img)
-        [{'box': [1049, 178, 1187, 359], 'score': 0.99633336}, {'box': [561, 220, 710, 401], 'score': 0.99252045}]
-
+            pl.LightningModule: fastface.FaceDetector instance with pretrained weights
         """
         if model in list_pretrained_models():
             model = download_pretrained_model(model, target_path=target_path)

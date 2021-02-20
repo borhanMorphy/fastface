@@ -13,6 +13,6 @@ Name|Widerface-Easy Val AP|Widerface-Medium Val AP|Widerface-Hard Val AP|Link
 To get any of pretrained models as `pl.LightningModule`
 ```python
 import fastface as ff
-model = ff.module.from_pretrained("<name>")
+model = ff.FaceDetector.from_pretrained("<name>")
 ```
 If you don't have pretrained model weights, **fastface** will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`

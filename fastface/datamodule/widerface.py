@@ -22,6 +22,8 @@ from ..transform import (
 logger = logging.getLogger("fastface.datamodule")
 
 class WiderFaceDataModule(pl.LightningDataModule):
+    """Widerface pytorch_lightning.LightningDataModule Instance"""
+
     __URLS__ = {
         'widerface-train': {
             'adapter': 'gdrive',

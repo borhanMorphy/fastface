@@ -1,4 +1,10 @@
 Inference
 =========
 
-.. automethod:: fastface.module.FaceDetector.from_pretrained
+**Build Model**
+
+.. automethod:: fastface.FaceDetector.from_pretrained
+    :noindex:
+
+.. automethod:: fastface.FaceDetector.predict
+    :noindex:

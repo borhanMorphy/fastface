@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class L2Loss(nn.Module):
+    """Mean Squared Error
+    """
+
     def __init__(self, **kwargs):
         super().__init__()
 

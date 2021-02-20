@@ -27,7 +27,7 @@
 * `2021.02.07` added [bentoml deployment tutorial](./tutorials/bentoml_deployment/README.md) for deploying `fastface` models into production
 * `2021.02.03` added [widerface benchmark tutorial](./tutorials/widerface_benchmark/README.md) to replicate results.
 * `2021.02.01` updated `module.predict` api to perform transform operation under the hood for simplicity.
-* `2021.01.08` "original_lffd_320_20L_5S" pretrained model added to the registry and can be used via fastface.module.from_pretrained api
+* `2021.01.08` "original_lffd_320_20L_5S" pretrained model added to the registry and can be used via fastface.FaceDetector.from_pretrained api
 * `2021.01.08` "320_20L_5S" configuration added to "lffd" architecture
 * `2021.01.03` version 0.0.1 is out. Can be downloadable with `pip install fastface`
 
@@ -52,7 +52,7 @@ Architecture|Configuration|Parameters|Model Size|
 **lffd**|320_20L_5S|1.5M|5.9mb
 
 ## Pretrained Models
-Pretrained models can be accessable via `fastface.module.from_pretrained(<name>)`
+Pretrained models can be accessable via `fastface.FaceDetector.from_pretrained(<name>)`
 Name|Widerface-Easy Val AP|Widerface-Medium Val AP|Widerface-Hard Val AP|Link
 :------:|:------:|:------:|:------:|:------:
 **original_lffd_560_25L_8S**|0.893|0.866|0.756|[weights](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
@@ -68,7 +68,7 @@ import imageio
 img = imageio.imread("<your_image_file_path>")[:,:,:3]
 
 # build model with pretrained weights
-model = ff.module.from_pretrained("original_lffd_560_25L_8S")
+model = ff.FaceDetector.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
 
 # get model summary

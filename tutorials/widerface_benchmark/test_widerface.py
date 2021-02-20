@@ -11,7 +11,7 @@ partition = 'easy' # also `medium` or `hard` can be selectable
 # select and build pretrained model to test on widerface
 # for this tutorial `original_lffd_560_25L_8S` is selected
 # for selectable models checkout ff.list_pretrained_models()
-model = ff.module.from_pretrained("original_lffd_560_25L_8S")
+model = ff.FaceDetector.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
 
 # get widerface average precision metric, defined in the competition

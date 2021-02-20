@@ -1,11 +1,12 @@
-Discovery
-=========
+fastface
+++++++++
 
 .. autofunction:: fastface.list_pretrained_models
-    :noindex:
+
+.. autofunction:: fastface.download_pretrained_model
 
 .. autofunction:: fastface.list_archs
-    :noindex:
 
 .. autofunction:: fastface.list_arch_configs
-    :noindex:
+
+.. autofunction:: fastface.get_arch_config

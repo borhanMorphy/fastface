@@ -7,6 +7,8 @@ from ..pad import Padding
 from ..interpolate import Interpolate
 
 class LFFDRandomSample():
+    """Applies augmantation defined in the LFFD paper"""
+
     def __init__(self, scales:List[Tuple[int,int]], target_size:Tuple[int,int]=(640,640)):
         self.scales = scales
         self.target_size = target_size # W,H

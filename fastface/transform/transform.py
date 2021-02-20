@@ -3,7 +3,8 @@ from typing import Dict
 import numpy as np
 
 class Transform():
-    """base class definition for trackable and reversable transforms"""
+    """Base class definition for trackable and reversable transforms"""
+
     def __init__(self, max_op_cache:int=1000):
         """
         Args:

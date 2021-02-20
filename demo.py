@@ -53,7 +53,7 @@ def main(model:str, device:str, img_path:str,
     img = load_image(img_path)
 
     # get pretrained model
-    model = ff.module.from_pretrained(model)
+    model = ff.FaceDetector.from_pretrained(model)
 
     # get model summary
     model.summarize()

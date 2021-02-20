@@ -1,9 +1,12 @@
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import random
 
 class BinaryCrossEntropy(nn.Module):
+    """Binary Cross Entropy loss
+    """
+
     __negative_selection_rules__ = ("none","ohem","random","mix",)
     def __init__(self, negative_selection_rule:str='none', **kwargs):
         super().__init__()

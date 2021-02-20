@@ -3,7 +3,7 @@ import fastface as ff
 import torch
 
 # get pretrained model
-model = ff.module.from_pretrained("original_lffd_560_25L_8S")
+model = ff.FaceDetector.from_pretrained("original_lffd_560_25L_8S")
 # define device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

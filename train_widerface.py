@@ -89,13 +89,13 @@ def main(kwargs:Dict, resume:bool, seed:int):
     if resume:
         ckpt_path = select_checkpoint(checkpoint_dirpath) if ckpt_path is None else ckpt_path
         if ckpt_path in ff.list_pretrained_models():
-            model = ff.module.from_pretrained(ckpt_path)
+            model = ff.FaceDetector.from_pretrained(ckpt_path)
             model.hparams.update(hparams)
             print(f"resuming training with pretrained: {ckpt_path}")
         else:
-            model = ff.module.build(arch, config, hparams=hparams, num_classes=1, in_channels=in_channels)
+            model = ff.FaceDetector.build(arch, config, hparams=hparams, num_classes=1, in_channels=in_channels)
     else:
-        model = ff.module.build(arch, config, hparams=hparams,
+        model = ff.FaceDetector.build(arch, config, hparams=hparams,
             num_classes=1, in_channels=in_channels)
 
     print(f"using checkpoint path: {checkpoint_dirpath}")

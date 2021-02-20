@@ -64,6 +64,8 @@ def get_validation_set(root_path:str, partition:str):
     return ids,targets
 
 class WiderFaceDataset(Dataset):
+    """Widerface torch.utils.data.Dataset Instance"""
+
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )

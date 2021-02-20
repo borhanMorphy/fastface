@@ -4,6 +4,9 @@ from .transform import Transform
 from PIL import Image
 
 class Interpolate(Transform):
+    """Interpolates the image and boxes using maximum dimension
+    """
+
     def __init__(self, max_dim:int=640):
         super(Interpolate,self).__init__()
         self.max_dim = max_dim

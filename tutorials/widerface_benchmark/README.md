@@ -27,7 +27,7 @@ import torch
 
 Build pretrained model. For this tutorial `original_lffd_560_25L_8S` is selected but you can also select another model
 ```python
-model = ff.module.from_pretrained("original_lffd_560_25L_8S")
+model = ff.FaceDetector.from_pretrained("original_lffd_560_25L_8S")
 # model: pl.LightningModule
 ```
 

@@ -1,6 +1,6 @@
 from .api import *
 from .version import __version__
-from .module import FaceDetector as module
+from .module import FaceDetector
 
 from . import adapter
 from . import dataset
