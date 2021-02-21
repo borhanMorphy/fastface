@@ -13,7 +13,7 @@ python -c "import fastface as ff;print(ff.list_pretrained_models())"
 ```
 Output will be look like
 ```
-['original_lffd_560_25L_8S', 'original_lffd_320_20L_5S']
+['lffd_original', 'lffd_slim']
 ```
 
 ## Start
@@ -25,9 +25,9 @@ import pytorch_lightning as pl
 import torch
 ```
 
-Build pretrained model. For this tutorial `original_lffd_560_25L_8S` is selected but you can also select another model
+Build pretrained model. For this tutorial `lffd_original` is selected but you can also select another model
 ```python
-model = ff.FaceDetector.from_pretrained("original_lffd_560_25L_8S")
+model = ff.FaceDetector.from_pretrained("lffd_original")
 # model: pl.LightningModule
 ```
 

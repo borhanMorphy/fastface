@@ -1,5 +1,5 @@
 arch: "lffd"
-config: "560_25L_8S"
+config: "original"
 in_channels: 3
 
 hparams:

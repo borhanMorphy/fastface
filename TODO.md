@@ -2,7 +2,6 @@
 - [ ] add ci/cd for unittest, linting test and doc test
 - [ ] add coverage badge and pipeline
 - [ ] add `Design` section after `GETTING STARTED`
-- [ ] fill `Architectures` section under the `GETTING STARTED`
 - [ ] fill `Training` section under the `CORE CONCEPTS`
 - [ ] fill `Testing` section under the `CORE CONCEPTS`
 - [ ] fill `Deployment` section under the `CORE CONCEPTS`

@@ -1,5 +1,5 @@
 arch: "lffd"
-config: "320_20L_5S"
+config: "slim"
 in_channels: 3
 
 hparams:

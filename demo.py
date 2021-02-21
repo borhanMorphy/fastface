@@ -7,10 +7,16 @@ from typing import List
 import fastface as ff
 from fastface.utils.visualize import prettify_detections
 
+from fastface.transform import (
+    Compose,
+    Normalize,
+    ToTensor
+)
+
 def get_arguments():
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
+    ap.add_argument("--model", "-m", type=str, default="lffd_original",
         help=f"pretrained models {','.join(ff.list_pretrained_models())} or checkpoint path")
 
     ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
@@ -20,7 +26,7 @@ def get_arguments():
         required=True, help='image file path')
 
     ap.add_argument('--det-threshold', '-dt', type=float,
-        default=.8, help='detection score threshold')
+        default=.7, help='detection score threshold')
 
     ap.add_argument('--iou-threshold', '-it', type=float,
         default=.4, help='iou score threshold')
@@ -49,11 +55,20 @@ def load_image(img_path:str) -> np.ndarray:
 
 def main(model:str, device:str, img_path:str,
         det_threshold:float, iou_threshold:float):
+
+    ts = Compose(
+        Normalize(mean=127.5, std=127.5),
+        ToTensor()
+    )
+
     # load image
     img = load_image(img_path)
 
     # get pretrained model
     model = ff.FaceDetector.from_pretrained(model)
+
+    # set preprocess
+    model.preprocess = ts
 
     # get model summary
     model.summarize()

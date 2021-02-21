@@ -7,7 +7,7 @@ import argparse
 def parse_arguments():
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("--model", "-m", type=str, default="original_lffd_560_25L_8S",
+    ap.add_argument("--model", "-m", type=str, default="lffd_original",
         choices=ff.list_pretrained_models(), help='pretrained model to be used')
 
     ap.add_argument("--device", "-d", type=str, choices=['cpu','cuda'],
@@ -20,11 +20,11 @@ def parse_arguments():
 
 def main(model:str, device:str, partition:str,
         batch_size:int=1, num_workers:int=4):
-    model = ff.FaceDetector.from_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/checkpoints/lffd_560_25L_8S/lffd_560_25L_8S_widerface-epoch=00-val_loss=0.363-val_ap=0.00.ckpt")
+    model = ff.FaceDetector.from_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/checkpoints/lffd_original/lffd_original_widerface-epoch=00-val_loss=0.363-val_ap=0.00.ckpt")
 
     model.summarize()
 
-    arch_configs = ff.get_arch_config("lffd", "560_25L_8S")
+    arch_configs = ff.get_arch_config("lffd", "original")
 
     arch_pkg = ff.utils.config.get_arch_pkg("lffd")
 

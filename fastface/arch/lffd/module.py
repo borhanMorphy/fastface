@@ -22,8 +22,8 @@ from .blocks import (
 
 class LFFD(nn.Module):
     __CONFIGS__ = {
-        "560_25L_8S":{
-            "backbone_name": "560_25L_8S",
+        'original':{
+            'backbone_name': 'lffd-v1',
             'head_infeatures': [64,64,64,64,128,128,128,128],
             'head_outfeatures': [128,128,128,128,128,128,128,128],
             'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
@@ -35,8 +35,8 @@ class LFFD(nn.Module):
             ] # calculated for 640 image input
         },
 
-        "320_20L_5S":{
-            "backbone_name": "320_20L_5S",
+        'slim':{
+            'backbone_name': 'lffd-v2',
             'head_infeatures': [64,64,64,128,128],
             'head_outfeatures': [128,128,128,128,128],
             'rf_sizes': [20, 40, 80, 160, 320],
@@ -79,9 +79,9 @@ class LFFD(nn.Module):
         self.__debug = debug
 
         # TODO check if list lenghts are matched
-        if backbone_name == "560_25L_8S":
+        if backbone_name == "lffd-v1":
             self.backbone = LFFDBackboneV1(in_channels)
-        elif backbone_name == "320_20L_5S":
+        elif backbone_name == "lffd-v2":
             self.backbone = LFFDBackboneV2(in_channels)
         else:
             raise ValueError(f"given backbone name: {backbone_name} is not valid")

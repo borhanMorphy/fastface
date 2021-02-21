@@ -77,7 +77,7 @@ class FaceDetector(pl.LightningModule):
 
         >>> import fastface as ff
         >>> import imageio
-        >>> model = ff.FaceDetector.from_pretrained('original_lffd_560_25L_8S').eval()
+        >>> model = ff.FaceDetector.from_pretrained('lffd_original').eval()
         >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
         >>> model.predict(img)
         [{'box': [1049, 178, 1187, 359], 'score': 0.99633336}, {'box': [561, 220, 710, 401], 'score': 0.99252045}]
