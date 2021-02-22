@@ -54,7 +54,7 @@ class AnchorGenerator():
         if clip:
             rfs[:,:,[0,2]] = torch.clamp(rfs[:,:,[0,2]],0,fw*self.rf_stride)
             rfs[:,:,[1,3]] = torch.clamp(rfs[:,:,[1,3]],0,fh*self.rf_stride)
-        
+
         self._anchors = rfs.clone()
 
         return rfs
@@ -70,7 +70,7 @@ class AnchorGenerator():
         fh,fw = reg_logits.shape[1:3]
         device = reg_logits.device
         dtype = reg_logits.dtype
-        
+
         anchors = self(fh,fw,device,dtype)
 
         # anchors: fh,fw,4

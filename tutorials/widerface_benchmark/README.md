@@ -80,7 +80,7 @@ Define `pytorch_lightning.Trainer`
 trainer = pl.Trainer(
     logger=False,
     checkpoint_callback=False,
-    gpus=1 if torch.cuda.is_available() == 'cuda' else 0,
+    gpus=1 if torch.cuda.is_available() else 0,
     precision=32)
 ```
 
