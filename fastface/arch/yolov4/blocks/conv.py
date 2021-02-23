@@ -1,16 +1,16 @@
 import torch.nn as nn
 
-def conv3x3(in_channels: int, out_channels: int,
-        stride: int = 1, padding: int = 1, normalize: bool = True) -> nn.Module:
+def conv3x3(in_channels: int, out_channels: int, normalize: bool = True) -> nn.Module:
+    return _conv(3, in_channels, out_channels, stride=1,
+        padding=1, normalize=normalize)
 
-    return _conv(3, in_channels, out_channels, stride=stride,
-        padding=padding, normalize=normalize)
+def conv3x3_ds(in_channels: int, out_channels: int, normalize: bool = True) -> nn.Module:
+    return _conv(3, in_channels, out_channels, stride=2,
+        padding=1, normalize=normalize)
 
-def conv1x1(in_channels: int, out_channels: int,
-        stride: int = 1, padding: int = 1, normalize: bool = True) -> nn.Module:
-
-    return _conv(1, in_channels, out_channels, stride=stride,
-        padding=padding, normalize=normalize)
+def conv1x1(in_channels: int, out_channels: int, normalize: bool = True) -> nn.Module:
+    return _conv(1, in_channels, out_channels, stride=1,
+        padding=1, normalize=normalize)
 
 def _conv(kernel_size: int, in_channels: int, out_channels: int, bias: bool = False,
         stride: int = 1, padding: int = 1, normalize: bool = True):

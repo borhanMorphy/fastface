@@ -6,6 +6,7 @@ from torchvision.ops import boxes as box_ops
 class YOLOv4(nn.Module):
     __CONFIGS__ = {
         'tiny':{
+            
         }
     }
 
