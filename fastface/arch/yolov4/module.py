@@ -10,44 +10,8 @@ class YOLOv4(nn.Module):
         }
     }
 
-    _transforms = Compose(
-        Interpolate(max_dim=416),
-        Padding(target_size=(416,416)),
-        Normalize(mean=127.5, std=127.5),
-        ToTensor()
-    )
-
-    def __init__(self, in_channels:int=3, config:Dict={},
-            num_classes:int=1, debug:bool=False, **kwargs):
-        super(LFFD,self).__init__()
-
-        assert "backbone_name" in config, "`backbone_name` must be defined in the config"
-        assert "head_infeatures" in config, "`head_infeatures` must be defined in the config"
-        assert "head_outfeatures" in config, "`head_outfeatures` must be defined in the config"
-        assert "rf_sizes" in config, "`rf_sizes` must be defined in the config"
-        assert "rf_start_offsets" in config, "`rf_start_offsets` must be defined in the config"
-        assert "rf_strides" in config, "`rf_strides` must be defined in the config"
-        assert "scales" in config, "`scales` must be defined in the config"
-
-        backbone_name = config.get('backbone_name')
-        head_infeatures = config.get('head_infeatures')
-        head_outfeatures = config.get('head_outfeatures')
-        rf_sizes = config.get('rf_sizes')
-        rf_start_offsets = config.get('rf_start_offsets')
-        rf_strides = config.get('rf_strides')
-
-        self.nms = kwargs.get('nms', box_ops.nms)
-        self.num_classes = num_classes
-        self.__debug = debug
-
-        # TODO check if list lenghts are matched
-        if backbone_name == "tiny":
-            self.backbone = None # TODO
-        else:
-            raise ValueError(f"given backbone name: {backbone_name} is not valid")
-
-        self.cls_loss_fn = # TODO get_loss_by_name("BCE", negative_selection_rule="mix")
-        self.reg_loss_fn = # TODO get_loss_by_name("MSE")
+    def __init__(self):
+        super().__init__()
 
     def forward(self, x:torch.Tensor):
         pass # TODO
