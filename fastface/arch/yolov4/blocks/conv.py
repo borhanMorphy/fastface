@@ -10,7 +10,7 @@ def conv3x3_ds(in_channels: int, out_channels: int, normalize: bool = True) -> n
 
 def conv1x1(in_channels: int, out_channels: int, normalize: bool = True) -> nn.Module:
     return _conv(1, in_channels, out_channels, stride=1,
-        padding=1, normalize=normalize)
+        padding=0, normalize=normalize)
 
 def _conv(kernel_size: int, in_channels: int, out_channels: int, bias: bool = False,
         stride: int = 1, padding: int = 1, normalize: bool = True):
