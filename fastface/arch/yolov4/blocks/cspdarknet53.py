@@ -18,7 +18,6 @@ class CSPDarknet53Tiny(nn.Module):
         self.csp_block_1 = CSPBlock(64)
         self.csp_block_2 = CSPBlock(128)
         self.csp_block_3 = CSPBlock(256)
-        self.conv_3 = conv3x3(512, 512)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.conv_ds_1(x)
@@ -31,8 +30,6 @@ class CSPDarknet53Tiny(nn.Module):
         x = F.max_pool2d(x, 2, 2) # 2x2 stride:2 mp
 
         x, residual = self.csp_block_3(x)
-        x = F.max_pool2d(x, 2, 2) # 2x2 stride:2 mp
-
-        out = self.conv_3(x)
+        out = F.max_pool2d(x, 2, 2) # 2x2 stride:2 mp
 
         return out, residual
