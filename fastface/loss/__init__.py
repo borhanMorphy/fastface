@@ -1,21 +1,36 @@
 __all__ = [
     "get_loss_by_name", "list_losses",
-    "BinaryCrossEntropy",
-    "L2Loss"
+    "BinaryCrossEntropyLoss",
+    "BinaryFocalLoss",
+
+    "L2Loss",
+    "DIoULoss"
 ]
 
-from .BCE import BinaryCrossEntropy
+from .BCE import BinaryCrossEntropyLoss
+from .BFL import BinaryFocalLoss
+
 from .MSE import L2Loss
+from .DIoU import DIoULoss
+
 import torch.nn as nn
 from typing import List
 
 __loss_mapper__ = {
     'BCE':{
-        'cls': BinaryCrossEntropy,
+        'cls': BinaryCrossEntropyLoss,
+        'kwargs': {}
+    },
+    'BFL':{
+        'cls': BinaryFocalLoss,
         'kwargs': {}
     },
     'MSE':{
         'cls': L2Loss,
+        'kwargs': {}
+    },
+    'DIoU':{
+        'cls': DIoULoss,
         'kwargs': {}
     }
 }

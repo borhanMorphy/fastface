@@ -23,7 +23,9 @@ def _conv(kernel_size: int, in_channels: int, out_channels: int, bias: bool = Fa
     if normalize:
         conv_block.add_module('bn', nn.BatchNorm2d(out_channels))
 
-    conv_block.add_module('leaky', nn.LeakyReLU(
-        negative_slope=0.1, inplace=True))
+    #conv_block.add_module('leaky', nn.LeakyReLU(
+    #    negative_slope=0.1, inplace=True))
+
+    conv_block.add_module('relu', nn.ReLU(inplace=True))
 
     return conv_block

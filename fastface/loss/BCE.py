@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class BinaryCrossEntropy(nn.Module):
-    """Binary Cross Entropy loss
+class BinaryCrossEntropyLoss(nn.Module):
+    """Binary Cross Entropy Loss
     """
 
     __negative_selection_rules__ = ("none","ohem","random","mix",)

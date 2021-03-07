@@ -20,7 +20,7 @@
 ## Loss APIs
 - fastface.loss.get_loss_by_name
 - fastface.loss.list_losses
-- fastface.loss.BinaryCrossEntropy
+- fastface.loss.BinaryCrossEntropyLoss
 - fastface.loss.L2Loss
 
 ## Transform APIs

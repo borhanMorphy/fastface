@@ -124,6 +124,7 @@ class FaceDetector(pl.LightningModule):
         for metric in self.__metrics.values():
             metric.reset()
 
+    @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         step_outputs = self.arch.validation_step(batch,batch_idx,**self.hparams)
         if "preds" in step_outputs and "gts" in step_outputs:
@@ -139,7 +140,8 @@ class FaceDetector(pl.LightningModule):
             losses.append(output['loss'])
         loss = sum(losses)/len(losses)
         for key,metric in self.__metrics.items():
-            self.log(key, metric.compute())
+            metric_value = metric.compute()
+            self.log(key, metric_value)
         self.log('val_loss', loss)
 
     def on_test_epoch_start(self):

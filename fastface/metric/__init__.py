@@ -1,16 +1,26 @@
 __all__ = [
     "get_metric_by_name", "list_metrics",
-    "WiderFaceAP"
+    "WiderFaceAP", "AveragePrecision"
 ]
 
 from pytorch_lightning.metrics import Metric
+
 from .widerface_ap import WiderFaceAP
+from .ap import AveragePrecision
 
 from typing import List
 
 __metric_mapper__ = {
     'widerface_ap': {
         'cls': WiderFaceAP,
+        'args': (),
+        'kwargs': {
+            'iou_threshold':0.5
+        }
+    },
+
+    'ap': {
+        'cls': AveragePrecision,
         'args': (),
         'kwargs': {
             'iou_threshold':0.5

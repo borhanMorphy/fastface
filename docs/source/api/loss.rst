@@ -5,6 +5,6 @@ fastface.loss
 
 .. autofunction:: fastface.loss.get_loss_by_name
 
-.. autoclass:: fastface.loss.BinaryCrossEntropy
+.. autoclass:: fastface.loss.BinaryCrossEntropyLoss
 
 .. autoclass:: fastface.loss.L2Loss

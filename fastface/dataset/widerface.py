@@ -85,8 +85,13 @@ class WiderFaceDataset(Dataset):
                 annotations = foo.read().split("\n")
             ids,targets = parse_annotation_file(annotations, ranges)
             del annotations
-            self.ids = list(map(lambda img_file_path: os.path.join(source_image_dir,img_file_path), ids))
-            self.targets = [np.array(target, dtype=np.float32) for target in targets]
+            self.ids = []
+            self.targets = []
+            for idx,target in zip(ids,targets):
+                if len(target) == 0:
+                    continue
+                self.targets.append(np.array(target, dtype=np.float32))
+                self.ids.append(os.path.join(source_image_dir,idx))
         else:
             self.ids,self.targets = get_validation_set(source_dir, partitions[0])
 
