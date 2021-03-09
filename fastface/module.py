@@ -57,8 +57,8 @@ class FaceDetector(pl.LightningModule):
         return {k:v for k,v in self.__metrics.items()}
 
     @torch.no_grad()
-    def forward(self, batch: List[torch.Tensor],
-            iou_threshold: float=0.4, det_threshold: float=0.4) -> List[torch.Tensor]:
+    def forward(self, batch: torch.Tensor,
+            iou_threshold: float = 0.4, det_threshold: float = 0.4) -> torch.Tensor:
         """list of images with float and C x H x W shape
         * apply preprocess.forward (adaptive batch preprocess or static batch preprocess)
         * call arch.predict
@@ -67,19 +67,18 @@ class FaceDetector(pl.LightningModule):
         * apply nms (if needed *future)
 
         Args:
-            batch (List[torch.Tensor]): [description]
+            batch (torch.Tensor): [description]
             iou_threshold (float, optional): [description]. Defaults to 0.4.
             det_threshold (float, optional): [description]. Defaults to 0.4.
 
         Returns:
-            List[torch.Tensor]: preds with shape N x 5 as xmin, ymin, xmax, ymax, score 
+            List[torch.Tensor]: preds with shape N x 5 as xmin, ymin, xmax, ymax, score
         """
-        batch, scales, paddings = self.preprocess.forward(batch)
         batch_size = batch.size(0)
         # batch: torch.Tensor(B, C, H, W)
         # scales: torch.Tensor(B,)
         # paddings: torch.Tensor(B, 4)
-        
+
         preds = self.arch.predict(batch)
         # preds: torch.Tensor(B, N, 5)
 
@@ -116,6 +115,7 @@ class FaceDetector(pl.LightningModule):
             det_threshold: float = 0.4) -> Union[Dict,List]:
         """Performs face detection using given image or images
         * convert to tensor and H x W x C => C x H x W
+        * apply preprocess
         * call self.forward
         * convert to json
 
@@ -136,6 +136,9 @@ class FaceDetector(pl.LightningModule):
         # convert images to list of tensors
         batch = self.to_tensor(images, dtype=self.dtype, device=self.device)
         # batch: List[torch.Tensor(C, H, W), ...]
+
+        # apply preprocess
+        batch, scales, paddings = self.preprocess.forward(batch)
 
         preds = self.forward(batch, iou_threshold=iou_threshold,
             det_threshold=det_threshold)
