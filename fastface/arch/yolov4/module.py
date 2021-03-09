@@ -1,15 +1,6 @@
 from typing import Tuple, List, Dict
 import torch
 import torch.nn as nn
-from torchvision.ops import boxes as box_ops
-
-from ...transform import (
-    Compose,
-    Interpolate,
-    Padding,
-    Normalize,
-    ToTensor
-)
 
 from .blocks import (
     CSPDarknet53Tiny,
@@ -18,7 +9,6 @@ from .blocks import (
 )
 
 from ...loss import get_loss_by_name
-from ...utils.box import jaccard_vectorized
 
 class YOLOv4(nn.Module):
     __CONFIGS__ = {
@@ -43,13 +33,6 @@ class YOLOv4(nn.Module):
             'neck_features': 512
         }
     }
-
-    _transforms = Compose(
-        Interpolate(max_dim=416),
-        Padding(target_size=(416,416)),
-        Normalize(mean=0, std=255),
-        ToTensor()
-    )
 
     def __init__(self, config:Dict={}, **kwargs):
         super().__init__()
@@ -79,20 +62,29 @@ class YOLOv4(nn.Module):
         self.reg_loss_fn = get_loss_by_name("DIoU")
 
     def forward(self, x:torch.Tensor) -> List[torch.Tensor]:
+        """preprocessed image batch
+
+        Args:
+            x (torch.Tensor): B x C x H x W
+
+        Returns:
+            List[torch.Tensor]: logits: List[B x 5 x H x W]
+        """
         out, residual = self.backbone(x)
         outs = self.neck(out, residual)
-        logits = [self.heads[i](out) for i, out in enumerate(outs)]
-        return logits
+        return [self.heads[i](out) for i, out in enumerate(outs)]
 
-    @torch.no_grad()
-    def predict(self, x:torch.Tensor, det_threshold:float=.5,
-            iou_threshold:float=.4):
-        # TODO fix here
-        if len(x.shape) == 3:
-            x = x.unsqueeze(0)
+    def predict(self, x: torch.Tensor):
+        """preprocessed image batch
+
+        Args:
+            x (torch.Tensor): B x C x H x W
+
+        Returns:
+            torch.Tensor: B x N x 5 as xmin, ymin, xmax, ymax, score
+        """
 
         batch_size = x.size(0)
-        out_features = 4 + 1 + 1
 
         head_logits = self.forward(x)
 
@@ -105,35 +97,12 @@ class YOLOv4(nn.Module):
 
             logits[:, :, :, :, 4:] = torch.sigmoid(logits[:, :, :, :, 4:])
 
-            batch_preds.append(logits.reshape(batch_size, -1, out_features))
+            batch_preds.append(logits.reshape(batch_size, -1, 5))
 
         # batch_preds: b x -1 x (4+1)
-        batch_preds = torch.cat(batch_preds, dim=1)
-        picked_bs, picked_fmaps = torch.where(batch_preds[:, :, 4] > 0.2)
+        return torch.cat(batch_preds, dim=1)
 
-        batch_preds = batch_preds[picked_bs, picked_fmaps]
-        batch_boxes = batch_preds[:, :4]
-        batch_cls_scores = batch_preds[:, 4] * batch_preds[:, 5]
-
-        pick = batch_cls_scores > det_threshold
-        batch_boxes = batch_boxes[pick, :]
-        batch_cls_scores = batch_cls_scores[pick]
-        picked_bs = picked_bs[pick]
-
-        pick = box_ops.batched_nms(batch_boxes, batch_cls_scores,
-            picked_bs, iou_threshold)
-
-        preds = torch.cat(
-            [
-                picked_bs[pick],
-                batch_boxes[pick],
-                batch_cls_scores[pick]
-            ], dim=-1)
-
-        # preds: N,5 as xmin,ymin,xmax,ymax,score
-        return [preds[preds[:, 0] == i, 1:] for i in range(batch_size)]
-
-    def training_step(self, batch:Tuple[torch.Tensor, Dict],
+    def training_step(self, batch: Tuple[torch.Tensor, Dict],
             batch_idx:int, **hparams) -> torch.Tensor:
 
         # get these from hyper parameters
@@ -145,7 +114,6 @@ class YOLOv4(nn.Module):
         dtype = imgs.dtype
 
         head_targets = targets['heads']
-        gt_boxes = targets['gt_boxes']
 
         """
         # head_targets;
@@ -191,13 +159,10 @@ class YOLOv4(nn.Module):
 
         return sum(losses)
 
-    def validation_step(self, batch:Tuple[torch.Tensor, Dict],
+    def validation_step(self, batch: Tuple[torch.Tensor, Dict],
             batch_idx:int, **hparams) -> Dict:
 
         # get these from hyper parameters
-        iou_threshold = 0.4
-        det_threshold = 0.2
-        select_top_n = 1000
         reg_loss_weight = 0.07
         cls_loss_weight = 1.0
 
@@ -206,7 +171,6 @@ class YOLOv4(nn.Module):
         dtype = imgs.dtype
 
         head_targets = targets['heads']
-        gt_boxes = targets['gt_boxes']
 
         losses = []
 
@@ -248,61 +212,20 @@ class YOLOv4(nn.Module):
 
             losses.append(cls_loss+reg_loss)
 
-        # batch_preds: b x -1 x (4+1)
-        batch_preds = torch.cat(batch_preds, dim=1)
-        #loss = cls_loss
-
-        preds = []
-        for i in range(batch_size):
-            #print(batch_preds[i, :, 4].max())
-            mask = batch_preds[i, :, 4] > det_threshold
-
-            b_preds = batch_preds[i, mask, :]
-
-            # TODO change to batched nms
-            pick = box_ops.nms(b_preds[:, :4], b_preds[:, 4], iou_threshold)
-
-            b_preds = b_preds[pick, :]
-
-            orders = b_preds[:, 4].argsort(descending=True)
-
-            preds.append(b_preds[orders, :][:select_top_n, :].cpu())
-
-        # preds: [(N,5), ...] as xmin,ymin,xmax,ymax,score
-        """
-        for gt, pred in zip(gt_boxes, preds):
-            print(gt, pred)
-            ious = jaccard_vectorized(pred[:, :4], gt[:, :4])
-            best_iou_values, best_iou_matches = ious.max(dim=0)
-            print(best_iou_values)
-            input()
-        """
-
         return {
             'loss': sum(losses),
-            'gts': gt_boxes,
-            'preds': preds
+            'preds': torch.cat(batch_preds, dim=1) # b x -1 x (4+1)
         }
 
-    def test_step(self, batch:Tuple[torch.Tensor, Dict],
+    def test_step(self, batch: Tuple[torch.Tensor, Dict],
             batch_idx:int, **hparams) -> Dict:
 
-        imgs,targets = batch
-        device = imgs.device
-        dtype = imgs.dtype
-        batch_size = imgs.size(0)
+        imgs, targets = batch
 
-        det_threshold = hparams.get('det_threshold', 0.11)
-        iou_threshold = hparams.get('iou_threshold', .4)
-
-        """
-        ## targets
-        # TODO
-        """
+        preds = self.predict(imgs)
 
         return {
-            'preds': None, # TODO
-            'gts': None # TODO
+            'preds': preds
         }
 
     def configure_optimizers(self, **hparams):

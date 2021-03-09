@@ -2,7 +2,7 @@ lffd_original:
   adapter:
     type: "gdrive"
     kwargs:
-      file_name: "lffd_original.pt"
+      file_name: "lffd_original.ckpt"
       file_id: "1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1"
       overwrite: false
       unzip: false
@@ -11,7 +11,7 @@ lffd_slim:
   adapter:
     type: "gdrive"
     kwargs:
-      file_name: "lffd_slim.pt"
+      file_name: "lffd_slim.ckpt"
       file_id: "1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN"
       overwrite: false
       unzip: false

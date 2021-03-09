@@ -1,16 +1,14 @@
 import torch
-import torch.nn as nn
 
-class BinaryFocalLoss(nn.Module):
+class BinaryFocalLoss():
     """Binary Focal Loss
     """
 
     def __init__(self, gamma: float = 2, alpha: float = 1, **kwargs):
-        super().__init__()
         self.gamma = gamma
         self.alpha = alpha
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def __call__(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # input: torch.Tensor(N,)
         # target: torch.Tensor(N,)
 

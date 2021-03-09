@@ -1,15 +1,14 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
-class L2Loss(nn.Module):
+class L2Loss():
     """Mean Squared Error
     """
 
     def __init__(self, **kwargs):
-        super().__init__()
+        pass
 
-    def forward(self, input:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
+    def __call__(self, input:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
         dtype = input.dtype
         device = input.device
         if input.size(0) == 0:

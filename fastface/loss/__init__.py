@@ -36,14 +36,14 @@ __loss_mapper__ = {
 }
 
 # TODO add *args
-def get_loss_by_name(loss:str, **kwargs) -> nn.Module:
+def get_loss_by_name(loss:str, **kwargs):
     """Returns loss instance that matches with the given name
 
     Args:
         loss (str): name of the loss
 
     Returns:
-        nn.Module: loss module as torch.nn.Module instance
+        object: loss module as class instance
     """
     assert loss in __loss_mapper__, f"given loss {loss} is not defined"
     cls = __loss_mapper__[loss]['cls']

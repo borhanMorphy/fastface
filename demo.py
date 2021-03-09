@@ -7,12 +7,6 @@ from typing import List
 import fastface as ff
 from fastface.utils.visualize import prettify_detections
 
-from fastface.transform import (
-    Compose,
-    Normalize,
-    ToTensor
-)
-
 def get_arguments():
     ap = argparse.ArgumentParser()
 
@@ -56,19 +50,11 @@ def load_image(img_path:str) -> np.ndarray:
 def main(model:str, device:str, img_path:str,
         det_threshold:float, iou_threshold:float):
 
-    ts = Compose(
-        Normalize(mean=127.5, std=127.5),
-        ToTensor()
-    )
-
     # load image
     img = load_image(img_path)
 
     # get pretrained model
     model = ff.FaceDetector.from_pretrained(model)
-
-    # set preprocess
-    model.preprocess = ts
 
     # get model summary
     model.summarize()

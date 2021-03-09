@@ -1,10 +1,11 @@
 import pytorch_lightning as pl
 import fastface as ff
+import torch
 
 ff.utils.random.seed_everything(42)
 
-arch = "yolov4"
-config = "tiny"
+arch = "lffd"
+config = "slim"
 
 arch_configs = ff.get_arch_config(arch, config)
 
@@ -26,7 +27,7 @@ val_transforms = ff.transform.Compose(
     ff.transform.ToTensor()
 )
 
-model = ff.FaceDetector.build(arch, config)
+model = ff.FaceDetector.build("lffd", "slim")
 
 metric = ff.metric.get_metric_by_name("widerface_ap")
 model.add_metric("widerface_ap",metric)
@@ -86,5 +87,7 @@ trainer = pl.Trainer(
     check_val_every_n_epoch=1,
     precision=32,
     gradient_clip_val=0)
-
+print(model.preprocess.mean, model.preprocess.std)
+trainer.model = model
+trainer.save_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/model/lffd_slim.ckpt");exit(0)
 trainer.fit(model, datamodule=dm)

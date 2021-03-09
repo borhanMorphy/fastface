@@ -5,3 +5,9 @@
 - [ ] fill `Training` section under the `CORE CONCEPTS`
 - [ ] fill `Testing` section under the `CORE CONCEPTS`
 - [ ] fill `Deployment` section under the `CORE CONCEPTS`
+
+- [x] implement `AdaptivePreprocess`
+- [ ] apply `det_threshold` filter
+- [ ] apply `nms` filter
+- [ ] anchor generation torchscript build
+- [ ] upload new ckpts to drive

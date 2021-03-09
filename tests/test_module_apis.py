@@ -4,7 +4,11 @@ import pytorch_lightning as pl
 from .utils import build_module_args
 
 @pytest.mark.parametrize("api",
-    ["build","from_checkpoint","from_pretrained"])
+    [
+        "build", "from_checkpoint", "from_pretrained",
+        "to_tensor", "to_json"
+    ]
+)
 def test_api_exists(api):
     assert api in dir(ff.FaceDetector),f"{api} not found in the fastface.FaceDetector"
 

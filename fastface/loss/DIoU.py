@@ -1,13 +1,12 @@
 import torch
-import torch.nn as nn
 
-class DIoULoss(nn.Module):
+class DIoULoss():
     """DIoU loss
     """
     def __init__(self):
-        super().__init__()
+        pass
 
-    def forward(self, input:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
+    def __call__(self, input:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
         """calculates distance IoU loss
 
         Args:
