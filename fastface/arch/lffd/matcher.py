@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple, Dict
 import math
-from .utils import AnchorGenerator
+from .anchor import Anchor
 
 class Matcher():
     def __init__(self, rf_start_offsets:List[int]=None, rf_strides:List[int]=None,
@@ -27,7 +27,7 @@ class Matcher():
                 rf_start_offsets, rf_sizes, scales, fmaps):
             self.heads.append(
                 {
-                    "anchor" : AnchorGenerator(rf_stride, rf_start_offset, rf_size),
+                    "anchor" : Anchor(rf_stride, rf_start_offset, rf_size),
                     "sl_range": (int(math.floor(lower_scale * 0.9)), lower_scale),
                     "su_range": (upper_scale, int(math.ceil(upper_scale * 1.1))),
                     "fmap": (fmap,fmap)

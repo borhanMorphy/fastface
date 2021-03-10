@@ -38,8 +38,6 @@ class BinaryCrossEntropyLoss():
         min_num_of_negatives = int(target.size(0)*self.min_num_of_neg_ratio)
         max_num_of_negatives = num_of_negatives
 
-    def __init__(self):
-        pass
         num_of_negatives = int(num_of_positives*self.neg_select_ratio)
 
         if self.neg_select_rule == 'random':

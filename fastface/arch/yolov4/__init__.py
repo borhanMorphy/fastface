@@ -1,5 +1,5 @@
 from .module import YOLOv4
 from .matcher import Matcher
-from .utils import AnchorGenerator
+from .anchor import Anchor
 
 arch_cls = YOLOv4

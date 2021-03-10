@@ -6,7 +6,7 @@ from ...utils.box import (
     cxcywh2xyxy
 )
 
-class AnchorGenerator():
+class Anchor():
     def __init__(self, anchors: torch.Tensor, grids: Tuple[int, int], stride: int):
         self._anchors = anchors / stride
         self._cached_grids = list(grids) # gx, gy

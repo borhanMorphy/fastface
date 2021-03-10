@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple, Dict
 
-from .utils import AnchorGenerator
+from .anchor import Anchor
 
 from ...utils.box import cxcywh2xyxy, xyxy2cxcywh
 
@@ -25,7 +25,7 @@ class Matcher():
 
         self.iou_match_threshold = iou_match_threshold
         self.heads = [
-            AnchorGenerator(torch.tensor(_anchors) * img_size, (img_size//stride, img_size//stride), stride)
+            Anchor(torch.tensor(_anchors) * img_size, (img_size//stride, img_size//stride), stride)
             for _anchors, stride in zip(anchors, strides)
         ]
 

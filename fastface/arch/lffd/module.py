@@ -20,35 +20,38 @@ class LFFD(nn.Module):
 
     __CONFIGS__ = {
         'original':{
+            'input_shape': (-1, 3, 640, 640),
             'backbone_name': 'lffd-v1',
-            'head_infeatures': [64,64,64,64,128,128,128,128],
-            'head_outfeatures': [128,128,128,128,128,128,128,128],
+            'head_infeatures': [64, 64, 64, 64, 128, 128, 128, 128],
+            'head_outfeatures': [128, 128, 128, 128, 128, 128, 128, 128],
             'rf_sizes': [15, 20, 40, 70, 110, 250, 400, 560],
             'rf_start_offsets': [3, 3, 7, 7, 15, 31, 31, 31],
             'rf_strides': [4, 4, 8, 8, 16, 32, 32, 32],
             'scales': [
-                (10,15),(15,20),(20,40),(40,70),
-                (70,110),(110,250),(250,400),(400,560)
-            ] # calculated for 640 image input
+                (10, 15), (15, 20), (20, 40), (40, 70),
+                (70, 110), (110, 250), (250, 400), (400, 560)
+            ]
         },
 
         'slim':{
+            'input_shape': (-1, 3, 480, 480),
             'backbone_name': 'lffd-v2',
-            'head_infeatures': [64,64,64,128,128],
-            'head_outfeatures': [128,128,128,128,128],
+            'head_infeatures': [64, 64, 64, 128, 128],
+            'head_outfeatures': [128, 128, 128, 128, 128],
             'rf_sizes': [20, 40, 80, 160, 320],
             'rf_start_offsets': [3, 7, 15, 31, 63],
             'rf_strides': [4, 8, 16, 32, 64],
             'scales': [
-                (10,20),(20,40),(40,80),(80,160),(160,320)
-            ] # calculated for 640 image input
+                (10, 20), (20, 40), (40, 80), (80, 160), (160, 320)
+            ]
         }
     }
 
     def __init__(self, in_channels:int=3, config:Dict={},
             debug:bool=False, **kwargs):
-        super(LFFD,self).__init__()
+        super().__init__()
 
+        assert "input_shape" in config, "`input_shape` must be defined in the config"
         assert "backbone_name" in config, "`backbone_name` must be defined in the config"
         assert "head_infeatures" in config, "`head_infeatures` must be defined in the config"
         assert "head_outfeatures" in config, "`head_outfeatures` must be defined in the config"
@@ -63,6 +66,8 @@ class LFFD(nn.Module):
         rf_sizes = config.get('rf_sizes')
         rf_start_offsets = config.get('rf_start_offsets')
         rf_strides = config.get('rf_strides')
+
+        self.input_shape = config.get('input_shape')
 
         # TODO check if list lenghts are matched
         if backbone_name == "lffd-v1":
@@ -79,6 +84,9 @@ class LFFD(nn.Module):
                 head_infeatures,head_outfeatures,rf_sizes,rf_start_offsets,rf_strides))
         ])
 
+        self.cls_loss_fn = None
+        self.reg_loss_fn = None
+
     def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """preprocessed image batch
 
@@ -92,11 +100,11 @@ class LFFD(nn.Module):
         """
         logits = self.backbone(x)
 
-        cls_logits:List = []
-        reg_logits:List = []
+        cls_logits: List[torch.Tensor] = []
+        reg_logits: List[torch.Tensor] = []
 
-        for head,logit in zip(self.heads,logits):
-            cls_l,reg_l = head(logit)
+        for i,head in enumerate(self.heads):
+            cls_l,reg_l = head(logits[i])
             cls_logits.append(cls_l)
             reg_logits.append(reg_l)
 
@@ -113,20 +121,20 @@ class LFFD(nn.Module):
         """
         batch_size = x.size(0)
         cls_logits, reg_logits = self.forward(x)
-        preds:List = []
-        for i in range(len(self.heads)):
+        preds:List[torch.Tensor] = []
+        for i,head in enumerate(self.heads):
             # *for each head
             fh, fw = cls_logits[i].shape[2:]
 
-            cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, -1, 1)
-            reg_ = reg_logits[i].permute(0,2,3,1).view(batch_size, -1, 4)
+            cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, fh*fw, 1)
+            reg_ = reg_logits[i].permute(0,2,3,1).view(batch_size, fh*fw, 4)
 
             scores = torch.sigmoid(cls_.view(batch_size,fh,fw,1))
             # original positive pred score dim is 0
-            boxes = self.heads[i].anchor_box_gen.logits_to_boxes(
+            boxes = head.anchor_box_gen.logits_to_boxes( # ! TODO this line is broken for onnx deployment !
                 reg_.view(batch_size,fh,fw,4))
 
-            boxes = torch.cat([boxes,scores], dim=-1).view(batch_size,-1,5)
+            boxes = torch.cat([boxes,scores], dim=3).view(batch_size, fh*fw, 5)
             # boxes: bs,(fh*fw),5 as xmin, ymin, xmax, ymax, score
             preds.append(boxes)
         return torch.cat(preds, dim=1)

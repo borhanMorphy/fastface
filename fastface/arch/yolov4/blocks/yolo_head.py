@@ -2,14 +2,14 @@ from typing import List, Tuple
 import torch
 import torch.nn as nn
 
-from ..utils import AnchorGenerator
+from ..anchor import Anchor
 
 class YoloDetectionLayer(nn.Module):
     def __init__(self, img_size: int, stride: int = None,
             anchors: List = None):
         super().__init__()
 
-        self.anchor_box_gen = AnchorGenerator(
+        self.anchor_box_gen = Anchor(
             torch.tensor(anchors, dtype=torch.float32) * img_size,
             (int(img_size / stride), int(img_size / stride)), # gx, gy
             stride

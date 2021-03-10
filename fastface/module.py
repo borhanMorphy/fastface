@@ -1,17 +1,9 @@
-from .transform import (
-    Compose,
-    Interpolate,
-    Padding,
-    Normalize,
-    ToTensor
-)
-
-import pytorch_lightning as pl
+import os
+from typing import List, Dict, Tuple, Union
+import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Dict, Any, Union
-import numpy as np
-import os
+import pytorch_lightning as pl
 
 from .api import (
     get_arch_config,
@@ -24,19 +16,24 @@ from .utils.config import (
 )
 
 from .utils.cache import get_model_cache_path
-from .utils.preprocess import AdaptivePreprocess
+from .utils.preprocess import prepare_batch, adjust_results
 import torchvision.ops.boxes as box_ops
 
 class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection
     """
 
-    def __init__(self, arch: nn.Module = None, preprocess: nn.Module = None, hparams: Dict = None):
+    def __init__(self, arch: nn.Module = None, mean: List[float] = [0.0, 0.0, 0.0], 
+            std: List[float] = [255., 255., 255.], hparams: Dict = None):
         super().__init__()
         self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
-        self.preprocess = preprocess
+        self.register_buffer("mean", torch.tensor(
+            mean, dtype=self.dtype, device=self.device).reshape(1,len(mean),1,1))
+
+        self.register_buffer("std", torch.tensor(
+            std, dtype=self.dtype, device=self.device).reshape(1,len(std),1,1))
 
     def add_metric(self, name:str, metric:pl.metrics.Metric):
         """Adds given metric with name key
@@ -58,7 +55,7 @@ class FaceDetector(pl.LightningModule):
 
     @torch.no_grad()
     def forward(self, batch: torch.Tensor,
-            iou_threshold: float = 0.4, det_threshold: float = 0.4) -> torch.Tensor:
+            iou_threshold: float = 0.4, det_threshold: float = 0.4) -> Tuple[torch.Tensor, torch.Tensor]:
         """list of images with float and C x H x W shape
         * apply preprocess.forward (adaptive batch preprocess or static batch preprocess)
         * call arch.predict
@@ -67,94 +64,98 @@ class FaceDetector(pl.LightningModule):
         * apply nms (if needed *future)
 
         Args:
-            batch (torch.Tensor): [description]
-            iou_threshold (float, optional): [description]. Defaults to 0.4.
-            det_threshold (float, optional): [description]. Defaults to 0.4.
+            batch (torch.Tensor): torch.FloatTensor(B x C x H x W)
+            iou_threshold (float, optional): iou threshold. Defaults to 0.4.
+            det_threshold (float, optional): detection threshold. Defaults to 0.4.
 
         Returns:
-            List[torch.Tensor]: preds with shape N x 5 as xmin, ymin, xmax, ymax, score
+            Tuple[torch.Tensor]:
+                (0): contains batch ids for predictions as N,
+                (1): preds with shape N x 5 as batch_idx, xmin, ymin, xmax, ymax, score
         """
-        batch_size = batch.size(0)
-        # batch: torch.Tensor(B, C, H, W)
-        # scales: torch.Tensor(B,)
-        # paddings: torch.Tensor(B, 4)
+
+        # apply normalization
+        batch = (batch - self.mean) / self.std
 
         preds = self.arch.predict(batch)
-        # preds: torch.Tensor(B, N, 5)
-
-        preds = self.preprocess.adjust(preds, scales, paddings)
         # preds: torch.Tensor(B, N, 5)
 
         # filter with det_threshold
         pick_b, pick_n = torch.where(preds[:, :, 4] >= det_threshold)
 
         boxes = preds[pick_b, pick_n, :4]
-        scores = preds[pick_b, pick_n, 4]
+        scores = preds[pick_b, pick_n, 3::4]
 
         # filter with nms
         # TODO handle if model does not require nms
-        pick = box_ops.batched_nms(boxes, scores, pick_b, iou_threshold)
-        pick_b = pick_b[pick]
-        boxes = boxes[pick]
-        scores = scores[pick]
+        pick = box_ops.batched_nms(boxes, scores[:, 0], pick_b, iou_threshold)
+        batch_ids = pick_b[pick]
+        # batch_ids: N,
 
-        # TODO sort and select top k
-        predictions: List[torch.Tensor] = []
+        preds = torch.cat([boxes[pick], scores[pick]], dim=1)
+        # preds: N,5 as  x1, y1, x2, y2, score
 
-        for i in range(batch_size):
-            mask = pick_b == i
-            # TODO might cause error
-            predictions.append(
-                torch.cat([boxes[mask], scores[mask].unsqueeze(-1)], dim=-1)
-            )
-
-        return predictions
+        return batch_ids, preds
 
     @torch.jit.unused
     def predict(self, images:Union[np.ndarray, List], iou_threshold: float = 0.4,
-            det_threshold: float = 0.4) -> Union[Dict,List]:
+            det_threshold: float = 0.4, adaptive_batch: bool = True) -> List:
         """Performs face detection using given image or images
         * convert to tensor and H x W x C => C x H x W
-        * apply preprocess
+        * prepare batch [C x H x W] => B x C x H x W
         * call self.forward
+        * adjust predictions
         * convert to json
 
         Args:
             images (Union[np.ndarray, List]): numpy RGB image or list of RGB images
+            iou_threshold (float): iou value threshold for nms, Default: 0.4
+            det_threshold (float): detection score threshold, Default: 0.4
+            adaptive_batch (bool): if true than batching will be adaptive,
+                using max dimension of the batch, otherwise it will use static image size, Default: True
 
         Returns:
-            Union[Dict, List]: prediction result as dictionary. If list of images are given, output also will be list of dictionaries.
-
+            List: prediction result as list of dictionaries.
+            [
+                # single image results
+                {
+                    "boxes": <array>,  # List[List[xmin, ymin, xmax, ymax]]
+                    "scores": <array>  # List[float]
+                },
+                ...
+            ]
         >>> import fastface as ff
         >>> import imageio
         >>> model = ff.FaceDetector.from_pretrained('lffd_original').eval()
         >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
         >>> model.predict(img)
-        [{'box': [1049, 178, 1187, 359], 'score': 0.99633336}, {'box': [561, 220, 710, 401], 'score': 0.99252045}]
-
+        TODO
         """
-        # convert images to list of tensors
+        # convert images(uint8) to list of tensors(float)
         batch = self.to_tensor(images, dtype=self.dtype, device=self.device)
         # batch: List[torch.Tensor(C, H, W), ...]
 
-        # apply preprocess
-        batch, scales, paddings = self.preprocess.forward(batch)
+        batch_size = len(batch)
 
-        preds = self.forward(batch, iou_threshold=iou_threshold,
+        # prepare batch
+        batch, scales, paddings = prepare_batch(batch, self.arch.input_shape[-1],
+            adaptive_batch=adaptive_batch)
+
+        # batch: torch.Tensor(C,)
+        batch_ids, preds = self.forward(batch, iou_threshold=iou_threshold,
             det_threshold=det_threshold)
-        # preds: List[torch.Tensor(N, 5), ...]
+        # preds: torch.Tensor(N, 5)
+        # batch_ids: torch.Tensor(N,)
 
+        # convert to list
+        preds: List[torch.Tensor] = [preds[batch_ids == i] for i in range(batch_size)]
+
+        # adjust results
+        preds = adjust_results(preds, scales, paddings)
+
+        # convert predictions to json serializeable format
         results = self.to_json(preds)
-        """results
-        [
-            # single image results
-            {
-                "boxes": <array>,  # List[List[xmin, ymin, xmax, ymax]]
-                "scores": <array>  # List[float]
-            },
-            ...
-        ]
-        """
+
         return results
 
     @staticmethod
@@ -181,7 +182,6 @@ class FaceDetector(pl.LightningModule):
                 # h,w,c => c,h,w
                 torch.tensor(img, dtype=dtype, device=device).permute(2,0,1)
             )
-
         return batch
 
     @staticmethod
@@ -278,7 +278,7 @@ class FaceDetector(pl.LightningModule):
     @classmethod
     def build(cls, arch: str, config: Union[str, Dict],
             hparams: Dict = {}, mean: List[float] = [0.0, 0.0, 0.0],
-            std: List[float] = [255., 255., 255.], **kwargs) -> pl.LightningModule:
+            std: List[float] = [255.0, 255.0, 255.0], **kwargs) -> pl.LightningModule:
         """Classmethod for creating `fastface.FaceDetector` instance from scratch
 
         Args:
@@ -299,9 +299,6 @@ class FaceDetector(pl.LightningModule):
         # build nn.Module with given configuration
         arch_module = arch_cls(config=config, **kwargs)
 
-        # build preprocess nn.Module
-        preprocess = AdaptivePreprocess(mean, std)
-
         # add config and arch information to the hparams
         hparams.update({'config': config, 'arch': arch})
 
@@ -309,7 +306,7 @@ class FaceDetector(pl.LightningModule):
         hparams.update({'kwargs': kwargs})
 
         # build pl.LightninModule with given architecture
-        return cls(arch=arch_module, preprocess=preprocess, hparams=hparams)
+        return cls(arch=arch_module, mean=mean, std=std, hparams=hparams)
 
     @classmethod
     def from_checkpoint(cls, ckpt_path: str, **kwargs) -> pl.LightningModule:
@@ -352,6 +349,3 @@ class FaceDetector(pl.LightningModule):
 
         # build nn.Module with given configuration
         self.arch = arch_cls(config=config, **kwargs)
-
-        # build preprocess nn.Module
-        self.preprocess = AdaptivePreprocess([0.0, 0.0, 0.0], [255., 255., 255.])

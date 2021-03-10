@@ -13,7 +13,7 @@ from ...loss import get_loss_by_name
 class YOLOv4(nn.Module):
     __CONFIGS__ = {
         "tiny":{
-            "img_size": 416,
+            "input_shape": (-1, 3, 416, 416),
             "strides": [32, 16],
             "anchors": [
                 [
@@ -37,7 +37,7 @@ class YOLOv4(nn.Module):
     def __init__(self, config:Dict={}, **kwargs):
         super().__init__()
 
-        assert "img_size" in config, "`img_size` must be defined in the config"
+        assert "input_shape" in config, "`input_shape` must be defined in the config"
         assert "strides" in config, "`strides` must be defined in the config"
         assert "anchors" in config, "`anchors` must be defined in the config"
         assert "head_infeatures" in config, "`head_infeatures` must be defined in the config"
@@ -47,10 +47,12 @@ class YOLOv4(nn.Module):
 
         anchors = config['anchors']
         strides = config['strides']
-        img_size = config['img_size']
+        input_shape = config['input_shape']
+        img_size = max(input_shape[-1], input_shape[-2])
         head_infeatures = config['head_infeatures']
         neck_features = config['neck_features']
 
+        self.input_shape = input_shape
         self.backbone = CSPDarknet53Tiny()
         self.neck = PANetTiny(neck_features)
         self.heads = nn.ModuleList([

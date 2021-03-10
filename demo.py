@@ -25,6 +25,10 @@ def get_arguments():
     ap.add_argument('--iou-threshold', '-it', type=float,
         default=.4, help='iou score threshold')
 
+    ap.add_argument('--adaptive-batch', '-ab', action='store_true',
+        help='flag that indicates if target size for input will be selected using input batch or, \
+        model input shape. If true, input batch will be used to select target dimension.')
+
     return ap.parse_args()
 
 def load_image(img_path:str) -> np.ndarray:
@@ -47,8 +51,8 @@ def load_image(img_path:str) -> np.ndarray:
 
     return img
 
-def main(model:str, device:str, img_path:str,
-        det_threshold:float, iou_threshold:float):
+def main(model:str, device:str, img_path:str, det_threshold:float,
+        iou_threshold:float, adaptive_batch:bool):
 
     # load image
     img = load_image(img_path)
@@ -67,7 +71,10 @@ def main(model:str, device:str, img_path:str,
 
     # model feed forward
     preds = model.predict(img, det_threshold=det_threshold,
-        iou_threshold=iou_threshold)
+        iou_threshold=iou_threshold, adaptive_batch=adaptive_batch)
+
+    # get first
+    preds = preds[0]
 
     # visualize predictions
     pretty_img = prettify_detections(img, preds)
@@ -77,5 +84,5 @@ def main(model:str, device:str, img_path:str,
 
 if __name__ == '__main__':
     args = get_arguments()
-    main(args.model, args.device, args.input,
-        args.det_threshold, args.iou_threshold)
+    main(args.model, args.device, args.input, args.det_threshold,
+        args.iou_threshold, args.adaptive_batch)

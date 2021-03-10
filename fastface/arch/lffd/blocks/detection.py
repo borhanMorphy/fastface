@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from typing import Tuple,List
 from .conv import conv1x1
-from ..utils import AnchorGenerator
+from ..anchor import Anchor
 
 class DetectionHead(nn.Module):
     def __init__(self, head_idx:int, infeatures:int, features:int,
@@ -12,7 +12,7 @@ class DetectionHead(nn.Module):
         super(DetectionHead,self).__init__()
         self.head_idx = head_idx
         self.num_classes = num_classes
-        self.anchor_box_gen = AnchorGenerator(rf_stride, rf_start_offset, rf_size)
+        self.anchor_box_gen = Anchor(rf_stride, rf_start_offset, rf_size)
 
         self.det_conv = nn.Sequential(
             conv1x1(infeatures, features), nn.ReLU())

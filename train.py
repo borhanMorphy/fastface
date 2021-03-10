@@ -5,7 +5,7 @@ import torch
 ff.utils.random.seed_everything(42)
 
 arch = "lffd"
-config = "slim"
+config = "original"
 
 arch_configs = ff.get_arch_config(arch, config)
 
@@ -27,10 +27,10 @@ val_transforms = ff.transform.Compose(
     ff.transform.ToTensor()
 )
 
-model = ff.FaceDetector.build("lffd", "slim")
+model = ff.FaceDetector.build("lffd", "original")
 
 metric = ff.metric.get_metric_by_name("widerface_ap")
-model.add_metric("widerface_ap",metric)
+model.add_metric("widerface_ap", metric)
 
 train_kwargs = {
     'batch_size': 16,
@@ -87,7 +87,7 @@ trainer = pl.Trainer(
     check_val_every_n_epoch=1,
     precision=32,
     gradient_clip_val=0)
-print(model.preprocess.mean, model.preprocess.std)
+print(model.mean, model.std)
 trainer.model = model
-trainer.save_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/model/lffd_slim.ckpt");exit(0)
+trainer.save_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/model/lffd_original.ckpt");exit(0)
 trainer.fit(model, datamodule=dm)
