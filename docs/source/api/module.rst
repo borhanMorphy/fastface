@@ -9,6 +9,10 @@ fastface.FaceDetector
 
 .. automethod:: fastface.FaceDetector.predict
 
+.. automethod:: fastface.FaceDetector.to_tensor
+
+.. automethod:: fastface.FaceDetector.to_json
+
 .. automethod:: fastface.FaceDetector.add_metric
 
 .. automethod:: fastface.FaceDetector.get_metrics

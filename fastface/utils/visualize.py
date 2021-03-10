@@ -1,11 +1,11 @@
 from PIL import Image, ImageDraw, ImageColor
 import random
 import numpy as np
-from typing import Tuple,List,Dict
+from typing import Tuple, Dict
 
 def prettify_detections(img:np.ndarray, preds:Dict,
         color:Tuple[int,int,int]=None) -> Image:
-    """
+    """Returns Rendered PIL Image using given predictions 
     Args:
         img (np.ndarray): 3 channeled image
         preds (Dict): predictions as {'boxes':[[x1,y1,x2,y2], ...], 'scores':[<float>, ..]}

@@ -8,3 +8,4 @@
    transform.rst
    dataset.rst
    datamodule.rst
+   utils.rst

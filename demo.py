@@ -2,7 +2,6 @@ import torch
 import argparse
 import imageio
 import numpy as np
-from typing import List
 
 import fastface as ff
 from fastface.utils.visualize import prettify_detections
@@ -45,7 +44,7 @@ def load_image(img_path:str) -> np.ndarray:
         # if img is not contiguous than fix it
         img = np.ascontiguousarray(img, dtype=img.dtype)
 
-    if len(img.shape) == 4:
+    if img.shape[2] == 4:
         # found RGBA
         img = img[:, :, :3]
 

@@ -40,10 +40,12 @@ class AveragePrecision(Metric):
 		"""Calculates average precision
 		"""
 		# N,3 as iou,best,confidence with sorted by confidence
+		# pylint: disable=no-member
 		sorted_table, M = self.generate_prediction_table(self.pred_boxes, self.gt_boxes)
 		N = sorted_table.size(0)
 
 		if N == 0:
+			# pylint: disable=not-callable
 			return torch.tensor([0], dtype=torch.float32)
 
 		accumulated_tp = torch.zeros(sorted_table.size(0), dtype=torch.float32)
@@ -67,6 +69,7 @@ class AveragePrecision(Metric):
 
 		unique_recalls = recall.unique_consecutive()
 		auc = torch.empty(unique_recalls.size(0), dtype=torch.float32)
+		# pylint: disable=not-callable
 		last_value = torch.tensor(0, dtype=torch.float32)
 
 		for i,recall_value in enumerate(unique_recalls):

@@ -1,40 +1,23 @@
 import torch
+import torch.nn as nn
 
-class Anchor():
-    def __init__(self, rf_stride:int, rf_start_offset:int, rf_size:int):
+class Anchor(nn.Module):
+    def __init__(self, rf_stride: int, rf_start_offset: int, rf_size: int):
+        super().__init__()
         self.rf_stride = rf_stride
         self.rf_start_offset = rf_start_offset
         self.rf_size = rf_size
 
-    def __call__(self, fh:int, fw:int) -> torch.Tensor:
-        """takes feature map h and w and generates rf anchors as tensor
-
-        Args:
-            fh (int): featuremap hight
-            fw (int): featuremap width
-
-        Returns:
-            torch.Tensor: rf anchors as (fh x fw x 4) (xmin, ymin, xmax, ymax)
+    def forward(self, fh: int, fw: int) -> torch.Tensor:
         """
-        # y: fh x fw
-        # x: fh x fw
-        y,x = torch.meshgrid(
-            torch.arange(fh),
-            torch.arange(fw)
-        )
-
-        # rfs: fh x fw x 2
-        rfs = torch.stack([x,y], dim=2)
-
-
-        rfs *= self.rf_stride
-        rfs += self.rf_start_offset
-
-        # rfs: fh x fw x 2 as x,y
+        # TODO pydoc
+        """
+        grids = self.generate_grids(fh, fw)
+        rfs = grids*self.rf_stride
+        rfs = rfs+self.rf_start_offset
         rfs = rfs.repeat(1,1,2) # fh x fw x 2 => fh x fw x 4
         rfs[:,:,:2] = rfs[:,:,:2] - self.rf_size/2
         rfs[:,:,2:] = rfs[:,:,2:] + self.rf_size/2
-
         return rfs
 
     def logits_to_boxes(self, reg_logits:torch.Tensor) -> torch.Tensor:
@@ -45,14 +28,14 @@ class Anchor():
         Returns:
             pred_boxes (torch.Tensor): bs,fh,fw,4 as xmin,ymin,xmax,ymax
         """
-        fh,fw = reg_logits.shape[1:3]
+        _, fh, fw, _  = reg_logits.shape
 
-        anchors = self(fh, fw).to(reg_logits.device, reg_logits.dtype)
+        rfs = self.forward(fh, fw).to(reg_logits.device)
 
-        # anchors: fh,fw,4
+        # rfs: fh,fw,4
         rf_normalizer = self.rf_size/2
 
-        rf_centers = (anchors[:,:, :2] + anchors[:,:, 2:]) / 2
+        rf_centers = (rfs[:,:, :2] + rfs[:,:, 2:]) / 2
 
         pred_boxes = reg_logits.clone()
 
@@ -67,3 +50,25 @@ class Anchor():
         pred_boxes[:, :, :, 3] = torch.clamp(pred_boxes[:, :, :, 3], 0, fh*self.rf_stride)
 
         return pred_boxes
+
+    @staticmethod
+    def generate_grids(fh: int, fw: int) -> torch.Tensor:
+        """[summary]
+
+        Args:
+            fh (torch.Tensor): [description]
+            fw (torch.Tensor): [description]
+
+        Returns:
+            torch.Tensor: [description]
+        """
+        # y: fh x fw
+        # x: fh x fw
+        y, x = torch.meshgrid(
+            torch.arange(fh),
+            torch.arange(fw)
+        )
+
+        # grids: fh x fw x 2
+        grids = torch.stack([x,y], dim=2).float()
+        return grids

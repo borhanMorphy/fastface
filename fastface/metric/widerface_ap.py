@@ -138,7 +138,9 @@ class WiderFaceAP(Metric):
 		M = gts.shape[0]
 
 		ious = box_ops.box_iou(
+			# pylint: disable=not-callable
 			torch.tensor(preds[:,:4], dtype=torch.float32),
+			# pylint: disable=not-callable
 			torch.tensor(gts, dtype=torch.float32)).numpy()
 		# ious: N,M
 

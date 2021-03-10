@@ -25,6 +25,7 @@ class Matcher():
 
         self.iou_match_threshold = iou_match_threshold
         self.heads = [
+            # pylint: disable=not-callable
             Anchor(torch.tensor(_anchors) * img_size, (img_size//stride, img_size//stride), stride)
             for _anchors, stride in zip(anchors, strides)
         ]

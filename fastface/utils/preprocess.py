@@ -57,8 +57,10 @@ def prepare_batch(batch: List[torch.Tensor], target_size:int,
         scales.append(scale_factor)
         batch[i] = img
 
-    batch = torch.cat(batch, dim=0)
+    batch = torch.cat(batch, dim=0).contiguous()
+    # pylint: disable=not-callable
     scales = torch.tensor(scales, dtype=batch.dtype, device=batch.device)
+    # pylint: disable=not-callable
     paddings = torch.tensor(paddings, dtype=batch.dtype, device=batch.device)
 
     return batch, scales, paddings

@@ -64,7 +64,7 @@ def list_archs() -> List[str]:
 
     >>> import fastface as ff
     >>> ff.list_archs()
-    ['lffd']
+    ['lffd', 'yolov4']
 
     """
     return [arch for arch,_ in discover_archs()]
@@ -97,7 +97,7 @@ def get_arch_config(arch:str, config:str) -> Dict:
 
     >>> import fastface as ff
     >>> ff.get_arch_config('lffd', 'slim')
-    {'backbone_name': 'lffd-v2', 'head_infeatures': [64, 64, 64, 128, 128], 'head_outfeatures': [128, 128, 128, 128, 128], 'rf_sizes': [20, 40, 80, 160, 320], 'rf_start_offsets': [3, 7, 15, 31, 63], 'rf_strides': [4, 8, 16, 32, 64], 'scales': [(10, 20), (20, 40), (40, 80), (80, 160), (160, 320)]}
+    {'input_shape': (-1, 3, 480, 480), 'backbone_name': 'lffd-v2', 'head_infeatures': [64, 64, 64, 128, 128], 'head_outfeatures': [128, 128, 128, 128, 128], 'rf_sizes': [20, 40, 80, 160, 320], 'rf_start_offsets': [3, 7, 15, 31, 63], 'rf_strides': [4, 8, 16, 32, 64], 'scales': [(10, 20), (20, 40), (40, 80), (80, 160), (160, 320)]}
 
     """
     arch_cls = get_arch_cls(arch)

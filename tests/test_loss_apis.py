@@ -18,6 +18,6 @@ def test_get_available_losses():
         assert isinstance(loss,str),f"loss must contain name as string but found:{type(loss)}"
 
 @pytest.mark.parametrize("loss_name", ff.loss.list_losses())
-def test_list_arch_configs(loss_name:str):
+def test_loss_build(loss_name:str):
     loss = ff.loss.get_loss_by_name(loss_name)
-    assert isinstance(loss, nn.Module),f"returned value must be loss but found:{type(loss)}"
+    assert loss is not None,f"returned value must be object but found None"

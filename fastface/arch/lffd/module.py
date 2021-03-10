@@ -182,7 +182,9 @@ class LFFD(nn.Module):
             _reg_logits = reg_logits[reg_mask]
             _target_regs = target_regs[reg_mask]
 
+            # pylint: disable=not-callable
             cls_loss = self.cls_loss_fn(_cls_logits, _target_cls)
+            # pylint: disable=not-callable
             reg_loss = self.reg_loss_fn(_reg_logits, _target_regs)
 
             head_losses.append( cls_loss + reg_loss )
@@ -241,7 +243,9 @@ class LFFD(nn.Module):
 
             _reg_logits = reg_logits[reg_mask]
             _target_regs = target_regs[reg_mask]
+            # pylint: disable=not-callable
             cls_loss = self.cls_loss_fn(_cls_logits, _target_cls)
+            # pylint: disable=not-callable
             reg_loss = self.reg_loss_fn(_reg_logits, _target_regs)
 
             head_losses.append(cls_loss+reg_loss)

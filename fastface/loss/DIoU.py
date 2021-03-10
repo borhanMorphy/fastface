@@ -6,7 +6,7 @@ class DIoULoss():
     def __init__(self):
         pass
 
-    def __call__(self, input:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
+    def __call__(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """calculates distance IoU loss
 
         Args:
@@ -19,6 +19,7 @@ class DIoULoss():
         dtype = input.dtype
         device = input.device
         if input.size(0) == 0:
+            # pylint: disable=not-callable
             return torch.tensor(0, dtype=dtype, device=device, requires_grad=True)
 
         eps = 1e-16

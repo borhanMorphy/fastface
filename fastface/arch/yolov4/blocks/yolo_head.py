@@ -10,6 +10,7 @@ class YoloDetectionLayer(nn.Module):
         super().__init__()
 
         self.anchor_box_gen = Anchor(
+            # pylint: disable=not-callable
             torch.tensor(anchors, dtype=torch.float32) * img_size,
             (int(img_size / stride), int(img_size / stride)), # gx, gy
             stride

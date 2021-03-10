@@ -17,7 +17,7 @@ from .utils.config import (
 
 from .utils.cache import get_model_cache_path
 from .utils.preprocess import prepare_batch, adjust_results
-import torchvision.ops.boxes as box_ops
+from .utils import box as box_ops
 
 class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection
@@ -29,9 +29,10 @@ class FaceDetector(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
+        # pylint: disable=not-callable
         self.register_buffer("mean", torch.tensor(
             mean, dtype=self.dtype, device=self.device).reshape(1,len(mean),1,1))
-
+        # pylint: disable=not-callable
         self.register_buffer("std", torch.tensor(
             std, dtype=self.dtype, device=self.device).reshape(1,len(std),1,1))
 
@@ -55,24 +56,20 @@ class FaceDetector(pl.LightningModule):
 
     @torch.no_grad()
     def forward(self, batch: torch.Tensor,
-            iou_threshold: float = 0.4, det_threshold: float = 0.4) -> Tuple[torch.Tensor, torch.Tensor]:
+            iou_threshold: float = 0.4, det_threshold: float = 0.6) -> Tuple[torch.Tensor, torch.Tensor]:
         """list of images with float and C x H x W shape
-        * apply preprocess.forward (adaptive batch preprocess or static batch preprocess)
-        * call arch.predict
-        * apply preprocess.adjust
-        * apply filtering using `det_threshold`
-        * apply nms (if needed *future)
 
         Args:
             batch (torch.Tensor): torch.FloatTensor(B x C x H x W)
             iou_threshold (float, optional): iou threshold. Defaults to 0.4.
-            det_threshold (float, optional): detection threshold. Defaults to 0.4.
+            det_threshold (float, optional): detection threshold. Defaults to 0.6.
 
         Returns:
             Tuple[torch.Tensor]:
                 (0): contains batch ids for predictions as N,
                 (1): preds with shape N x 5 as batch_idx, xmin, ymin, xmax, ymax, score
         """
+        batch_size = batch.shape[0]
 
         # apply normalization
         batch = (batch - self.mean) / self.std
@@ -84,16 +81,13 @@ class FaceDetector(pl.LightningModule):
         pick_b, pick_n = torch.where(preds[:, :, 4] >= det_threshold)
 
         boxes = preds[pick_b, pick_n, :4]
-        scores = preds[pick_b, pick_n, 3::4]
+        scores = preds[pick_b, pick_n, 4]
 
         # filter with nms
         # TODO handle if model does not require nms
-        pick = box_ops.batched_nms(boxes, scores[:, 0], pick_b, iou_threshold)
-        batch_ids = pick_b[pick]
-        # batch_ids: N,
+        # TODO make use of top_k
 
-        preds = torch.cat([boxes[pick], scores[pick]], dim=1)
-        # preds: N,5 as  x1, y1, x2, y2, score
+        preds,batch_ids = box_ops.batched_nms(boxes, scores, pick_b, iou_threshold=iou_threshold, top_k=100)
 
         return batch_ids, preds
 
@@ -101,11 +95,6 @@ class FaceDetector(pl.LightningModule):
     def predict(self, images:Union[np.ndarray, List], iou_threshold: float = 0.4,
             det_threshold: float = 0.4, adaptive_batch: bool = True) -> List:
         """Performs face detection using given image or images
-        * convert to tensor and H x W x C => C x H x W
-        * prepare batch [C x H x W] => B x C x H x W
-        * call self.forward
-        * adjust predictions
-        * convert to json
 
         Args:
             images (Union[np.ndarray, List]): numpy RGB image or list of RGB images
@@ -129,10 +118,10 @@ class FaceDetector(pl.LightningModule):
         >>> model = ff.FaceDetector.from_pretrained('lffd_original').eval()
         >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
         >>> model.predict(img)
-        TODO
+        [{'boxes': [[1055, 177, 1187, 356], [574, 225, 704, 391], [129, 217, 263, 381], [321, 231, 447, 390], [858, 265, 977, 410]], 'scores': [0.9999922513961792, 0.9999910593032837, 0.9999610185623169, 0.9999467134475708, 0.9874875545501709]}]
         """
         # convert images(uint8) to list of tensors(float)
-        batch = self.to_tensor(images, dtype=self.dtype, device=self.device)
+        batch = self.to_tensor(images)
         # batch: List[torch.Tensor(C, H, W), ...]
 
         batch_size = len(batch)
@@ -141,9 +130,14 @@ class FaceDetector(pl.LightningModule):
         batch, scales, paddings = prepare_batch(batch, self.arch.input_shape[-1],
             adaptive_batch=adaptive_batch)
 
+        batch = batch.to(self.device, self.dtype)
+
         # batch: torch.Tensor(C,)
         batch_ids, preds = self.forward(batch, iou_threshold=iou_threshold,
             det_threshold=det_threshold)
+
+        preds = preds.cpu()
+        batch_ids = batch_ids.cpu()
         # preds: torch.Tensor(N, 5)
         # batch_ids: torch.Tensor(N,)
 
@@ -159,14 +153,11 @@ class FaceDetector(pl.LightningModule):
         return results
 
     @staticmethod
-    def to_tensor(images: Union[np.ndarray, List],
-            dtype=torch.float32, device: str = 'cpu') -> List[torch.Tensor]:
+    def to_tensor(images: Union[np.ndarray, List]) -> List[torch.Tensor]:
         """Converts given image or list of images to list of tensors
 
         Args:
             images (Union[np.ndarray, List]): RGB image or list of RGB images
-            dtype (torch.dtype) : data type of the tensor, default: torch.float32
-            device (str) : device of the tensor, default: 'cpu' 
 
         Returns:
             List[torch.Tensor]: list of torch.Tensor(C x H x W)
@@ -180,7 +171,8 @@ class FaceDetector(pl.LightningModule):
             # TODO check shape
             batch.append(
                 # h,w,c => c,h,w
-                torch.tensor(img, dtype=dtype, device=device).permute(2,0,1)
+                # pylint: disable=not-callable
+                torch.tensor(img, dtype=torch.float32).permute(2,0,1)
             )
         return batch
 
