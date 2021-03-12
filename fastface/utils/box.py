@@ -2,6 +2,26 @@ import torch
 from typing import Tuple
 from torchvision.ops import nms
 
+def generate_grids(fh: int, fw: int) -> torch.Tensor:
+    """generates grids using given feature map dimension
+
+    Args:
+        fh (int): height of the feature map
+        fw (int): width of the feature map
+
+    Returns:
+        torch.Tensor: fh x fw x 2 as x1,y1
+    """
+    # y: fh x fw
+    # x: fh x fw
+    y, x = torch.meshgrid(
+        torch.arange(fh),
+        torch.arange(fw)
+    )
+
+    # grids: fh x fw x 2
+    return torch.stack([x, y], dim=2).float()
+
 def jaccard_vectorized(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
     """Calculates jaccard index with a vectorized fashion
 
@@ -41,51 +61,47 @@ def intersect(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
     inter = torch.clamp((max_xy - min_xy), min=0)
     return inter[:, :, 0] * inter[:, :, 1]
 
-def cxcywh2xyxy(o_boxes: torch.Tensor) -> torch.Tensor:
+def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, centerx centery width height to xmin ymin xmax ymax
 
     Args:
-        o_boxes (torch.Tensor): torch.Tensor(N,4) as centerx centery width height
+        boxes (torch.Tensor): torch.Tensor(N,4) as centerx centery width height
 
     Returns:
         torch.Tensor: torch.Tensor(N,4) as xmin ymin xmax ymax
     """
-    boxes = o_boxes.clone()
-    single_batch = len(boxes.shape) == 2
-    boxes = boxes.unsqueeze(0) if single_batch else boxes # N,4 => 1,N,4
+    o_boxes = boxes.unsqueeze(0)
 
-    w_half = boxes[:, :, 2] / 2
-    h_half = boxes[:, :, 3] / 2
+    w_half = o_boxes[:, :, 2] / 2
+    h_half = o_boxes[:, :, 3] / 2
 
-    boxes[:, :, 2] = boxes[:, :, 0] + w_half
-    boxes[:, :, 3] = boxes[:, :, 1] + h_half
-    boxes[:, :, 0] = boxes[:, :, 0] - w_half
-    boxes[:, :, 1] = boxes[:, :, 1] - h_half
+    o_boxes[:, :, 0] = o_boxes[:, :, 0] - w_half
+    o_boxes[:, :, 1] = o_boxes[:, :, 1] - h_half
+    o_boxes[:, :, 2] = o_boxes[:, :, 0] + w_half
+    o_boxes[:, :, 3] = o_boxes[:, :, 1] + h_half
 
-    return boxes.squeeze(0) if single_batch else boxes
+    return o_boxes
 
-def xyxy2cxcywh(o_boxes: torch.Tensor) -> torch.Tensor:
+def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, xmin ymin xmax ymax to centerx centery width height
 
     Args:
-        o_boxes (torch.Tensor): torch.Tensor(N,4) as xmin ymin xmax ymax
+        boxes (torch.Tensor): torch.Tensor(N,4) as xmin ymin xmax ymax
 
     Returns:
         torch.Tensor: torch.Tensor(N,4) as centerx centery width height
     """
-    boxes = o_boxes.clone()
-    single_batch = len(boxes.shape) == 2
-    boxes = boxes.unsqueeze(0) if single_batch else boxes # N,4 => 1,N,4
+    o_boxes = boxes.unsqueeze(0)
 
     # x1,y1,x2,y2
-    w = boxes[:, :, 2] - boxes[:, :, 0]
-    h = boxes[:, :, 3] - boxes[:, :, 1]
+    w = o_boxes[:, :, 2] - o_boxes[:, :, 0]
+    h = o_boxes[:, :, 3] - o_boxes[:, :, 1]
 
-    boxes[:, :, :2] = (boxes[:, :, :2] + boxes[:, :, 2:]) / 2
-    boxes[:, :, 2] = w
-    boxes[:, :, 3] = h
+    o_boxes[:, :, :2] = (o_boxes[:, :, :2] + o_boxes[:, :, 2:]) / 2
+    o_boxes[:, :, 2] = w
+    o_boxes[:, :, 3] = h
 
-    return boxes.squeeze(0) if single_batch else boxes
+    return o_boxes
 
 @torch.jit.script
 def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tensor,

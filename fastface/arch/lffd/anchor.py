@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from ...utils.box import generate_grids
 
 class Anchor(nn.Module):
     def __init__(self, rf_stride: int, rf_start_offset: int, rf_size: int):
@@ -12,12 +13,12 @@ class Anchor(nn.Module):
         """
         # TODO pydoc
         """
-        grids = self.generate_grids(fh, fw)
+        grids = generate_grids(fh, fw)
         rfs = grids*self.rf_stride
         rfs = rfs+self.rf_start_offset
-        rfs = rfs.repeat(1,1,2) # fh x fw x 2 => fh x fw x 4
-        rfs[:,:,:2] = rfs[:,:,:2] - self.rf_size/2
-        rfs[:,:,2:] = rfs[:,:,2:] + self.rf_size/2
+        rfs = rfs.repeat(1, 1, 2) # fh x fw x 2 => fh x fw x 4
+        rfs[:, :, :2] = rfs[:, :, :2] - self.rf_size/2
+        rfs[:, :, 2:] = rfs[:, :, 2:] + self.rf_size/2
         return rfs
 
     def logits_to_boxes(self, reg_logits:torch.Tensor) -> torch.Tensor:
@@ -28,7 +29,7 @@ class Anchor(nn.Module):
         Returns:
             pred_boxes (torch.Tensor): bs,fh,fw,4 as xmin,ymin,xmax,ymax
         """
-        _, fh, fw, _  = reg_logits.shape
+        _, fh, fw, _ = reg_logits.shape
 
         rfs = self.forward(fh, fw).to(reg_logits.device)
 
@@ -51,24 +52,3 @@ class Anchor(nn.Module):
 
         return pred_boxes
 
-    @staticmethod
-    def generate_grids(fh: int, fw: int) -> torch.Tensor:
-        """[summary]
-
-        Args:
-            fh (torch.Tensor): [description]
-            fw (torch.Tensor): [description]
-
-        Returns:
-            torch.Tensor: [description]
-        """
-        # y: fh x fw
-        # x: fh x fw
-        y, x = torch.meshgrid(
-            torch.arange(fh),
-            torch.arange(fw)
-        )
-
-        # grids: fh x fw x 2
-        grids = torch.stack([x,y], dim=2).float()
-        return grids

@@ -12,7 +12,7 @@ class DetectionHead(nn.Module):
         super(DetectionHead,self).__init__()
         self.head_idx = head_idx
         self.num_classes = num_classes
-        self.anchor_box_gen = Anchor(rf_stride, rf_start_offset, rf_size)
+        self.anchor = Anchor(rf_stride, rf_start_offset, rf_size)
 
         self.det_conv = nn.Sequential(
             conv1x1(infeatures, features), nn.ReLU())

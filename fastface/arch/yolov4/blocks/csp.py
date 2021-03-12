@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 import torch
 import torch.nn as nn
 from .conv import conv3x3, conv1x1

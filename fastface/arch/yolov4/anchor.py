@@ -1,75 +1,40 @@
-from typing import Tuple
+from typing import List
 import torch
+import torch.nn as nn
 
 from ...utils.box import (
+    generate_grids,
     xyxy2cxcywh,
     cxcywh2xyxy
 )
 
-class Anchor():
-    def __init__(self, anchors: torch.Tensor, grids: Tuple[int, int], stride: int):
-        self._anchors = anchors / stride
-        self._cached_grids = list(grids) # gx, gy
-        self._device = 'cpu'
-        self._dtype = torch.float32
-        self._stride = stride
+class Anchor(nn.Module):
+    def __init__(self, anchors: List, img_size: int, stride: int):
+        super().__init__()
+        # anchors: between 0 < ? < 1
+        # pylint: disable=not-callable
+        self.anchor_sizes = (torch.tensor(anchors) * img_size) / stride # between 0 < ? < max_grid
+        self.stride = stride
+        self.img_size = img_size
+        self.num_anchors = len(anchors)
 
-        num_anchors = self._anchors.size(0)
-
-        grid_x = self._cached_grids[0]
-        grid_y = self._cached_grids[1]
-
-        grids = self.generate_grids(grid_y, grid_x,
-            device=self._device, dtype=self._dtype).unsqueeze(0).repeat(num_anchors,1,1,1)
-
-        wh = torch.repeat_interleave(self._anchors, grid_y*grid_x, dim=0).reshape(num_anchors, grid_y, grid_x, 2)
-        prior_boxes = torch.cat([grids, wh], dim=-1)
-        prior_boxes[:, :, :, :2] += .5 # adjust to center
-        prior_boxes *= self._stride
-
-        self._prior_boxes = cxcywh2xyxy(prior_boxes.reshape(-1,4)).reshape(num_anchors, grid_y, grid_x, 4)
-
-
-    def __call__(self, grid_y:int, grid_x:int, device:str='cpu',
-            dtype:torch.dtype=torch.float32) -> torch.Tensor:
-        """takes feature map h and w and reconstructs rf anchors as tensor
+    def forward(self, fh: int, fw: int) -> torch.Tensor:
+        """takes feature map h and w and reconstructs prior boxes as tensor
         Args:
-            grid_y (int): grid hight
-            grid_x (int): grid width
-            device (str, optional): selected device to anchors will be generated. Defaults to 'cpu'.
-            dtype (torch.dtype, optional): selected dtype to anchors will be generated. Defaults to torch.float32.
-  
+            fh (int): hight of the feature map
+            fw (int): width of the feature map
         Returns:
-            torch.Tensor: rf anchors as (nA x grid_y x grid_x x 4) (xmin, ymin, xmax, ymax)
+            torch.Tensor: prior boxes as (nA x fh x fw x 4) (xmin, ymin, xmax, ymax)
         """
+        grids = generate_grids(fh, fw).unsqueeze(0).repeat(self.num_anchors, 1, 1, 1)
 
-        if self._device != device or self._dtype != dtype:
-            self._anchors = self._anchors.to(device, dtype)
-            self._prior_boxes = self._prior_boxes.to(device, dtype)
-            self._device = device
-            self._dtype = dtype
-
-        if self._cached_grids[0] == grid_x and self._cached_grids[1] == grid_y:
-            return self._prior_boxes.clone()
-
-        self._cached_grids[0] = grid_x
-        self._cached_grids[1] = grid_y
-
-        num_anchors = self._anchors.size(0)
-
-        grids = self.generate_grids(grid_y, grid_x,
-            device=device, dtype=dtype).unsqueeze(0).repeat(num_anchors,1,1,1)
-
-        wh = torch.repeat_interleave(self._anchors, grid_y*grid_x, dim=0).reshape(num_anchors, grid_y, grid_x, 2)
-        prior_boxes = torch.cat([grids, wh], dim=-1)
+        wh = torch.repeat_interleave(self.anchor_sizes, fh*fw, dim=0).reshape(self.num_anchors, fh, fw, 2)
+        prior_boxes = torch.cat([grids, wh], dim=3)
         prior_boxes[:, :, :, :2] += .5 # adjust to center
-        prior_boxes *= self._stride
 
-        self._prior_boxes = cxcywh2xyxy(prior_boxes.reshape(-1,4)).reshape(num_anchors, grid_y, grid_x, 4)
+        return prior_boxes * self.stride
 
-        return self._prior_boxes.clone()
-
-    def logits_to_boxes(self, reg_logits:torch.Tensor) -> torch.Tensor:
+    def logits_to_boxes(self, reg_logits: torch.Tensor) -> torch.Tensor:
         """Applies bounding box regression using regression logits
         Args:
             reg_logits (torch.Tensor): bs,nA,grid_y,grid_x,4
@@ -83,47 +48,25 @@ class Anchor():
         device = reg_logits.device
         dtype = reg_logits.dtype
 
-        prior_boxes = self(grid_y, grid_x, device, dtype).reshape(-1,4) / self._stride
-        prior_boxes = xyxy2cxcywh(prior_boxes).reshape(num_anchors, grid_y, grid_x, 4)
+        prior_boxes = self.forward(grid_y, grid_x).reshape(num_anchors*grid_y*grid_x, 4).to(device, dtype)
+        prior_boxes = xyxy2cxcywh(prior_boxes).reshape(num_anchors, grid_y, grid_x, 4) / self.stride
 
         prior_boxes[:, :, :, :2] -= 0.5
 
         # nA,gy,gx,4 => bs,nA,gy,gx,4
         prior_boxes = prior_boxes.repeat(batch_size, 1, 1, 1, 1)
 
-        # bx = (sigmoid(tx) + cx) * stride
-        # by = (sigmoid(ty) + cy) * stride
-        # bw = exp(tw) * cw * stride
-        # bh = exp(th) * ch * stride
+        # bx = (sigmoid(tx) + x)
+        # by = (sigmoid(ty) + y)
+        # bw = exp(tw) * w
+        # bh = exp(th) * h
 
-        reg_logits = torch.sigmoid(reg_logits)
+        pred_xy = torch.sigmoid(reg_logits[:, :, :, :, :2]) + prior_boxes[:, :, :, :, :2]
+        pred_w = torch.exp(reg_logits[:, :, :, :, 2]) * self.anchor_sizes[:, 0].reshape(1, self.num_anchors, 1, 1)
+        pred_h = torch.exp(reg_logits[:, :, :, :, 3]) * self.anchor_sizes[:, 1].reshape(1, self.num_anchors, 1, 1)
 
-        pred_xy = reg_logits[:, :, :, :, :2] + prior_boxes[:, :, :, :, :2]
-        pred_w = torch.exp(reg_logits[:, :, :, :, 2]) * self._anchors[:,0].reshape(1,-1,1,1)
-        pred_h = torch.exp(reg_logits[:, :, :, :, 3]) * self._anchors[:,1].reshape(1,-1,1,1)
+        pred_boxes = torch.cat([pred_xy, pred_w.unsqueeze(4), pred_h.unsqueeze(4)], dim=4) * self.stride
 
-        pred_boxes = torch.cat([pred_xy, pred_w.unsqueeze(-1), pred_h.unsqueeze(-1)], dim=-1) * self._stride
-
-        pred_boxes = cxcywh2xyxy(
-            pred_boxes.reshape(-1,4)).reshape(
+        return cxcywh2xyxy(
+            pred_boxes.reshape(batch_size*num_anchors*grid_y*grid_x, 4)).reshape(
                 batch_size, num_anchors, grid_y, grid_x, 4)
-  
-        return pred_boxes
-
-    @staticmethod
-    def generate_grids(grid_y: int, grid_x: int,
-            device: str='cpu', dtype=torch.float32):
-        # TODO pydoc
-
-        # y: grid_y x grid_x
-        # x: grid_y x grid_x
-        y,x = torch.meshgrid(
-            torch.arange(grid_y, dtype=dtype, device=device),
-            torch.arange(grid_x, dtype=dtype, device=device)
-        )
-
-        # rfs: fh x fw x 2
-        rfs = torch.stack([x,y], dim=-1)
-
-        return rfs
-

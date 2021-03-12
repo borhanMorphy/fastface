@@ -3,10 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .conv import (
-    conv3x3_ds,
-    conv3x3
-)
+from .conv import conv3x3_ds
 
 from .csp import CSPBlock
 

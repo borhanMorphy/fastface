@@ -20,13 +20,13 @@ def box_iou_wh(anchors: torch.Tensor, gt_box: torch.Tensor) -> torch.Tensor:
     return (min_w*min_h) / (max_w*max_h + 1e-16)
 
 class Matcher():
-    def __init__(self, anchors: List=None, strides: List[int]=None,
-            img_size:int=None, iou_match_threshold: float = 0.5, **kwargs):
+    def __init__(self, anchors: List = None, strides: List[int] = None,
+            img_size: int = None, iou_match_threshold: float = 0.5, **kwargs):
 
         self.iou_match_threshold = iou_match_threshold
         self.heads = [
             # pylint: disable=not-callable
-            Anchor(torch.tensor(_anchors) * img_size, (img_size//stride, img_size//stride), stride)
+            Anchor(_anchors, img_size, stride)
             for _anchors, stride in zip(anchors, strides)
         ]
 
@@ -66,7 +66,7 @@ class Matcher():
             ignore_objectness = torch.zeros(*(nA, nGy, nGx), device=device, dtype=torch.bool)
             target_regs = torch.zeros(*(nA, nGy, nGx, 4), device=device, dtype=dtype)
             ignore_preds = torch.ones(*(nA, nGy, nGx), device=device, dtype=torch.bool)
-            
+
             if num_of_gts == 0:
                 heads.append(
                     {

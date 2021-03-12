@@ -17,16 +17,14 @@ class YOLOv4(nn.Module):
             "strides": [32, 16],
             "anchors": [
                 [
-                    [0.0529, 0.0673],
-                    [0.0817, 0.1034],
-                    [0.1394, 0.1779],
-                    [0.3221, 0.4279]
+                    [0.0059, 0.0068],
+                    [0.0088, 0.0107],
+                    [0.0127, 0.0166]
                 ],
                 [
-                    [0.0144, 0.0168],
-                    [0.0216, 0.0264],
-                    [0.0288, 0.0361],
-                    [0.0385, 0.0481]
+                    [0.0205, 0.0264],
+                    [0.0381, 0.0479],
+                    [0.0879, 0.1172]
                 ]
             ],
             'head_infeatures': [512, 256],
@@ -34,7 +32,7 @@ class YOLOv4(nn.Module):
         }
     }
 
-    def __init__(self, config:Dict={}, **kwargs):
+    def __init__(self, config: Dict = {}, **kwargs):
         super().__init__()
 
         assert "input_shape" in config, "`input_shape` must be defined in the config"
@@ -63,7 +61,7 @@ class YOLOv4(nn.Module):
         self.cls_loss_fn = get_loss_by_name("BFL")
         self.reg_loss_fn = get_loss_by_name("DIoU")
 
-    def forward(self, x:torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """preprocessed image batch
 
         Args:
@@ -92,20 +90,21 @@ class YOLOv4(nn.Module):
 
         batch_preds: List[torch.Tensor] = []
 
-        for i,logits in enumerate(head_logits):
+        for i, logits in enumerate(head_logits):
             # logits: b x Na x gridy x gridx x (4+1)
 
-            logits[:, :, :, :, :4] = self.heads[i].det_layer.anchor_box_gen.logits_to_boxes(logits[:, :, :, :, :4])
+            logits[:, :, :, :, :4] = self.heads[i].det_layer.anchor.logits_to_boxes(logits[:, :, :, :, :4])
 
             logits[:, :, :, :, 4:] = torch.sigmoid(logits[:, :, :, :, 4:])
 
+            # TODO fix -1
             batch_preds.append(logits.reshape(batch_size, -1, 5))
 
         # batch_preds: b x -1 x (4+1)
         return torch.cat(batch_preds, dim=1)
 
     def training_step(self, batch: Tuple[torch.Tensor, Dict],
-            batch_idx:int, **hparams) -> torch.Tensor:
+            batch_idx: int, **hparams) -> torch.Tensor:
 
         # get these from hyper parameters
         reg_loss_weight = 0.07
@@ -135,15 +134,15 @@ class YOLOv4(nn.Module):
         for head_idx, head_logits in enumerate(logits):
             # head_logits: bs x nA x gy x gx x (4 + 1)
 
-            target_objectness = head_targets[head_idx]['target_objectness'].to(device,dtype)
+            target_objectness = head_targets[head_idx]['target_objectness'].to(device, dtype)
             ignore_objectness = head_targets[head_idx]['ignore_objectness'].to(device)
-            target_regs = head_targets[head_idx]['target_regs'].to(device,dtype)
+            target_regs = head_targets[head_idx]['target_regs'].to(device, dtype)
             ignore_preds = head_targets[head_idx]['ignore_preds'].to(device)
 
             pred_objectness = head_logits[:, :, :, :, 4]
             # pred_objectness: bs x nA x gy x gx
 
-            pred_regressions = self.heads[head_idx].det_layer.anchor_box_gen.logits_to_boxes(
+            pred_regressions = self.heads[head_idx].det_layer.anchor.logits_to_boxes(
                 head_logits[:, :, :, :, :4])
             # pred_regressions: bs x nA x gy x gx x 4
 
@@ -162,7 +161,7 @@ class YOLOv4(nn.Module):
         return sum(losses)
 
     def validation_step(self, batch: Tuple[torch.Tensor, Dict],
-            batch_idx:int, **hparams) -> Dict:
+            batch_idx: int, **hparams) -> Dict:
 
         # get these from hyper parameters
         reg_loss_weight = 0.07
@@ -181,7 +180,7 @@ class YOLOv4(nn.Module):
 
         batch_preds: List[torch.Tensor] = []
 
-        for head_idx,head_logits in enumerate(logits):
+        for head_idx, head_logits in enumerate(logits):
             # logits: b x Na x gridy x gridx x (4+1)
             # head_logits: bs x nA x gy x gx x (4 + 1)
 
@@ -190,7 +189,7 @@ class YOLOv4(nn.Module):
             target_regs = head_targets[head_idx]['target_regs'].to(device,dtype)
             ignore_preds = head_targets[head_idx]['ignore_preds'].to(device)
 
-            pred_regressions = self.heads[head_idx].det_layer.anchor_box_gen.logits_to_boxes(
+            pred_regressions = self.heads[head_idx].det_layer.anchor.logits_to_boxes(
                     head_logits[:, :, :, :, :4])
 
             pred_objectness = head_logits[:, :, :, :, 4]

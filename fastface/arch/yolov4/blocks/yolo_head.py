@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 import torch
 import torch.nn as nn
 
@@ -8,33 +8,25 @@ class YoloDetectionLayer(nn.Module):
     def __init__(self, img_size: int, stride: int = None,
             anchors: List = None):
         super().__init__()
-
-        self.anchor_box_gen = Anchor(
-            # pylint: disable=not-callable
-            torch.tensor(anchors, dtype=torch.float32) * img_size,
-            (int(img_size / stride), int(img_size / stride)), # gx, gy
-            stride
-        )
+        self.anchor = Anchor(anchors, img_size, stride)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Computes detections
 
         Args:
-            x (torch.Tensor): b x Na*(4+1) x gridy x gridx
+            x (torch.Tensor): b x nA*(4+1) x gridy x gridx
         Returns:
-            torch.Tensor: b x Na x gridy x gridx x (4+1)
+            torch.Tensor: b x nA x gridy x gridx x (4+1)
         """
-        batch_size = x.size(0)
-        grid_y = x.size(-2)
-        grid_x = x.size(-1)
+        bs, nCnA, gridy, gridx = x.shape
+        nC = nCnA // self.anchor.num_anchors
 
-        # b x anchors*(4+1) x grid_y x grid_x
-        # => b x anchors x grid_y x grid_x x (4+1)
-        out = x.reshape(
-            batch_size, self.anchor_box_gen._anchors.size(0), -1,
-            grid_y, grid_x).permute(0,1,3,4,2)
+        # bs x nA*(4+1) x gridy x gridx
+        # => bs x nA x gridy x gridx x (4+1)
 
-        return out
+        # TODO check reshape order
+        return x.reshape(bs, self.anchor.num_anchors, nC,
+            gridy, gridx).permute(0, 1, 3, 4, 2)
 
 class YoloHead(nn.Module):
     def __init__(self, in_features: int, img_size: int,

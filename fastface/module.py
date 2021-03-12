@@ -23,7 +23,7 @@ class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection
     """
 
-    def __init__(self, arch: nn.Module = None, mean: List[float] = [0.0, 0.0, 0.0], 
+    def __init__(self, arch: nn.Module = None, mean: List[float] = [0.0, 0.0, 0.0],
             std: List[float] = [255., 255., 255.], hparams: Dict = None):
         super().__init__()
         self.save_hyperparameters(hparams)
@@ -31,10 +31,10 @@ class FaceDetector(pl.LightningModule):
         self.__metrics = {}
         # pylint: disable=not-callable
         self.register_buffer("mean", torch.tensor(
-            mean, dtype=self.dtype, device=self.device).reshape(1,len(mean),1,1))
+            mean, dtype=self.dtype, device=self.device).reshape(1, len(mean), 1, 1))
         # pylint: disable=not-callable
         self.register_buffer("std", torch.tensor(
-            std, dtype=self.dtype, device=self.device).reshape(1,len(std),1,1))
+            std, dtype=self.dtype, device=self.device).reshape(1, len(std), 1, 1))
 
     def add_metric(self, name:str, metric:pl.metrics.Metric):
         """Adds given metric with name key

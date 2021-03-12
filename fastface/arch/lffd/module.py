@@ -131,7 +131,7 @@ class LFFD(nn.Module):
 
             scores = torch.sigmoid(cls_.view(batch_size,fh,fw,1))
             # original positive pred score dim is 0
-            boxes = head.anchor_box_gen.logits_to_boxes( # ! TODO this line is broken for onnx deployment !
+            boxes = head.anchor.logits_to_boxes( # ! TODO this line is broken for onnx deployment !
                 reg_.view(batch_size,fh,fw,4))
 
             boxes = torch.cat([boxes,scores], dim=3).view(batch_size, fh*fw, 5)
@@ -231,7 +231,7 @@ class LFFD(nn.Module):
             cls_logits = heads_cls_logits[i].permute(0,2,3,1)
             reg_logits = heads_reg_logits[i].permute(0,2,3,1)
 
-            pred_boxes = self.heads[i].anchor_box_gen.logits_to_boxes(reg_logits)
+            pred_boxes = self.heads[i].anchor.logits_to_boxes(reg_logits)
 
             scores = torch.sigmoid(cls_logits)
             pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)

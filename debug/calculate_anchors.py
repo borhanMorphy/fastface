@@ -3,30 +3,32 @@ import torch
 from debug.kmeans import KMeans
 import time
 import numpy as np
+from tqdm import tqdm
 
 img_size = 416
 
 transforms = ff.transform.Compose(
     ff.transform.Interpolate(max_dim=img_size),
-    ff.transform.Padding(target_size=(img_size,img_size), pad_value=0),
-    ff.transform.Normalize(mean=0, std=255),
-    ff.transform.ToTensor()
+    ff.transform.Padding(target_size=(img_size, img_size), pad_value=0),
 )
 
 source_dir = ff.utils.cache.get_data_cache_path("widerface")
-ff.utils.random.seed_everything(42)
 
-ds = ff.dataset.WiderFaceDataset(source_dir, phase='train')
+ds = ff.dataset.WiderFaceDataset(source_dir, transforms=transforms, phase='train')
 
-boxes = torch.from_numpy(np.concatenate(ds.targets, axis=0))
-min_d = (boxes[:, [2,3]] - boxes[:, [0,1]]).min(dim=-1)[0]
+all_boxes = []
 
-boxes = (boxes[:, [2,3]] - boxes[:, [0,1]]) / img_size
+for img,targets in tqdm(ds):
+    all_boxes.append(torch.from_numpy(targets).float())
 
-km = KMeans(8, nstart=10)
+all_boxes = torch.cat(all_boxes, dim=0)
+
+km = KMeans(6, nstart=5)
 st = time.time()
 
-clusters,prior_boxes = km.estimate_anchors(boxes)
+all_boxes = (all_boxes[:, [2, 3]] - all_boxes[:, [0, 1]]) / img_size
+
+clusters, prior_boxes = km.estimate_anchors(all_boxes)
 print(clusters)
 print(prior_boxes)
 print(f"took: {time.time()-st}")
