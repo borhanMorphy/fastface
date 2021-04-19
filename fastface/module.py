@@ -87,7 +87,7 @@ class FaceDetector(pl.LightningModule):
         # TODO handle if model does not require nms
         # TODO make use of top_k
 
-        preds,batch_ids = box_ops.batched_nms(boxes, scores, pick_b, iou_threshold=iou_threshold, top_k=100)
+        preds,batch_ids = box_ops.batched_nms(boxes, scores, pick_b, iou_threshold=iou_threshold)
 
         return batch_ids, preds
 
@@ -236,6 +236,7 @@ class FaceDetector(pl.LightningModule):
         for key,metric in self.__metrics.items():
             metric_value = metric.compute()
             self.log(key, metric_value)
+            print(key, metric_value)
         self.log('val_loss', loss)
 
     def on_test_epoch_start(self):

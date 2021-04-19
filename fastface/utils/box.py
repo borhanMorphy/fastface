@@ -70,7 +70,7 @@ def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: torch.Tensor(N,4) as xmin ymin xmax ymax
     """
-    o_boxes = boxes.unsqueeze(0)
+    o_boxes = boxes.clone().unsqueeze(0)
 
     w_half = o_boxes[:, :, 2] / 2
     h_half = o_boxes[:, :, 3] / 2
@@ -80,7 +80,7 @@ def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     o_boxes[:, :, 2] = o_boxes[:, :, 0] + w_half
     o_boxes[:, :, 3] = o_boxes[:, :, 1] + h_half
 
-    return o_boxes
+    return o_boxes.squeeze(0)
 
 def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, xmin ymin xmax ymax to centerx centery width height
@@ -91,7 +91,7 @@ def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: torch.Tensor(N,4) as centerx centery width height
     """
-    o_boxes = boxes.unsqueeze(0)
+    o_boxes = boxes.clone().unsqueeze(0)
 
     # x1,y1,x2,y2
     w = o_boxes[:, :, 2] - o_boxes[:, :, 0]
@@ -101,11 +101,11 @@ def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     o_boxes[:, :, 2] = w
     o_boxes[:, :, 3] = h
 
-    return o_boxes
+    return o_boxes.squeeze(0)
 
 @torch.jit.script
 def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tensor,
-    iou_threshold: float = 0.4, top_k: int = 200) -> Tuple[torch.Tensor, torch.Tensor]:
+    iou_threshold: float = 0.4) -> Tuple[torch.Tensor, torch.Tensor]:
     """Applies batched non max suppression to given boxes
 
     Args:
@@ -113,7 +113,6 @@ def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tens
         scores (torch.Tensor): torch.Tensor(N,) as score
         batch_ids (torch.Tensor): torch.LongTensor(N,) as batch idx
         iou_threshold (float, optional): nms threshold. Defaults to 0.4.
-        top_k (int, optional): keep topk. Defaults to 200.
 
     Returns:
         Tuple[torch.Tensor, torch.Tensor]:
@@ -125,14 +124,10 @@ def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tens
         return torch.empty(0, 5, dtype=boxes.dtype, device=boxes.device), torch.empty(0, dtype=torch.long)
 
     max_val = torch.max(boxes)
-    max_batch_id = torch.max(batch_ids)
 
     cboxes = boxes / max_val
 
     offsets = batch_ids.to(boxes.dtype) # N,
-
-    # TODO use this
-    ctop_k = top_k * (max_batch_id + 1)
 
     cboxes += offsets.unsqueeze(1).repeat(1,4)
 

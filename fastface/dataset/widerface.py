@@ -59,6 +59,10 @@ def get_validation_set(root_path:str, partition:str):
             gt_boxes[:, [2,3]] = gt_boxes[:, [2,3]] + gt_boxes[:, [0,1]]
             ids.append(os.path.join(source_image_dir,event_name,file_name+".jpg"))
             gt_boxes = np.concatenate([gt_boxes, ignore], axis=1)
+
+            mask = np.bitwise_or(gt_boxes[:, 0] >= gt_boxes[:, 2], gt_boxes[:, 1] >= gt_boxes[:, 3])
+            gt_boxes = gt_boxes[~mask, :]
+
             targets.append(gt_boxes)
 
     return ids,targets
@@ -90,7 +94,12 @@ class WiderFaceDataset(Dataset):
             for idx,target in zip(ids,targets):
                 if len(target) == 0:
                     continue
-                self.targets.append(np.array(target, dtype=np.float32))
+                target = np.array(target, dtype=np.float32)
+                mask = np.bitwise_or(target[:, 0] >= target[:, 2], target[:, 1] >= target[:, 3])
+                target = target[~mask, :]
+                if len(target) == 0:
+                    continue
+                self.targets.append(target)
                 self.ids.append(os.path.join(source_image_dir,idx))
         else:
             self.ids,self.targets = get_validation_set(source_dir, partitions[0])
@@ -105,11 +114,8 @@ class WiderFaceDataset(Dataset):
         has_ignore = target_boxes.shape[0] > 0 and target_boxes.shape[1] == 5
         if has_ignore:
             # TODO add ignores
-            ignores = target_boxes[:,[4]]
-            target_boxes = target_boxes[:,:4]
-
-        if self.transforms:
-            img,target_boxes = self.transforms(img,target_boxes)
+            ignores = target_boxes[:, [4]]
+            target_boxes = target_boxes[:, :4]
 
         if self.transform:
             img = self.transform(img)
@@ -122,6 +128,10 @@ class WiderFaceDataset(Dataset):
 
         if self.target_transform:
             target_boxes = self.target_transform(target_boxes)
+
+        if self.transforms:
+            img,target_boxes = self.transforms(img,target_boxes)
+
 
         return img,target_boxes
 

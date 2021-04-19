@@ -11,12 +11,27 @@ from ...utils.box import (
 class Anchor(nn.Module):
     def __init__(self, anchors: List, img_size: int, stride: int):
         super().__init__()
-        # anchors: between 0 < ? < 1
+        # anchors: between 0 < _ < 1
         # pylint: disable=not-callable
-        self.anchor_sizes = (torch.tensor(anchors) * img_size) / stride # between 0 < ? < max_grid
+        self.anchor_sizes = (torch.tensor(anchors) * img_size) / stride # between 0 < _ < max_grid
         self.stride = stride
         self.img_size = img_size
         self.num_anchors = len(anchors)
+
+    @torch.jit.unused
+    def estimated_forward(self, imgh: int, imgw: int) -> torch.Tensor:
+        """Estimates anchors using image dimensions
+
+        Args:
+            imgh (int): image height
+            imgw (int): image width
+
+        Returns:
+            torch.Tensor: anchors with shape (nA x fh x fw x 4) as xmin, ymin, xmax, ymax
+        """
+        fh = imgh // self.stride
+        fw = imgw // self.stride
+        return self.forward(fh, fw)
 
     def forward(self, fh: int, fw: int) -> torch.Tensor:
         """takes feature map h and w and reconstructs prior boxes as tensor
@@ -32,7 +47,11 @@ class Anchor(nn.Module):
         prior_boxes = torch.cat([grids, wh], dim=3)
         prior_boxes[:, :, :, :2] += .5 # adjust to center
 
-        return prior_boxes * self.stride
+        prior_boxes *= self.stride
+
+        return cxcywh2xyxy(
+            prior_boxes.reshape(self.num_anchors*fh*fw, 4)).reshape(
+                self.num_anchors, fh, fw, 4)
 
     def logits_to_boxes(self, reg_logits: torch.Tensor) -> torch.Tensor:
         """Applies bounding box regression using regression logits

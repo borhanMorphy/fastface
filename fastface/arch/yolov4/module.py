@@ -7,8 +7,10 @@ from .blocks import (
     PANetTiny,
     YoloHead
 )
+from .anchor import Anchor
 
 from ...loss import get_loss_by_name
+from ...utils.box import batched_nms
 
 class YOLOv4(nn.Module):
     __CONFIGS__ = {
@@ -17,20 +19,33 @@ class YOLOv4(nn.Module):
             "strides": [32, 16],
             "anchors": [
                 [
-                    [0.0059, 0.0068],
-                    [0.0088, 0.0107],
-                    [0.0127, 0.0166]
+                    [0.19471154, 0.19711538],
+                    [0.32451923, 0.40625   ],
+                    [0.82692308, 0.76682692]
                 ],
                 [
-                    [0.0205, 0.0264],
-                    [0.0381, 0.0479],
-                    [0.0879, 0.1172]
+                    [0.02403846, 0.03365385],
+                    [0.05528846, 0.06490385],
+                    [0.08894231, 0.13942308]
                 ]
             ],
             'head_infeatures': [512, 256],
             'neck_features': 512
         }
     }
+
+    @staticmethod
+    def get_anchor_generators(config: str) -> List[nn.Module]:
+        assert config in YOLOv4.__CONFIGS__, "given config: {} not valid".format(config)
+        config = YOLOv4.__CONFIGS__[config].copy()
+        anchor_sizes = config['anchors']
+        strides = config['strides']
+        img_size = config['input_shape'][-1]
+
+        anchors = []
+        for _anchor_sizes, stride in zip(anchor_sizes, strides):
+            anchors.append(Anchor(_anchor_sizes, img_size, stride))
+        return anchors
 
     def __init__(self, config: Dict = {}, **kwargs):
         super().__init__()
@@ -58,8 +73,9 @@ class YOLOv4(nn.Module):
             for stride, _anchors, in_features in zip(strides, anchors, head_infeatures)
         ])
 
+        # TODO fix here
         self.cls_loss_fn = get_loss_by_name("BFL")
-        self.reg_loss_fn = get_loss_by_name("DIoU")
+        self.reg_loss_fn = get_loss_by_name("MSE")
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """preprocessed image batch
@@ -107,7 +123,7 @@ class YOLOv4(nn.Module):
             batch_idx: int, **hparams) -> torch.Tensor:
 
         # get these from hyper parameters
-        reg_loss_weight = 0.07
+        reg_loss_weight = 1.0#0.07
         cls_loss_weight = 1.0
 
         imgs, targets = batch
@@ -122,7 +138,6 @@ class YOLOv4(nn.Module):
                 'target_objectness':   bs x nA x nGy x nGx
                 'ignore_objectness':   bs x nA x nGy x nGx
                 'target_regs':         bs x nA x nGy x nGx x 4
-                'ignore_preds':        bs x nA x nGy x nGx
             }
 
         """
@@ -137,13 +152,11 @@ class YOLOv4(nn.Module):
             target_objectness = head_targets[head_idx]['target_objectness'].to(device, dtype)
             ignore_objectness = head_targets[head_idx]['ignore_objectness'].to(device)
             target_regs = head_targets[head_idx]['target_regs'].to(device, dtype)
-            ignore_preds = head_targets[head_idx]['ignore_preds'].to(device)
 
             pred_objectness = head_logits[:, :, :, :, 4]
             # pred_objectness: bs x nA x gy x gx
 
-            pred_regressions = self.heads[head_idx].det_layer.anchor.logits_to_boxes(
-                head_logits[:, :, :, :, :4])
+            pred_regressions = head_logits[:, :, :, :, :4]
             # pred_regressions: bs x nA x gy x gx x 4
 
             # loss objectness
@@ -151,10 +164,12 @@ class YOLOv4(nn.Module):
                 pred_objectness[~ignore_objectness],
                 target_objectness[~ignore_objectness]) * cls_loss_weight
 
+            positive_mask = (target_objectness==1) & (~ignore_objectness)
+
             # loss regression
             reg_loss = self.reg_loss_fn(
-                pred_regressions[~ignore_preds, :],
-                target_regs[~ignore_preds, :]) * reg_loss_weight
+                pred_regressions[positive_mask, :],
+                target_regs[positive_mask, :]) * reg_loss_weight
 
             losses.append(cls_loss+reg_loss)
 
@@ -164,14 +179,19 @@ class YOLOv4(nn.Module):
             batch_idx: int, **hparams) -> Dict:
 
         # get these from hyper parameters
-        reg_loss_weight = 0.07
+        reg_loss_weight = 1.0#0.07
         cls_loss_weight = 1.0
+
+        det_threshold = 0.2
+        iou_threshold = 0.4
+        keep_top_n = 200
 
         imgs, targets = batch
         device = imgs.device
         dtype = imgs.dtype
 
         head_targets = targets['heads']
+        gt_boxes = targets['gt_boxes']
 
         losses = []
 
@@ -187,17 +207,18 @@ class YOLOv4(nn.Module):
             target_objectness = head_targets[head_idx]['target_objectness'].to(device,dtype)
             ignore_objectness = head_targets[head_idx]['ignore_objectness'].to(device)
             target_regs = head_targets[head_idx]['target_regs'].to(device,dtype)
-            ignore_preds = head_targets[head_idx]['ignore_preds'].to(device)
 
-            pred_regressions = self.heads[head_idx].det_layer.anchor.logits_to_boxes(
-                    head_logits[:, :, :, :, :4])
+            pred_boxes = self.heads[head_idx].det_layer.anchor.logits_to_boxes(
+                    head_logits[:, :, :, :, :4].cpu())
+
+            pred_regressions = head_logits[:, :, :, :, :4]
 
             pred_objectness = head_logits[:, :, :, :, 4]
 
             batch_preds.append(
                 torch.cat([
-                    pred_regressions.reshape(batch_size, -1, 4),
-                    torch.sigmoid(pred_objectness.reshape(batch_size, -1)).unsqueeze(-1)
+                    pred_boxes.reshape(batch_size, -1, 4),
+                    torch.sigmoid(pred_objectness.reshape(batch_size, -1)).unsqueeze(-1).cpu()
                 ], dim=-1)
             )
 
@@ -206,16 +227,41 @@ class YOLOv4(nn.Module):
                 pred_objectness[~ignore_objectness],
                 target_objectness[~ignore_objectness]) * cls_loss_weight
 
+            positive_mask = (target_objectness==1) & (~ignore_objectness)
+
             # loss regression
             reg_loss = self.reg_loss_fn(
-                pred_regressions[~ignore_preds, :],
-                target_regs[~ignore_preds, :]) * reg_loss_weight
+                pred_regressions[positive_mask, :],
+                target_regs[positive_mask, :]) * reg_loss_weight
 
             losses.append(cls_loss+reg_loss)
 
+        batch_preds = torch.cat(batch_preds, dim=1)
+        # batch_preds: b x N x 5
+
+        pick_b, pick_n = torch.where(batch_preds[:, :, 4] >= det_threshold)
+
+        batch_preds, batch_ids = batched_nms(
+            batch_preds[pick_b, pick_n, :4],
+            batch_preds[pick_b, pick_n, 4],
+            pick_b,
+            iou_threshold
+        )
+
+        _batch_preds = []
+        for i in range(batch_size):
+            p = batch_preds[batch_ids == i]
+            if p.size(0) == 0:
+                _batch_preds.append(p)
+                continue
+
+            p = p[p[:, 4].argsort(descending=True), :]
+            _batch_preds.append(p[:keep_top_n, :])
+
         return {
             'loss': sum(losses),
-            'preds': torch.cat(batch_preds, dim=1) # b x -1 x (4+1)
+            'preds': _batch_preds,
+            'gts': [gt[:, :4].cpu() for gt in gt_boxes]
         }
 
     def test_step(self, batch: Tuple[torch.Tensor, Dict],
@@ -231,7 +277,7 @@ class YOLOv4(nn.Module):
 
     def configure_optimizers(self, **hparams):
         # TODO
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-2, weight_decay=0)
+        optimizer = torch.optim.Adam(self.parameters(), lr=3e-3, weight_decay=0)
 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer,

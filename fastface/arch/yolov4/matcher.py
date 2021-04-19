@@ -1,11 +1,9 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
-from .anchor import Anchor
+from .module import YOLOv4
 
-from ...utils.box import cxcywh2xyxy, xyxy2cxcywh
+from ...utils.box import xyxy2cxcywh
 
 def box_iou_wh(anchors: torch.Tensor, gt_box: torch.Tensor) -> torch.Tensor:
     # TODO pydoc
@@ -20,20 +18,16 @@ def box_iou_wh(anchors: torch.Tensor, gt_box: torch.Tensor) -> torch.Tensor:
     return (min_w*min_h) / (max_w*max_h + 1e-16)
 
 class Matcher():
-    def __init__(self, anchors: List = None, strides: List[int] = None,
-            img_size: int = None, iou_match_threshold: float = 0.5, **kwargs):
+    def __init__(self, config: str, iou_ignore_threshold: float = 0.4, **kwargs):
 
-        self.iou_match_threshold = iou_match_threshold
-        self.heads = [
-            # pylint: disable=not-callable
-            Anchor(_anchors, img_size, stride)
-            for _anchors, stride in zip(anchors, strides)
-        ]
+        self.iou_ignore_threshold = iou_ignore_threshold
+        self.heads = YOLOv4.get_anchor_generators(config)
 
-    def __call__(self, gt_boxes: torch.Tensor) -> Dict:
+    def __call__(self, img: torch.Tensor, gt_boxes: torch.Tensor) -> Dict:
         """Generates target cls and regs with masks, using ground truth boxes
 
         Args:
+            imgs: (torch.Tensor): c x h x w
             gt_boxes (torch.Tensor): N',4 as xmin,ymin,xmax,ymax
 
         Returns:
@@ -50,69 +44,83 @@ class Matcher():
 
         device = gt_boxes.device
         dtype = gt_boxes.dtype
-        num_of_gts = gt_boxes.size(0)
         heads = []
+
+        img_h = img.size(1)
+        img_w = img.size(2)
 
         # TODO think about empty gt boxes
 
-        for head in self.heads:
-            nA = head._anchors.size(0)
-            anchors = head._anchors * head._stride # original size
-            stride = head._stride
-            nGy = head._cached_grids[1]
-            nGx = head._cached_grids[0]
+        anchor_sizes = torch.cat([head.anchor_sizes * head.stride for head in self.heads], dim=0)
+        grid_size_x = [int(img_w / head.stride) for head in self.heads]
+        grid_size_y = [int(img_h / head.stride) for head in self.heads]
 
-            target_objectness = torch.zeros(*(nA, nGy, nGx), device=device, dtype=dtype)
-            ignore_objectness = torch.zeros(*(nA, nGy, nGx), device=device, dtype=torch.bool)
-            target_regs = torch.zeros(*(nA, nGy, nGx, 4), device=device, dtype=dtype)
-            ignore_preds = torch.ones(*(nA, nGy, nGx), device=device, dtype=torch.bool)
+        # nA*heads x 2
 
-            if num_of_gts == 0:
-                heads.append(
-                    {
-                        "target_objectness": target_objectness,
-                        "ignore_objectness": ignore_objectness,
-                        "target_regs": target_regs,
-                        "ignore_preds": ignore_preds
-                    }
-                )
-                continue
+        target_objectness = [
+            torch.zeros(*(head.num_anchors, img_h // head.stride, img_w // head.stride),
+                device=device, dtype=dtype)
+            for head in self.heads]
 
-            gt_boxes[:, :4] = gt_boxes[:, :4].clamp(min=0)
-            gt_boxes_cxcywh = xyxy2cxcywh(gt_boxes[:, :4])
+        ignore_objectness = [
+            torch.zeros(*(head.num_anchors, img_h // head.stride, img_w // head.stride),
+                device=device, dtype=torch.bool)
+            for head in self.heads]
 
-            # select best matched anchors
-            ious = torch.stack([box_iou_wh(anchors, gt[2:]) for gt in gt_boxes_cxcywh])
-            # ious: torch.Tensor(num_of_gts, nA)
-            best_ious, best_anchors = ious.max(dim=1)
+        target_regs = [
+            torch.zeros(*(head.num_anchors, img_h // head.stride, img_w // head.stride), 4,
+                device=device, dtype=dtype)
+            for head in self.heads]
 
-            # assign to grid
-            gt_centers = gt_boxes_cxcywh[:, :2] # get centers
-            gt_centers /= stride # down to grid level
-            gx, gy = gt_centers.floor().long().t()
-            gx = gx.clamp(min=0, max=nGx-1)
-            gy = gy.clamp(min=0, max=nGy-1)
+        for x1, y1, x2, y2 in gt_boxes[:, :4]:
 
-            target_objectness[best_anchors, gy, gx] = 1
-            ignore_preds[best_anchors, gy, gx] = False
-            target_regs[best_anchors, gy, gx, :] = gt_boxes[:, :4]
+            has_match = [False] * len(self.heads)
+            # TODO fix nomember
+            gt_wh = torch.tensor([x2-x1,y2-y1], dtype=dtype, device=device)
+            gt_center = torch.tensor([(x1+x2)/2, (y1+y2)/2], dtype=dtype, device=device)
 
-            for j in range(num_of_gts):
-                # ignore if anchor is not matched, but exceeds iou threshold
-                ignore_objectness[ious[j] > self.iou_match_threshold, gy[j], gx[j]] = True
+            ious = box_iou_wh(anchor_sizes, gt_wh)
+            # ious: N,
+            for anchor_idx in ious.argsort(descending=True):
+                head_idx = anchor_idx.item() // self.heads[0].num_anchors
 
-            ignore_objectness[best_anchors, gy, gx] = False
+                head_anchor_idx = anchor_idx % self.heads[head_idx].num_anchors
 
-            heads.append(
-                {
-                    "target_objectness": target_objectness,
-                    "ignore_objectness": ignore_objectness,
-                    "target_regs": target_regs,
-                    "ignore_preds": ignore_preds
-                }
-            )
+                grid_x = int((gt_center[0]/img_w) * grid_size_x[head_idx])
+                grid_y = int((gt_center[1]/img_h) * grid_size_y[head_idx])
 
-        return {
+                try:
+                    matched = target_objectness[head_idx][head_anchor_idx, grid_y, grid_x]
+                except:
+                    print(target_objectness[head_idx].shape,grid_y,grid_x,img_h,img_w)
+                    print(x1,y1,x2,y2)
+                    exit(0)
+
+                if (not matched) and (not has_match[head_idx]):
+                    target_objectness[head_idx][head_anchor_idx, grid_y, grid_x] = 1
+                    grid_gt_w = (gt_wh[0] / img_w) *  grid_size_x[head_idx]
+                    grid_gt_h = (gt_wh[1] / img_h) *  grid_size_y[head_idx]
+                    grid_anchor_sizes = anchor_sizes / self.heads[head_idx].stride
+
+                    target_regs[head_idx][head_anchor_idx, grid_y, grid_x, 0] = (gt_center[0]/img_w) * grid_size_x[head_idx] - grid_x
+                    target_regs[head_idx][head_anchor_idx, grid_y, grid_x, 1] = (gt_center[1]/img_h) * grid_size_y[head_idx] - grid_y
+                    target_regs[head_idx][head_anchor_idx, grid_y, grid_x, 2] = torch.log( (grid_gt_w / grid_anchor_sizes[head_anchor_idx, 0]) + 1e-16 )
+                    target_regs[head_idx][head_anchor_idx, grid_y, grid_x, 3] = torch.log( (grid_gt_h / grid_anchor_sizes[head_anchor_idx, 1]) + 1e-16 )
+
+                    has_match[head_idx] = True
+                elif (not matched) and (ious[anchor_idx] > self.iou_ignore_threshold):
+
+                    ignore_objectness[head_idx][head_anchor_idx, grid_y, grid_x] = True
+
+        heads = []
+        for head_idx in range(len(self.heads)):
+            heads.append({
+                "target_objectness" : target_objectness[head_idx],
+                "target_regs" : target_regs[head_idx],
+                "ignore_objectness" : ignore_objectness[head_idx]
+            })
+        
+        return img, {
             "heads": heads,
             "gt_boxes": gt_boxes
         }
@@ -131,8 +139,7 @@ class Matcher():
                     {
                         "target_objectness": torch.Tensor,
                         "ignore_objectness": torch.Tensor,
-                        "target_regs": torch.Tensor,
-                        "ignore_preds": torch.Tensor
+                        "target_regs": torch.Tensor
                     },
                     ...
                 ]
@@ -145,8 +152,7 @@ class Matcher():
             {
                 "target_objectness": [],
                 "ignore_objectness": [],
-                "target_regs": [],
-                "ignore_preds": []
+                "target_regs": []
             } for _ in range(num_of_heads)]
 
         n_gt_boxes:List = []
@@ -158,7 +164,6 @@ class Matcher():
                 ntargets[i]["target_objectness"].append(heads[i]["target_objectness"])
                 ntargets[i]["ignore_objectness"].append(heads[i]["ignore_objectness"])
                 ntargets[i]["target_regs"].append(heads[i]["target_regs"])
-                ntargets[i]["ignore_preds"].append(heads[i]["ignore_preds"])
 
         for i,target in enumerate(ntargets):
             for k in target:

@@ -1,4 +1,4 @@
-from typing import Tuple,List,Dict
+from typing import Tuple, List, Dict
 
 import torch
 import torch.nn as nn
@@ -10,6 +10,7 @@ from .blocks import (
     LFFDBackboneV2,
     DetectionHead
 )
+from .anchor import Anchor
 
 """
 self.cls_loss_fn = get_loss_by_name("BCE", negative_selection_rule="mix")
@@ -46,6 +47,18 @@ class LFFD(nn.Module):
             ]
         }
     }
+
+    @staticmethod
+    def get_anchor_generators(config: str) -> List[nn.Module]:
+        assert config in LFFD.__CONFIGS__, "given config: {} not valid".format(config)
+        config = LFFD.__CONFIGS__[config].copy()
+        rf_strides = config['rf_strides']
+        rf_start_offsets = config['rf_start_offsets']
+        rf_sizes = config['rf_sizes']
+        anchors = []
+        for rf_stride, rf_start_offset, rf_size in zip(rf_strides, rf_start_offsets, rf_sizes):
+            anchors.append(Anchor(rf_stride, rf_start_offset, rf_size))
+        return anchors
 
     def __init__(self, in_channels:int=3, config:Dict={},
             debug:bool=False, **kwargs):

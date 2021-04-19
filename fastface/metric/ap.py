@@ -7,7 +7,7 @@ class AveragePrecision(Metric):
 	"""pytorch_lightning.metrics.Metric instance to calculate binary average precision
 
 	Args:
-		iou_threshold (float): widerface AP score IoU threshold, default is 0.5
+		iou_threshold (float): AP score IoU threshold, default is 0.5
 
 	"""
 

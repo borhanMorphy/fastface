@@ -172,7 +172,8 @@ class WiderFaceDataModule(pl.LightningDataModule):
                 target_transform=self.test_target_transform, transforms=self.test_transforms)
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.train_ds, **self.train_kwargs)
+        # TODO fix this
+        return DataLoader(self.val_ds, **self.val_kwargs)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_ds, **self.val_kwargs)

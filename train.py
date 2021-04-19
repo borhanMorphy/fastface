@@ -4,58 +4,44 @@ import torch
 
 ff.utils.random.seed_everything(42)
 
-arch = "lffd"
-config = "original"
+arch = "yolov4"
+config = "tiny"
+img_size = 416
 
 arch_configs = ff.get_arch_config(arch, config)
 
 arch_pkg = ff.utils.config.get_arch_pkg(arch)
 
-matcher = arch_pkg.Matcher(**arch_configs)
+matcher = arch_pkg.Matcher(config)
 
-train_transforms = ff.transform.Compose(
-    ff.transform.Interpolate(max_dim=416),
-    ff.transform.Padding(target_size=(416,416), pad_value=0),
+transforms = ff.transform.Compose(
+    ff.transform.Interpolate(max_dim=img_size),
+    ff.transform.Padding(target_size=(img_size,img_size), pad_value=0),
     ff.transform.Normalize(mean=0, std=255),
-    ff.transform.ToTensor()
+    ff.transform.FaceDiscarder(min_face_scale=3),
+    ff.transform.ToTensor(),
+    matcher
 )
 
-val_transforms = ff.transform.Compose(
-    ff.transform.Interpolate(max_dim=416),
-    ff.transform.Padding(target_size=(416,416), pad_value=0),
-    ff.transform.Normalize(mean=0, std=255),
-    ff.transform.ToTensor()
-)
+model = ff.FaceDetector.build(arch, config)
 
-model = ff.FaceDetector.build("lffd", "original")
+model.add_metric("ap", ff.metric.get_metric_by_name("ap"))
+model.add_metric("ar", ff.metric.get_metric_by_name("ar"))
 
-metric = ff.metric.get_metric_by_name("widerface_ap")
-model.add_metric("widerface_ap", metric)
-
-train_kwargs = {
-    'batch_size': 16,
-    'pin_memory': True,
-    'shuffle': True,
-    'num_workers': 8,
-    'collate_fn': matcher.collate_fn
-}
-
-val_kwargs = {
-    'batch_size': 4,
+kwargs = {
+    'batch_size': 8,
     'pin_memory': True,
     'shuffle': False,
-    'num_workers': 4,
+    'num_workers': 8,
     'collate_fn': matcher.collate_fn
 }
 
 dm = ff.datamodule.WiderFaceDataModule(
     partitions=["easy"],
-    train_kwargs=train_kwargs,
-    train_transforms=train_transforms,
-    train_target_transform=matcher,
-    val_kwargs=val_kwargs,
-    val_target_transform=matcher,
-    val_transforms=val_transforms
+    train_kwargs=kwargs,
+    train_transforms=transforms,
+    val_kwargs=kwargs,
+    val_transforms=transforms
 )
 
 checkpoint_dirpath = ff.utils.cache.get_checkpoint_cache_path(f"{arch}_{config}")
@@ -87,7 +73,5 @@ trainer = pl.Trainer(
     check_val_every_n_epoch=1,
     precision=32,
     gradient_clip_val=0)
-print(model.mean, model.std)
-trainer.model = model
-trainer.save_checkpoint("/home/morphy/.cache/fastface/0.1.0rc1/model/lffd_original.ckpt");exit(0)
+
 trainer.fit(model, datamodule=dm)

@@ -1,12 +1,15 @@
 __all__ = [
     "get_metric_by_name", "list_metrics",
-    "WiderFaceAP", "AveragePrecision"
+    "WiderFaceAP",
+    "AveragePrecision",
+    "AverageRecall"
 ]
 
 from pytorch_lightning.metrics import Metric
 
 from .widerface_ap import WiderFaceAP
 from .ap import AveragePrecision
+from .ar import AverageRecall
 
 from typing import List
 
@@ -24,6 +27,15 @@ __metric_mapper__ = {
         'args': (),
         'kwargs': {
             'iou_threshold':0.5
+        }
+    },
+
+    'ar': {
+        'cls': AverageRecall,
+        'args': (),
+        'kwargs': {
+            'iou_threshold_min':0.5,
+            'iou_threshold_max':1,
         }
     }
 }
@@ -48,5 +60,10 @@ def list_metrics() -> List:
 
     Returns:
         List: available metric names as list of strings
+
+    >>> import fastface as ff
+    >>> ff.metric.list_metrics()
+    ['ap', 'ar', 'widerface_ap']
+
     """
-    return list(__metric_mapper__.keys())
+    return list(sorted(__metric_mapper__.keys()))

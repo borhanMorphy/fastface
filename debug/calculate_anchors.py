@@ -5,7 +5,7 @@ import time
 import numpy as np
 from tqdm import tqdm
 
-img_size = 416
+img_size = 608
 
 transforms = ff.transform.Compose(
     ff.transform.Interpolate(max_dim=img_size),

@@ -6,3 +6,7 @@ fastface.metric
 .. autofunction:: fastface.metric.get_metric_by_name
 
 .. autoclass:: fastface.metric.WiderFaceAP
+
+.. autoclass:: fastface.metric.AveragePrecision
+
+.. autoclass:: fastface.metric.AverageRecall
