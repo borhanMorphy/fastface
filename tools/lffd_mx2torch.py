@@ -13,7 +13,7 @@ def parse_arguments():
         type=str, help='mxnet .params model to convert', required=True)
 
     ap.add_argument('--model-configuration', '-mc', type=str,
-        choices=fastface.list_arch_configs("lffd"), default='560_25L_8S')
+        choices=fastface.list_arch_configs("lffd"), default='original')
 
     ap.add_argument('--output-path', '-o', type=str, default='./')
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     assert args.input_mx_model.endswith(".params"),f"given mxnet model extension must be `.params`"
 
     logging.info(f"building the lffd architecture with {args.model_configuration} configuration")
-    model = fastface.module.build("lffd", config=args.model_configuration, num_classes=1, in_channels=3)
+    model = fastface.FaceDetector.build("lffd", config=args.model_configuration, num_classes=1, in_channels=3)
 
     logging.info("extracting the state dictionary")
     t_d = model.state_dict()
@@ -76,8 +76,8 @@ if __name__ == "__main__":
     mx_d = mx.nd.load(args.input_mx_model)
 
     t_mx = re_order_mx_keys(mx_d,
-        b_list = range(25) if args.model_configuration == "560_25L_8S" else range(20),
-        h_list = [8,10,13,15,18,21,23,25] if args.model_configuration == "560_25L_8S" else [8,11,14,17,20]
+        b_list = range(25) if args.model_configuration == "original" else range(20),
+        h_list = [8,10,13,15,18,21,23,25] if args.model_configuration == "original" else [8,11,14,17,20]
     )
     n_st = OrderedDict()
 

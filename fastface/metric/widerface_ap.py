@@ -1,16 +1,21 @@
 from pytorch_lightning.metrics import Metric
-from typing import List,Tuple
+from typing import List, Tuple
 import torch
 import torchvision.ops.boxes as box_ops
 import numpy as np
 
 class WiderFaceAP(Metric):
-	# this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
-	"""Calculates WiderFace Average Precision"""
+	"""pytorch_lightning.metrics.Metric instance to calculate widerface average precision
 
-	def __init__(self, dist_sync_on_step=False, iou_threshold:float=.5):
+	Args:
+		iou_threshold (float): widerface AP score IoU threshold, default is 0.5
+
+	"""
+	# this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
+
+	def __init__(self, iou_threshold:float=.5):
 		super().__init__(
-			dist_sync_on_step=dist_sync_on_step,
+			dist_sync_on_step=False,
 			compute_on_step=False)
 
 		self.iou_threshold = iou_threshold
@@ -24,14 +29,16 @@ class WiderFaceAP(Metric):
 			preds {List} -- [Ni,5 dimensional as xmin,ymin,xmax,ymax,conf]
 			targets {List} -- [Ni,5 dimensional as xmin,ymin,xmax,ymax,ignore]
 		"""
+		# pylint: disable=no-member
 		if isinstance(preds, List): self.pred_boxes += preds
 		else: self.pred_boxes.append(preds)
 
-		if isinstance(targets,List): self.gt_boxes += targets
+		if isinstance(targets, List): self.gt_boxes += targets
 		else: self.gt_boxes.append(targets)
 
 	def compute(self) -> float:
-		curve = np.zeros((self.threshold_steps,2), dtype=np.float32)
+		# pylint: disable=no-member
+		curve = np.zeros((self.threshold_steps, 2), dtype=np.float32)
 
 		normalized_preds = self.normalize_scores(
 			[pred.float().cpu().numpy() for pred in self.pred_boxes]
@@ -41,7 +48,7 @@ class WiderFaceAP(Metric):
 
 		total_faces = 0
 
-		for preds,gts in zip(normalized_preds, gt_boxes):
+		for preds, gts in zip(normalized_preds, gt_boxes):
 			# skip if no gts
 			if gts.shape[0] == 0: continue
 
@@ -131,7 +138,9 @@ class WiderFaceAP(Metric):
 		M = gts.shape[0]
 
 		ious = box_ops.box_iou(
+			# pylint: disable=not-callable
 			torch.tensor(preds[:,:4], dtype=torch.float32),
+			# pylint: disable=not-callable
 			torch.tensor(gts, dtype=torch.float32)).numpy()
 		# ious: N,M
 

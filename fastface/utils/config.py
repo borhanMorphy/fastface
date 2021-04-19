@@ -48,7 +48,7 @@ def get_arch_pkg(arch:str):
     arch_path = get_pkg_arch_path()
     for arch_name,module_path in discover_archs():
         if arch_name != arch: continue
-        abs_m_p = module_path.replace(arch_path,'',1).replace(".py", '',-1)
+        abs_m_p = module_path.replace(arch_path,'',1).replace("/module.py", '',-1)
         abs_m_p = abs_m_p.replace(os.path.sep,"",1) if abs_m_p.startswith(os.path.sep) else abs_m_p
         abs_m_p = abs_m_p.replace(os.path.sep,".")
         return importlib.import_module(f"fastface.arch.{abs_m_p}")

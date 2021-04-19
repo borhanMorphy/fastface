@@ -1,16 +1,16 @@
 arch: "lffd"
-config: "560_25L_8S"
+config: "original"
 in_channels: 3
 
 hparams:
-  learning_rate: 0.1
+  learning_rate: 0.01
   momentum: 0.9
   weight_decay: 0.00001
   milestones: [600000, 1000000, 1200000, 1400000]
   gamma: 0.1
   ratio: 10
-  det_threshold: 0.01
-  iou_threshold: 0.3
+  det_threshold: 0.11
+  iou_threshold: 0.4
   keep_n: 10000
 
 datamodule:
@@ -26,14 +26,14 @@ datamodule:
 checkpoint:
   dirpath: null
   verbose: true
-  filename: "{arch}_{config}_{dataset}-{{epoch:02d}}-{{val_loss:.3f}}-{{val_ap:.2f}}"
+  filename: "{arch}_{config}_{dataset}-{{epoch:02d}}-{{val_loss:.3f}}-{{widerface_ap:.2f}}"
   monitor: "val_loss"
   save_top_k: 3
   mode: "min"
 
 trainer:
   gpus: 1
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 8
   max_epochs: 100
   check_val_every_n_epoch: 1
   precision: 32

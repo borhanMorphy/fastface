@@ -1,8 +1,8 @@
-pytorch-lightning>=1.0.0
-torch>=1.6
-torchvision
+pytorch-lightning==1.1.*
+torch>=1.8.0
+torchvision>=0.9.0
+imageio~=2.9.0
 scipy~=1.4.1
-opencv-python~=4.1.0.25
-googledrivedownloader
-requests
+googledrivedownloader==0.4
+requests~=2.25.0
 PyYAML~=5.3.1

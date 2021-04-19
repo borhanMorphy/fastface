@@ -1,17 +1,17 @@
-original_lffd_560_25L_8S:
+lffd_original:
   adapter:
     type: "gdrive"
     kwargs:
-      file_name: "original_lffd_560_25L_8S.pt"
+      file_name: "lffd_original.ckpt"
       file_id: "1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1"
       overwrite: false
       unzip: false
       showsize: true
-original_lffd_320_20L_5S:
+lffd_slim:
   adapter:
     type: "gdrive"
     kwargs:
-      file_name: "original_lffd_320_20L_5S.pt"
+      file_name: "lffd_slim.ckpt"
       file_id: "1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN"
       overwrite: false
       unzip: false

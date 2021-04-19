@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import os
 from typing import List,Tuple
 import numpy as np
-from cv2 import cv2
+import imageio
 from scipy.io import loadmat
 import torch
 
@@ -59,10 +59,17 @@ def get_validation_set(root_path:str, partition:str):
             gt_boxes[:, [2,3]] = gt_boxes[:, [2,3]] + gt_boxes[:, [0,1]]
             ids.append(os.path.join(source_image_dir,event_name,file_name+".jpg"))
             gt_boxes = np.concatenate([gt_boxes, ignore], axis=1)
+
+            mask = np.bitwise_or(gt_boxes[:, 0] >= gt_boxes[:, 2], gt_boxes[:, 1] >= gt_boxes[:, 3])
+            gt_boxes = gt_boxes[~mask, :]
+
             targets.append(gt_boxes)
+
     return ids,targets
 
 class WiderFaceDataset(Dataset):
+    """Widerface torch.utils.data.Dataset Instance"""
+
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
@@ -82,8 +89,18 @@ class WiderFaceDataset(Dataset):
                 annotations = foo.read().split("\n")
             ids,targets = parse_annotation_file(annotations, ranges)
             del annotations
-            self.ids = list(map(lambda img_file_path: os.path.join(source_image_dir,img_file_path), ids))
-            self.targets = [np.array(target, dtype=np.float32) for target in targets]
+            self.ids = []
+            self.targets = []
+            for idx,target in zip(ids,targets):
+                if len(target) == 0:
+                    continue
+                target = np.array(target, dtype=np.float32)
+                mask = np.bitwise_or(target[:, 0] >= target[:, 2], target[:, 1] >= target[:, 3])
+                target = target[~mask, :]
+                if len(target) == 0:
+                    continue
+                self.targets.append(target)
+                self.ids.append(os.path.join(source_image_dir,idx))
         else:
             self.ids,self.targets = get_validation_set(source_dir, partitions[0])
 
@@ -96,25 +113,25 @@ class WiderFaceDataset(Dataset):
         target_boxes = self.targets[idx].copy()
         has_ignore = target_boxes.shape[0] > 0 and target_boxes.shape[1] == 5
         if has_ignore:
-            ignores = target_boxes[:,[4]]
-            target_boxes = target_boxes[:,:4]
-
-        if self.transforms:
-            img,target_boxes = self.transforms(img,target_boxes)
+            # TODO add ignores
+            ignores = target_boxes[:, [4]]
+            target_boxes = target_boxes[:, :4]
 
         if self.transform:
             img = self.transform(img)
 
+        if has_ignore:
+            if isinstance(target_boxes, np.ndarray):
+                target_boxes = np.concatenate([target_boxes, ignores], axis=-1)
+            else:
+                target_boxes = torch.cat([target_boxes, torch.from_numpy(ignores)], dim=-1)
+
         if self.target_transform:
             target_boxes = self.target_transform(target_boxes)
 
-        if not has_ignore:
-            return img,target_boxes
+        if self.transforms:
+            img,target_boxes = self.transforms(img,target_boxes)
 
-        if isinstance(target_boxes,np.ndarray):
-            target_boxes = np.concatenate([target_boxes,ignores], axis=1)
-        else:
-            target_boxes = torch.cat([target_boxes, torch.from_numpy(ignores)], dim=1)
 
         return img,target_boxes
 
@@ -123,4 +140,21 @@ class WiderFaceDataset(Dataset):
 
     @staticmethod
     def _load_image(img_file_path:str):
-        return cv2.imread(img_file_path)
+        """loads rgb image using given file path
+
+        Args:
+            img_path (str): image file path to load
+
+        Returns:
+            np.ndarray: rgb image as np.ndarray
+        """
+        img = imageio.imread(img_file_path)
+        if not img.flags['C_CONTIGUOUS']:
+            # if img is not contiguous than fix it
+            img = np.ascontiguousarray(img, dtype=img.dtype)
+
+        if len(img.shape) == 4:
+            # found RGBA
+            img = img[:,:,:3]
+
+        return img

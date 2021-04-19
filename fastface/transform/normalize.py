@@ -2,6 +2,8 @@ import numpy as np
 from typing import Tuple,Union,List
 
 class Normalize():
+    """Normalizes the image. (img - mean) / std
+    """
     def __init__(self, mean:Union[List,Tuple,float]=0, std:Union[List,Tuple,float]=1):
         self.mean = mean
         self.std = std

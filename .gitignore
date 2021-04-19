@@ -18,3 +18,9 @@ lightning_logs/
 build/
 dist/
 fastface.egg-info/
+
+# docs
+docs/source/_build/
+
+# tests & reports
+.coverage

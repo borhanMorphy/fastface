@@ -3,6 +3,8 @@ import numpy as np
 from .transform import Transform
 
 class Padding(Transform):
+    """Applies padding to image and boxes
+    """
 
     def __init__(self, target_size:Tuple[int,int]=(640,640), pad_value:int=0):
         super(Padding,self).__init__()

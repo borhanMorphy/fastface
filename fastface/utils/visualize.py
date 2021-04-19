@@ -1,23 +1,21 @@
-from cv2 import cv2
+from PIL import Image, ImageDraw, ImageColor
+import random
 import numpy as np
-from random import randint
-from typing import Tuple
+from typing import Tuple, Dict
 
-def prettify_detections(img:np.ndarray, pred_boxes:np.ndarray,
-        color:Tuple[int,int,int]=None) -> np.ndarray:
-    """
+def prettify_detections(img:np.ndarray, preds:Dict,
+        color:Tuple[int,int,int]=None) -> Image:
+    """Returns Rendered PIL Image using given predictions 
     Args:
         img (np.ndarray): 3 channeled image
-        pred_boxes (np.ndarray): prediction boxes np.ndarray(N,5) as x1,y1,x2,y2,score
+        preds (Dict): predictions as {'boxes':[[x1,y1,x2,y2], ...], 'scores':[<float>, ..]}
         color (Tuple[int,int,int], optional): color of the boundaries. if None that it will be random color.
 
     Returns:
-        np.ndarray: 3 channeled image
+        Image: 3 channeled pil image
     """
-    color = tuple((randint(0,255) for _ in range(3))) if isinstance(color,type(None)) else color
-    rimg = img.copy()
-    for *box,_ in pred_boxes:
-        x1,y1,x2,y2 = (int(b) for b in box)
-
-        rimg = cv2.rectangle(rimg, (x1,y1), (x2,y2), color, thickness=2, lineType=cv2.LINE_AA)
-    return rimg
+    color = random.choice(list(ImageColor.colormap.keys()))
+    pil_img = Image.fromarray(img)
+    for (x1,y1,x2,y2), score in zip(preds['boxes'],preds['scores']):
+        ImageDraw.Draw(pil_img).rectangle([(x1,y1),(x2,y2)], outline=color, width=3)
+    return pil_img
