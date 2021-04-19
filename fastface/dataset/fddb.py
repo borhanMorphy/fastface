@@ -1,11 +1,9 @@
 from torch.utils.data import Dataset
 import os
-from typing import List,Tuple
+from typing import List, Tuple
 import numpy as np
 import imageio
-import torch
 import math
-
 
 def ellipse2box(major_r, minor_r, angle, center_x, center_y):
     tan_t = -(minor_r/major_r)*math.tan(angle)
@@ -27,8 +25,7 @@ def ellipse2box(major_r, minor_r, angle, center_x, center_y):
 
     return x_min, y_min, x_max, y_max
 
-
-def load_single_annotation_fold(source_path:str, fold_idx:int):
+def load_single_annotation_fold(source_path: str, fold_idx: int):
     # source_path/FDDB-fold-{:02d}-ellipseList.txt
     # TODO check fold idx range
 
@@ -73,8 +70,9 @@ class FDDBDataset(Dataset):
 
     __phases__ = ("train", "val")
     __folds__ = tuple((i+1 for i in range(10)))
-    def __init__(self, source_dir:str, phase:str='train', folds: List[int] = None,
-            transform=None, target_transform=None, transforms=None):
+    def __init__(self, source_dir:str, phase:str='train',
+            folds: List[int] = None, transforms=None):
+        # TODO make use of `phase`
         assert phase in FDDBDataset.__phases__,f"given phase {phase} is not valid, must be one of: {self.__phases__}"
         super().__init__()
 
@@ -88,32 +86,25 @@ class FDDBDataset(Dataset):
             assert fold_idx in self.__folds__, f"given fold {fold_idx} is not in the fold list"
             ids,targets = load_single_annotation_fold(source_dir, fold_idx)
             self.ids += ids
+            # TODO each targets must be dict
             self.targets += targets
 
-        self.transform = transform
-        self.target_transform = target_transform
         self.transforms = transforms
 
-    def __getitem__(self, idx:int):
+    def __getitem__(self, idx: int):
         img = self._load_image(self.ids[idx])
-        target_boxes = self.targets[idx].copy()
+        targets = self.targets[idx]
 
         if self.transforms:
-            img,target_boxes = self.transforms(img,target_boxes)
+            img, targets = self.transforms(img, targets=targets)
 
-        if self.transform:
-            img = self.transform(img)
-
-        if self.target_transform:
-            target_boxes = self.target_transform(target_boxes)
-
-        return img,target_boxes
+        return (img, targets)
 
     def __len__(self):
         return len(self.ids)
 
     @staticmethod
-    def _load_image(img_file_path:str):
+    def _load_image(img_file_path: str):
         """loads rgb image using given file path
 
         Args:
@@ -129,9 +120,10 @@ class FDDBDataset(Dataset):
 
         if len(img.shape) == 4:
             # found RGBA
-            img = img[:,:,:3]
+            img = img[:, :, :3]
 
         if len(img.shape) == 2:
             # gray image found
+            # TODO checkout here
             img = np.stack([img,img,img], axis=-1)
         return img

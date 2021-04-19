@@ -14,7 +14,6 @@ from ..transform import (
     Padding,
     FaceDiscarder,
     Normalize,
-    ToTensor,
     LFFDRandomSample,
     RandomHorizontalFlip
 )
@@ -105,16 +104,15 @@ class WiderFaceDataModule(pl.LightningDataModule):
         self.train_transform = kwargs.get('train_transform')
         self.train_target_transform = kwargs.get('train_target_transform')
         self.train_transforms = kwargs.get('train_transforms', Compose(
-                FaceDiscarder(min_face_scale=2),
+                FaceDiscarder(min_face_size=2),
                 LFFDRandomSample( # TODO handle different configurations
                     [
                         (10,15),(15,20),(20,40),(40,70),
                         (70,110),(110,250),(250,400),(400,560)
                     ], target_size=(640,640)),
-                FaceDiscarder(min_face_scale=8),
+                FaceDiscarder(min_face_size=8),
                 RandomHorizontalFlip(p=0.5),
-                Normalize(mean=127.5, std=127.5),
-                ToTensor()
+                Normalize(mean=127.5, std=127.5)
             )
         )
 
@@ -123,16 +121,14 @@ class WiderFaceDataModule(pl.LightningDataModule):
         self.val_transforms = kwargs.get('val_transforms', Compose(
                 Interpolate(max_dim=640),
                 Padding(target_size=(640,640), pad_value=0),
-                Normalize(mean=127.5, std=127.5),
-                ToTensor()
+                Normalize(mean=127.5, std=127.5)
             )
         )
 
         self.test_transform = kwargs.get('test_transform')
         self.test_target_transform = kwargs.get('test_target_transform')
         self.test_transforms = kwargs.get('test_transforms', Compose(
-                Normalize(mean=127.5, std=127.5),
-                ToTensor()
+                Normalize(mean=127.5, std=127.5)
             )
         )
 
@@ -160,16 +156,15 @@ class WiderFaceDataModule(pl.LightningDataModule):
     def setup(self, stage:str=None):
         if stage == 'fit':
             self.train_ds = WiderFaceDataset(self.source_dir,
-                phase="train", transform=self.train_transform,
-                target_transform=self.train_target_transform, transforms=self.train_transforms)
+                phase="train", transforms=self.train_transforms)
 
             self.val_ds = WiderFaceDataset(self.source_dir,
-                phase="val", transform=self.val_transform, partitions=self.partitions,
-                target_transform=self.val_target_transform, transforms=self.val_transforms)
+                phase="val", partitions=self.partitions,
+                transforms=self.val_transforms)
         elif stage == 'test':
             self.test_ds = WiderFaceDataset(self.source_dir,
-                phase="val", transform=self.test_transform, partitions=self.partitions,
-                target_transform=self.test_target_transform, transforms=self.test_transforms)
+                phase="val", partitions=self.partitions,
+                transforms=self.test_transforms)
 
     def train_dataloader(self) -> DataLoader:
         # TODO fix this

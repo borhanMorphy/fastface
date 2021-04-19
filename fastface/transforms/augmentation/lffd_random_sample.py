@@ -1,7 +1,6 @@
 import numpy as np
-from typing import List,Tuple
+from typing import List, Tuple, Dict
 import random
-import math
 from PIL import Image
 from ..pad import Padding
 from ..interpolate import Interpolate
@@ -9,30 +8,31 @@ from ..interpolate import Interpolate
 class LFFDRandomSample():
     """Applies augmantation defined in the LFFD paper"""
 
-    def __init__(self, scales:List[Tuple[int,int]], target_size:Tuple[int,int]=(640,640)):
+    def __init__(self, scales: List[Tuple[int, int]], target_size: Tuple[int, int] = (640, 640)):
         self.scales = scales
         self.target_size = target_size # W,H
         self.padding = Padding(target_size=target_size, pad_value=0)
         self.interpolate = Interpolate(max_dim=target_size[0])
 
-    def __call__(self, img:np.ndarray, boxes:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
         """Randomly samples faces using given scales. All scales represents branches and
         for each branch selection probability is same.
 
         Args:
             img (np.ndarray): H,W,C
-            boxes (np.ndarray): N,4 as xmin,ymin,xmax,ymax
+            targets (Dict, Optional): contains targets
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: transformed image and transformed boxes
+            Tuple[np.ndarray, Dict]: transformed image and transformed targets
         """
+        target_boxes = targets.get("target_boxes")
 
-        if boxes.shape[0] == 0 or random.random() > 0.4:
-            img,boxes = self.interpolate(img,boxes)
-            img,boxes = self.padding(img,boxes)
-            return img,boxes
+        if (target_boxes is None) or (target_boxes.shape[0] == 0) or (random.random() > 0.4):
+            img, targets = self.interpolate(img, targets=targets)
+            img, targets = self.padding(img, targets=targets)
+            return (img, targets)
 
-        num_faces = boxes.shape[0]
+        num_faces = targets.shape[0]
 
         # select one face
         selected_face_idx = random.randint(0, num_faces-1)
@@ -42,14 +42,14 @@ class LFFDRandomSample():
 
         scale_size = random.uniform(min_scale, max_scale)
 
-        x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
+        x1, y1, x2, y2 = target_boxes[selected_face_idx].astype(np.int32)
 
-        face_scale = max(y2-y1,x2-x1)
-        h,w = img.shape[:2]
+        face_scale = max(y2-y1, x2-x1)
+        h, w = img.shape[:2]
 
         sf = scale_size / face_scale
 
-        aboxes = boxes * sf
+        aboxes = target_boxes * sf
         sx1,sy1,sx2,sy2 = aboxes[selected_face_idx].astype(np.int32)
 
         offset_w_1 = (self.target_size[0] - (sx2-sx1)) // 2
@@ -73,8 +73,8 @@ class LFFDRandomSample():
         # select faces that center's lie between cropped region
         low_h,high_h = y1-offset_h_1,y2+offset_h_2
         low_w,high_w = x1-offset_w_1,x2+offset_w_2
-        cboxes_x = (boxes[:, 0] + boxes[:, 2]) // 2
-        cboxes_y = (boxes[:, 1] + boxes[:, 3]) // 2
+        cboxes_x = (target_boxes[:, 0] + target_boxes[:, 2]) // 2
+        cboxes_y = (target_boxes[:, 1] + target_boxes[:, 3]) // 2
 
         # TODO handle here
         center_mask = np.bitwise_and(
@@ -84,16 +84,15 @@ class LFFDRandomSample():
         aimg = img[y1-offset_h_1:y2+offset_h_2, x1-offset_w_1:x2+offset_w_2]
 
         # TODO control this line
-        #aimg = cv2.resize(aimg,None,fx=sf,fy=sf)
         aimg = np.array(Image.fromarray(aimg).resize((int(aimg.shape[1]*sf), int(aimg.shape[0]*sf))))
 
         aimg = aimg[:self.target_size[1], : self.target_size[0]]
 
-        boxes[:, [0,2]] = boxes[:, [0,2]] - (x1 - offset_w_1)
-        boxes[:, [1,3]] = boxes[:, [1,3]] - (y1 - offset_h_1)
-        boxes *= sf
+        target_boxes[:, [0,2]] = target_boxes[:, [0,2]] - (x1 - offset_w_1)
+        target_boxes[:, [1,3]] = target_boxes[:, [1,3]] - (y1 - offset_h_1)
+        target_boxes *= sf
 
-        x1,y1,x2,y2 = boxes[selected_face_idx].astype(np.int32)
+        x1, y1, x2, y2 = target_boxes[selected_face_idx].astype(np.int32)
 
         cx = (x1+x2) // 2
         cy = (y1+y2) // 2
@@ -132,11 +131,13 @@ class LFFDRandomSample():
 
         img[up_index_y:down_index_y, left_index_x:right_index_x] = aimg
 
-        boxes[:, [0,2]] += left_index_x
-        boxes[:, [1,3]] += up_index_y
+        target_boxes[:, [0,2]] += left_index_x
+        target_boxes[:, [1,3]] += up_index_y
 
-        boxes[:, 0] = boxes[:, 0].clip(0,self.target_size[0])
-        boxes[:, 1] = boxes[:, 1].clip(0,self.target_size[1])
-        boxes[:, 2] = boxes[:, 2].clip(0,self.target_size[0])
-        boxes[:, 3] = boxes[:, 3].clip(0,self.target_size[1])
-        return img,boxes[center_mask,:]
+        target_boxes[:, 0] = target_boxes[:, 0].clip(0, self.target_size[0])
+        target_boxes[:, 1] = target_boxes[:, 1].clip(0, self.target_size[1])
+        target_boxes[:, 2] = target_boxes[:, 2].clip(0, self.target_size[0])
+        target_boxes[:, 3] = target_boxes[:, 3].clip(0, self.target_size[1])
+        targets["target_boxes"] = target_boxes[center_mask, :]
+
+        return (img, targets)

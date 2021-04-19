@@ -18,7 +18,7 @@ transforms = ff.transform.Compose(
     ff.transform.Interpolate(max_dim=img_size),
     ff.transform.Padding(target_size=(img_size,img_size), pad_value=0),
     ff.transform.Normalize(mean=0, std=255),
-    ff.transform.FaceDiscarder(min_face_scale=3),
+    ff.transform.FaceDiscarder(min_face_size=3),
     ff.transform.ToTensor(),
     matcher
 )

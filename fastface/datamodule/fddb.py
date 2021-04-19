@@ -14,7 +14,6 @@ from ..transform import (
     Padding,
     FaceDiscarder,
     Normalize,
-    ToTensor,
     LFFDRandomSample,
     RandomHorizontalFlip
 )
@@ -69,31 +68,22 @@ class FDDBDataModule(pl.LightningDataModule):
         default_test_kwargs.update(kwargs.get('test_kwargs',{}))
         self.test_kwargs = default_test_kwargs
 
-        self.train_transform = kwargs.get('train_transform')
-        self.train_target_transform = kwargs.get('train_target_transform')
         self.train_transforms = kwargs.get('train_transforms', Compose(
                 Interpolate(max_dim=640),
                 Padding(target_size=(640,640), pad_value=0),
                 Normalize(mean=0, std=255),
-                ToTensor()
             )
         )
 
-        self.val_transform = kwargs.get('val_transform')
-        self.val_target_transform = kwargs.get('val_target_transform')
         self.val_transforms = kwargs.get('val_transforms', Compose(
                 Interpolate(max_dim=640),
                 Padding(target_size=(640,640), pad_value=0),
                 Normalize(mean=0, std=255),
-                ToTensor()
             )
         )
 
-        self.test_transform = kwargs.get('test_transform')
-        self.test_target_transform = kwargs.get('test_target_transform')
         self.test_transforms = kwargs.get('test_transforms', Compose(
                 Normalize(mean=0, std=255),
-                ToTensor()
             )
         )
 
@@ -106,16 +96,13 @@ class FDDBDataModule(pl.LightningDataModule):
     def setup(self, stage:str=None):
         if stage == 'fit':
             self.train_ds = FDDBDataset(self.source_dir,
-                phase="train", transform=self.train_transform,
-                target_transform=self.train_target_transform, transforms=self.train_transforms)
+                phase="train", transforms=self.train_transforms)
 
             self.val_ds = FDDBDataset(self.source_dir,
-                phase="val", transform=self.val_transform, folds=self.folds,
-                target_transform=self.val_target_transform, transforms=self.val_transforms)
+                phase="val", folds=self.folds, transforms=self.val_transforms)
         elif stage == 'test':
             self.test_ds = FDDBDataset(self.source_dir,
-                phase="val", transform=self.test_transform, folds=self.folds,
-                target_transform=self.test_target_transform, transforms=self.test_transforms)
+                phase="val", folds=self.folds, transforms=self.test_transforms)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_ds, **self.train_kwargs)

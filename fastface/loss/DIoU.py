@@ -1,10 +1,7 @@
 import torch
 
 class DIoULoss():
-    """DIoU loss
-    """
-    def __init__(self):
-        pass
+    """DIoU loss"""
 
     def __call__(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """calculates distance IoU loss
@@ -16,6 +13,7 @@ class DIoULoss():
         Returns:
             torch.Tensor: loss
         """
+        # TODO do not get mean
         dtype = input.dtype
         device = input.device
         if input.size(0) == 0:

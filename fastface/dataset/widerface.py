@@ -73,8 +73,9 @@ class WiderFaceDataset(Dataset):
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
-    def __init__(self, source_dir:str, phase:str='train', partitions:List=None,
-            transform=None, target_transform=None, transforms=None):
+    def __init__(self, source_dir:str, phase:str='train',
+            partitions:List=None, transforms=None):
+
         assert phase in WiderFaceDataset.__phases__,f"given phase {phase} is not valid, must be one of: {WiderFaceDataset.__phases__}"
         if not partitions: partitions = WiderFaceDataset.__partitions__
         for partition in partitions: assert partition in WiderFaceDataset.__partitions__,f"given partition {partition} is not in the defined list: {self.__partitions__}"
@@ -102,38 +103,19 @@ class WiderFaceDataset(Dataset):
                 self.targets.append(target)
                 self.ids.append(os.path.join(source_image_dir,idx))
         else:
-            self.ids,self.targets = get_validation_set(source_dir, partitions[0])
+            # TODO each targets must be dict and handle hard parameter
+            self.ids, self.targets = get_validation_set(source_dir, partitions[0])
 
-        self.transform = transform
-        self.target_transform = target_transform
         self.transforms = transforms
 
     def __getitem__(self, idx:int):
         img = self._load_image(self.ids[idx])
-        target_boxes = self.targets[idx].copy()
-        has_ignore = target_boxes.shape[0] > 0 and target_boxes.shape[1] == 5
-        if has_ignore:
-            # TODO add ignores
-            ignores = target_boxes[:, [4]]
-            target_boxes = target_boxes[:, :4]
-
-        if self.transform:
-            img = self.transform(img)
-
-        if has_ignore:
-            if isinstance(target_boxes, np.ndarray):
-                target_boxes = np.concatenate([target_boxes, ignores], axis=-1)
-            else:
-                target_boxes = torch.cat([target_boxes, torch.from_numpy(ignores)], dim=-1)
-
-        if self.target_transform:
-            target_boxes = self.target_transform(target_boxes)
+        targets = self.targets[idx]
 
         if self.transforms:
-            img,target_boxes = self.transforms(img,target_boxes)
+            img, targets = self.transforms(img, targets)
 
-
-        return img,target_boxes
+        return (img, targets)
 
     def __len__(self):
         return len(self.ids)
@@ -155,6 +137,7 @@ class WiderFaceDataset(Dataset):
 
         if len(img.shape) == 4:
             # found RGBA
-            img = img[:,:,:3]
+            img = img[:, :, :3]
+        # TODO what about gray scale images ?
 
         return img

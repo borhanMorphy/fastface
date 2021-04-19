@@ -60,13 +60,13 @@ def main(kwargs:Dict, resume:bool, seed:int):
     matcher = arch_pkg.Matcher(**arch_configs)
 
     train_transforms = ff.transform.Compose(
-        ff.transform.FaceDiscarder(min_face_scale=2),
+        ff.transform.FaceDiscarder(min_face_size=2),
         ff.transform.LFFDRandomSample( # TODO handle different configurations
             [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
             ], target_size=(640,640)),
-        ff.transform.FaceDiscarder(min_face_scale=8),
+        ff.transform.FaceDiscarder(min_face_size=8),
         ff.transform.RandomHorizontalFlip(p=0.5),
         ff.transform.Normalize(mean=127.5, std=127.5),
         ff.transform.ToTensor()

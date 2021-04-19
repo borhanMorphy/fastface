@@ -6,6 +6,8 @@ class BinaryCrossEntropyLoss():
     """Binary Cross Entropy Loss
     """
 
+    # TODO neg selection rules must be outside
+    # TODO Do not get MEAN
     __negative_selection_rules__ = ("none","ohem","random","mix",)
     def __init__(self, negative_selection_rule:str='none', **kwargs):
         self.neg_select_rule = negative_selection_rule
@@ -22,7 +24,8 @@ class BinaryCrossEntropyLoss():
             # select 10 negatives for 1 positive
             self.neg_select_ratio = kwargs.get('neg_select_ratio', 10)
 
-    def __call__(self, input:torch.Tensor, target:torch.Tensor):
+    def __call__(self, input: torch.Tensor, target: torch.Tensor):
+        # TODO pydoc
         # input: torch.Tensor(N,)
         # target: torch.Tensor(N,)
         loss = F.binary_cross_entropy_with_logits(input,target, reduction='none')
