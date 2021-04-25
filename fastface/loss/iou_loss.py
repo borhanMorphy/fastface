@@ -1,9 +1,12 @@
 import torch
 
-class DIoULoss():
+class DIoULoss(torch.nn.Module):
     """DIoU loss"""
 
-    def __call__(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """calculates distance IoU loss
 
         Args:
@@ -55,4 +58,4 @@ class DIoULoss():
         penalty = p_square / (c_square + eps)
 
         # DIoU loss
-        return (1 - (IoU - penalty)).mean()
+        return 1 - (IoU - penalty)

@@ -1,15 +1,14 @@
+from typing import Tuple
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from typing import Tuple,List
 from .conv import conv1x1
-from ..anchor import Anchor
+from .anchor import Anchor
 
-class DetectionHead(nn.Module):
-    def __init__(self, head_idx:int, infeatures:int, features:int,
-            rf_size:int, rf_start_offset:int, rf_stride:int, num_classes:int=1):
-        super(DetectionHead,self).__init__()
+class LFFDHead(nn.Module):
+    def __init__(self, head_idx: int, infeatures: int, features: int,
+            rf_size: int, rf_start_offset: int, rf_stride: int, num_classes: int = 1):
+        super().__init__()
         self.head_idx = head_idx
         self.num_classes = num_classes
         self.anchor = Anchor(rf_stride, rf_start_offset, rf_size)
@@ -33,13 +32,14 @@ class DetectionHead(nn.Module):
 
                 if m.bias is not None:
                     m.bias.data.fill_(0)
+
         self.apply(conv_xavier_init)
 
-    def forward(self, x:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        data = self.det_conv(x)
+    def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        data = self.det_conv(features)
 
         cls_logits = self.cls_head(data)
-        # (b,c,h,w)
+        # (b,1,h,w)
         reg_logits = self.reg_head(data)
         # (b,c,h,w)
-        return cls_logits,reg_logits
+        return reg_logits, cls_logits

@@ -5,12 +5,12 @@ from typing import Tuple, Dict
 class RandomHorizontalFlip():
     """Applies random horizontal flip for the image and updated boxes"""
 
-    def __init__(self, p:float=0.5):
-        assert p >= 0 and p <= 1
+    def __init__(self, p: float = 0.5):
+        assert p >= 0 and p <= 1.0, "given `p` is not valid, must be between 0 and 1 but found: {}".format(p)
         self.p = p
 
     def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
-        if random.random() < self.p:
+        if random.random() > self.p:
             return (img, targets)
         
         if len(img.shape) == 3:

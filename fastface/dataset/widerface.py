@@ -105,7 +105,7 @@ class WiderFaceDataset(BaseDataset):
                 if len(target) == 0:
                     continue
                 targets.append({
-                    "target_boxes": target
+                    "target_boxes": target.astype(np.float32)
                 })
                 ids.append(os.path.join(source_image_dir, idx))
         else:
@@ -114,7 +114,7 @@ class WiderFaceDataset(BaseDataset):
             targets = []
             for target in raw_targets:
                 targets.append({
-                    "target_boxes": target[:, :4],
+                    "target_boxes": target[:, :4].astype(np.float32),
                     "meta": {
                         "ignore": target[:, 4]
                     }

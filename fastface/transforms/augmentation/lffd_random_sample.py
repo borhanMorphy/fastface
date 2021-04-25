@@ -8,11 +8,14 @@ from ..interpolate import Interpolate
 class LFFDRandomSample():
     """Applies augmantation defined in the LFFD paper"""
 
-    def __init__(self, scales: List[Tuple[int, int]], target_size: Tuple[int, int] = (640, 640)):
+    def __init__(self, scales: List[Tuple[int, int]], target_size: Tuple[int, int] = (640, 640),
+            p: float = 0.5):
+        assert p >= 0 and p <= 1.0, "given `p` is not valid, must be between 0 and 1 but found: {}".format(p)
         self.scales = scales
         self.target_size = target_size # W,H
         self.padding = Padding(target_size=target_size, pad_value=0)
         self.interpolate = Interpolate(max_dim=target_size[0])
+        self.p = p
 
     def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
         """Randomly samples faces using given scales. All scales represents branches and
@@ -27,12 +30,12 @@ class LFFDRandomSample():
         """
         target_boxes = targets.get("target_boxes")
 
-        if (target_boxes is None) or (target_boxes.shape[0] == 0) or (random.random() > 0.4):
+        if (target_boxes is None) or (target_boxes.shape[0] == 0) or (random.random() > self.p):
             img, targets = self.interpolate(img, targets=targets)
             img, targets = self.padding(img, targets=targets)
             return (img, targets)
 
-        num_faces = targets.shape[0]
+        num_faces = target_boxes.shape[0]
 
         # select one face
         selected_face_idx = random.randint(0, num_faces-1)

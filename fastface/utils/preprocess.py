@@ -1,9 +1,8 @@
 from typing import List, Tuple
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
-def prepare_batch(batch: List[torch.Tensor], target_size:int,
+def prepare_batch(batch: List[torch.Tensor], target_size: int,
         adaptive_batch: bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Convert list of tensors to tensors
 

@@ -1,21 +1,17 @@
-from typing import Tuple, List, Dict
+from typing import List, Dict, Union
+import math
 
 import torch
 import torch.nn as nn
 
-from ...loss import get_loss_by_name
-
 from .blocks import (
     LFFDBackboneV1,
     LFFDBackboneV2,
-    DetectionHead
+    LFFDHead
 )
-from .anchor import Anchor
 
-"""
-self.cls_loss_fn = get_loss_by_name("BCE", negative_selection_rule="mix")
-self.reg_loss_fn = get_loss_by_name("MSE")
-"""
+from ...loss import BinaryFocalLoss
+from ...utils import box as box_ops
 
 class LFFD(nn.Module):
 
@@ -48,21 +44,12 @@ class LFFD(nn.Module):
         }
     }
 
-    @staticmethod
-    def get_anchor_generators(config: str) -> List[nn.Module]:
-        assert config in LFFD.__CONFIGS__, "given config: {} not valid".format(config)
-        config = LFFD.__CONFIGS__[config].copy()
-        rf_strides = config['rf_strides']
-        rf_start_offsets = config['rf_start_offsets']
-        rf_sizes = config['rf_sizes']
-        anchors = []
-        for rf_stride, rf_start_offset, rf_size in zip(rf_strides, rf_start_offsets, rf_sizes):
-            anchors.append(Anchor(rf_stride, rf_start_offset, rf_size))
-        return anchors
-
-    def __init__(self, in_channels:int=3, config:Dict={},
-            debug:bool=False, **kwargs):
+    def __init__(self, config: Union[str, Dict], **kwargs):
         super().__init__()
+
+        if isinstance(config, str):
+            assert config in self.__CONFIGS__, "given config {} is invalid".format(config)
+            config = self.__CONFIGS__[config].copy()
 
         assert "input_shape" in config, "`input_shape` must be defined in the config"
         assert "backbone_name" in config, "`backbone_name` must be defined in the config"
@@ -80,215 +67,283 @@ class LFFD(nn.Module):
         rf_start_offsets = config.get('rf_start_offsets')
         rf_strides = config.get('rf_strides')
 
+        self.face_scales = config["scales"]
+
         self.input_shape = config.get('input_shape')
 
         # TODO check if list lenghts are matched
         if backbone_name == "lffd-v1":
-            self.backbone = LFFDBackboneV1(in_channels)
+            self.backbone = LFFDBackboneV1(3)
         elif backbone_name == "lffd-v2":
-            self.backbone = LFFDBackboneV2(in_channels)
+            self.backbone = LFFDBackboneV2(3)
         else:
             raise ValueError(f"given backbone name: {backbone_name} is not valid")
 
         self.heads = nn.ModuleList([
-            DetectionHead(idx+1,infeatures,outfeatures, rf_size, rf_start_offset, rf_stride,
+            LFFDHead(idx+1, infeatures, outfeatures, rf_size, rf_start_offset, rf_stride,
                 num_classes=1)
-            for idx,(infeatures,outfeatures, rf_size, rf_start_offset, rf_stride) in enumerate(zip(
-                head_infeatures,head_outfeatures,rf_sizes,rf_start_offsets,rf_strides))
+            for idx, (infeatures, outfeatures, rf_size, rf_start_offset, rf_stride) in enumerate(zip(
+                head_infeatures, head_outfeatures,rf_sizes ,rf_start_offsets ,rf_strides ))
         ])
 
-        self.cls_loss_fn = None
-        self.reg_loss_fn = None
+        self.cls_loss_fn = BinaryFocalLoss(gamma=2, alpha=1)
+        self.reg_loss_fn = nn.MSELoss(reduction='none')
 
-    def forward(self, x:torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
         """preprocessed image batch
 
         Args:
-            x (torch.Tensor): B x C x H x W
+            batch (torch.Tensor): B x C x H x W
 
         Returns:
-            Tuple[List[torch.Tensor], List[torch.Tensor]]:
-                cls_logits: List[B x 1 x H x W]
-                reg_logits: List[B x 4 x H x W]
+            torch.Tensor: logits as B x 5 x N
+                (0:4) reg logits
+                (4:5) cls logits
         """
-        logits = self.backbone(x)
+        features = self.backbone(batch)
 
-        cls_logits: List[torch.Tensor] = []
-        reg_logits: List[torch.Tensor] = []
+        logits: List[torch.Tensor] = []
+        batch_size = batch.size(0)
 
-        for i,head in enumerate(self.heads):
-            cls_l,reg_l = head(logits[i])
-            cls_logits.append(cls_l)
-            reg_logits.append(reg_l)
+        for i, head in enumerate(self.heads):
+            reg_logits, cls_logits = head(features[i])
+            nreg, fh, fw = reg_logits.shape[1:]
 
-        return cls_logits, reg_logits
+            nc = cls_logits.size(1)
+ 
+            logits.append(
+                # concat channel wise
+                torch.cat([
+                    reg_logits.view(batch_size, nreg, fh*fw),
+                    cls_logits.view(batch_size, nc, fh*fw)], dim=1)
+            )
 
-    def predict(self, x:torch.Tensor) -> torch.Tensor:
-        """preprocessed image batch
+        # concat N wise
+        return torch.cat(logits, dim=2)
+
+    def postprocess(self, logits: torch.Tensor, input_shape: torch.Size = None):
+        """Applies postprocess to given logits
 
         Args:
-            x (torch.Tensor): B x C x H x W
+            logits (torch.Tensor): as B x 5 x N
+                (0:4) reg logits
+                (4:5) cls logits
+            input_shape (torch.Size, optional): shape of the input. Defaults to None.
+        """
+        batch_size, _, image_h, image_w = input_shape
+
+        reg_logits = logits[:, :4, :].permute(0, 2, 1)
+        # reg_logits: B x N x 4
+        cls_logits = torch.sigmoid(logits[:, [4], :].permute(0, 2, 1))
+        # cls_logits: B x N x 1
+
+        counter = 0
+
+        preds = []
+
+        for head_idx in range(len(self.heads)):
+            fh = image_h // self.heads[head_idx].anchor.rf_stride - 1
+            fw = image_w // self.heads[head_idx].anchor.rf_stride - 1
+            start_index = counter
+            end_index = start_index + fh*fw
+            counter += (fh*fw)
+
+            head_reg_logits = reg_logits[:, start_index:end_index, :].view(-1, fh, fw, 4)
+            
+            boxes = self.heads[head_idx].anchor.logits_to_boxes(head_reg_logits).view(-1, fh*fw, 4)
+            # boxes: bs,(fh*fw),4
+
+            scores = cls_logits[:, start_index:end_index, :].view(-1, fh*fw, 1)
+            # scores: bs,(fh*fw),1
+
+            preds.append(
+                torch.cat([boxes, scores], dim=2) # bs,(fh*fw),5
+            )
+        preds = torch.cat(preds, dim=1) # bs, N, 5
+
+        # filter with det_threshold
+        pick_b, pick_n = torch.where(preds[:, :, 4] >= 0.2)
+
+        boxes = preds[pick_b, pick_n, :4]
+        scores = preds[pick_b, pick_n, 4]
+
+        # keep only k
+        order = scores.argsort(descending=True)
+        boxes = boxes[order][:100, :]
+        scores = scores[order][:100]
+        batch_ids = pick_b[order][:100]
+
+        # filter with nms
+        preds, batch_ids = box_ops.batched_nms(boxes, scores, batch_ids)
+
+        return torch.cat([preds, batch_ids.unsqueeze(1)], dim=1)
+
+
+    def compute_loss(self, logits: torch.Tensor,
+            raw_targets: List[Dict], input_shape: torch.Size = None,
+            hparams: Dict = {}) -> Dict[str, torch.Tensor]:
+        """Computes loss using given logits and raw targets
+
+        Args:
+            logits (torch.Tensor): torch.Tensor(B, 5, N) where;
+                (0:4) reg logits
+                (4:5) cls logits
+            raw_targets (List[Dict]): list of dicts as;
+                "target_boxes": torch.Tensor(N, 4)
+            hparams (Dict, optional): model hyperparameter dict. Defaults to {}.
+            input_shape (torch.Size): shape of the input. Defaults to None.
 
         Returns:
-            torch.Tensor: B x N x 5 as xmin, ymin, xmax, ymax, score
-        """
-        batch_size = x.size(0)
-        cls_logits, reg_logits = self.forward(x)
-        preds:List[torch.Tensor] = []
-        for i,head in enumerate(self.heads):
-            # *for each head
-            fh, fw = cls_logits[i].shape[2:]
-
-            cls_ = cls_logits[i].permute(0,2,3,1).view(batch_size, fh*fw, 1)
-            reg_ = reg_logits[i].permute(0,2,3,1).view(batch_size, fh*fw, 4)
-
-            scores = torch.sigmoid(cls_.view(batch_size,fh,fw,1))
-            # original positive pred score dim is 0
-            boxes = head.anchor.logits_to_boxes( # ! TODO this line is broken for onnx deployment !
-                reg_.view(batch_size,fh,fw,4))
-
-            boxes = torch.cat([boxes,scores], dim=3).view(batch_size, fh*fw, 5)
-            # boxes: bs,(fh*fw),5 as xmin, ymin, xmax, ymax, score
-            preds.append(boxes)
-        return torch.cat(preds, dim=1)
-
-    def training_step(self, batch:Tuple[torch.Tensor, List],
-            batch_idx:int, **hparams) -> torch.Tensor:
-
-        imgs,targets = batch
-        device = imgs.device
-        dtype = imgs.dtype
+            Dict[str, torch.Tensor]: loss values as key value pairs
 
         """
-        ## targets
-        {
-            "heads": [
-                {
-                    "target_cls":       fh',fw'    | torch.float,
-                    "ignore_cls_mask":  fh',fw'    | torch.bool,
-                    "target_regs":      fh', fw',4 | torch.float,
-                    "reg_mask":         fh',fw'    | torch.bool
-                }
-            ],
-            "gt_boxes": torch.Tensor
-        }
-        """
+        # TODO use hparams
 
-        num_of_heads = len(self.heads)
-        heads_cls_logits,heads_reg_logits = self(imgs)
-        head_losses:List = []
-        heads = targets['heads']
+        reg_logits = logits[:, :4, :].permute(0, 2, 1)
+        # reg_logits: b, 4, n => b, n, 4
 
-        for i in range(num_of_heads):
-            # *for each head
-            target_cls = heads[i]['target_cls'].to(device,dtype)
-            ignore_cls_mask = heads[i]['ignore_cls_mask'].to(device)
-            target_regs = heads[i]['target_regs'].to(device,dtype)
-            reg_mask = heads[i]['reg_mask'].to(device)
+        cls_logits = logits[:, [4], :].permute(0, 2, 1)
+        # cls_logits: b, 1, n => b, n, 1
 
-            cls_logits = heads_cls_logits[i].permute(0,2,3,1)
-            reg_logits = heads_reg_logits[i].permute(0,2,3,1)
+        targets = self.build_targets(logits, raw_targets, input_shape=input_shape)
+        # targets: b, 5, n
 
-            _cls_logits = cls_logits[~ignore_cls_mask].squeeze()
-            _target_cls = target_cls[~ignore_cls_mask]
+        reg_targets = targets[:, :4, :].permute(0, 2, 1)
+        # reg_targets: b, 4, n => b, n, 4
 
-            _reg_logits = reg_logits[reg_mask]
-            _target_regs = target_regs[reg_mask]
+        cls_targets = targets[:, [4], :].permute(0, 2, 1)
+        # cls_targets: b, 1, n => b, n, 1
 
-            # pylint: disable=not-callable
-            cls_loss = self.cls_loss_fn(_cls_logits, _target_cls)
-            # pylint: disable=not-callable
-            reg_loss = self.reg_loss_fn(_reg_logits, _target_regs)
+        pos_mask = (cls_targets == 1).squeeze(-1)
+        cls_mask = cls_targets != -1
 
-            head_losses.append( cls_loss + reg_loss )
+        cls_loss = self.cls_loss_fn(cls_logits[cls_mask], cls_targets[cls_mask]).mean()
 
-        return sum(head_losses)
+        if pos_mask.sum() > 0:
+            reg_loss = self.reg_loss_fn(reg_logits[pos_mask], reg_targets[pos_mask]).mean()
+        else:
+            reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True)
 
-    def validation_step(self, batch:Tuple[torch.Tensor, Dict],
-            batch_idx:int, **hparams) -> Dict:
-
-        imgs,targets = batch
-        device = imgs.device
-        dtype = imgs.dtype
-        batch_size = imgs.size(0)
-
-        """
-        ## targets
-        {
-            "heads": [
-                {
-                    "target_cls":       fh',fw'    | torch.float,
-                    "ignore_cls_mask":  fh',fw'    | torch.bool,
-                    "target_regs":      fh', fw',4 | torch.float,
-                    "reg_mask":         fh',fw'    | torch.bool
-                }
-            ],
-            "gt_boxes": torch.Tensor
-        }
-        """
-
-        num_of_heads = len(self.heads)
-        heads_cls_logits,heads_reg_logits = self(imgs)
-        head_losses:List = []
-        heads = targets['heads']
-
-        preds:List = []
-
-        for i in range(num_of_heads):
-            # *for each head
-            target_cls = heads[i]['target_cls'].to(device,dtype)
-            ignore_cls_mask = heads[i]['ignore_cls_mask'].to(device)
-            target_regs = heads[i]['target_regs'].to(device,dtype)
-            reg_mask = heads[i]['reg_mask'].to(device)
-
-            cls_logits = heads_cls_logits[i].permute(0,2,3,1)
-            reg_logits = heads_reg_logits[i].permute(0,2,3,1)
-
-            pred_boxes = self.heads[i].anchor.logits_to_boxes(reg_logits)
-
-            scores = torch.sigmoid(cls_logits)
-            pred_boxes = torch.cat([pred_boxes,scores], dim=-1).view(batch_size,-1,5)
-            # pred_boxes: bs,(fh*fw),5 as xmin,ymin,xmax,ymax,score
-            preds.append(pred_boxes)
-
-            _cls_logits = cls_logits[~ignore_cls_mask].squeeze()
-            _target_cls = target_cls[~ignore_cls_mask]
-
-            _reg_logits = reg_logits[reg_mask]
-            _target_regs = target_regs[reg_mask]
-            # pylint: disable=not-callable
-            cls_loss = self.cls_loss_fn(_cls_logits, _target_cls)
-            # pylint: disable=not-callable
-            reg_loss = self.reg_loss_fn(_reg_logits, _target_regs)
-
-            head_losses.append(cls_loss+reg_loss)
+        loss = cls_loss + reg_loss
 
         return {
-            'loss': sum(head_losses),
-            'preds': torch.cat(preds, dim=1)
+            "loss": loss,
+            "cls_loss": cls_loss,
+            "reg_loss": reg_loss
         }
 
-    def test_step(self, batch:Tuple[torch.Tensor, Dict],
-            batch_idx:int, **hparams) -> Dict:
+    def build_targets(self, logits: torch.Tensor,
+            raw_targets: List[Dict], input_shape: torch.Size = None) -> torch.Tensor:
+        """build model targets using given logits and raw targets
 
-        imgs,_ = batch
-        
-        preds = self.predict(imgs)
+        Args:
+            logits (torch.Tensor): torch.Tensor(B, 5, N)
+            raw_targets (List[Dict]): list of dicts as;
+                "target_boxes": torch.Tensor(N, 4)
+            input_shape (torch.Size): shape of the input. Defaults to None.
 
-        return {
-            'preds': preds,
-        }
+        Returns:
+            torch.Tensor: TODO
+        """
+        batch_size, _, image_h, image_w = input_shape
 
-    def configure_optimizers(self, **hparams):
-        optimizer = torch.optim.SGD(
-            self.parameters(),
-            lr=hparams.get('learning_rate', 1e-1),
-            momentum=hparams.get('momentum', 0.9),
-            weight_decay=hparams.get('weight_decay', 1e-5))
+        device = logits.device
+        dtype = logits.dtype
 
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer,
-            milestones=hparams.get("milestones", [600000, 1000000, 1200000, 1400000]),
-            gamma=hparams.get("gamma", 0.1))
+        fmap_size = logits.size(2)
+        batch_target_boxes = []
+        batch_target_face_scales = []
+        for target in raw_targets:
+            t_boxes = target["target_boxes"]
+            batch_target_boxes.append(t_boxes)
+            
+            # select max face dim as `face scale` (defined in the paper)
+            batch_target_face_scales.append(
+                (t_boxes[:, [2, 3]] - t_boxes[:, [0, 1]]).max(dim=1)[0]
+            )
 
-        return [optimizer], [lr_scheduler]
+        targets = []
+
+        for head_idx, head in enumerate(self.heads):
+            min_face_scale, max_face_scale = self.face_scales[head_idx]
+            min_gray_face_scale = math.floor(min_face_scale * 0.9)
+            max_gray_face_scale = math.ceil(max_face_scale * 1.1)
+
+            fh = image_h // head.anchor.rf_stride - 1
+            fw = image_w // head.anchor.rf_stride - 1
+
+            rfs = head.anchor.forward(fh, fw).to(device)
+            # rfs: fh x fw x 4 as xmin, ymin, xmax, ymax
+
+            # calculate rf normalizer for the head
+            rf_normalizer = head.anchor.rf_size / 2
+
+            # get rf centers
+            rf_centers = (rfs[..., [2, 3]] + rfs[..., [0, 1]]) / 2
+            # rf_centers: fh x fw x 2 as center_x, center_y
+
+            rfs = rfs.repeat(batch_size, 1, 1, 1)
+            # rfs fh x fw x 4 => bs x fh x fw x 4
+
+            head_cls_targets = torch.zeros(*(batch_size, 1, fh, fw), dtype=dtype, device=device) # 0: bg, 1: fg, -1: ignore
+            head_reg_targets = torch.zeros(*(batch_size, 4, fh, fw), dtype=dtype, device=device)
+
+            for batch_idx, (target_boxes, target_face_scales) in enumerate(zip(batch_target_boxes, batch_target_face_scales)):
+                # for each image in the batch
+                if target_boxes.size(0) == 0:
+                    continue
+
+                # selected accepted boxes
+                head_accept_box_ids, = torch.where((target_face_scales > min_face_scale) & (target_face_scales < max_face_scale))
+
+                # find ignore boxes
+                head_ignore_box_ids, = torch.where(((target_face_scales >= min_gray_face_scale) & (target_face_scales <= min_face_scale))\
+                    | ((target_face_scales <= max_gray_face_scale) & (target_face_scales >= max_face_scale)))
+
+                for gt_idx, (x1, y1, x2, y2) in enumerate(target_boxes):
+
+                    match_mask = ((x1 < rf_centers[:, :, 0]) & (x2 > rf_centers[:, :, 0])) \
+                        & ((y1 < rf_centers[:, :, 1]) & (y2 > rf_centers[:, :, 1]))
+
+                    # match_mask: fh, fw
+                    if match_mask.sum() <= 0:
+                        continue
+
+                    if gt_idx in head_ignore_box_ids:
+                        # if gt is in gray scale, all matches sets as ignore
+                        match_fh, match_fw = torch.where(match_mask)
+
+                        # set matches as fg
+                        head_cls_targets[batch_idx, [0], match_fh, match_fw] = -1
+                        continue
+                    elif gt_idx not in head_accept_box_ids:
+                        # if gt not in gray scale and not in accepted ids, than skip it
+                        continue
+
+                    match_fh, match_fw = torch.where(match_mask & (head_cls_targets[batch_idx, 0, :, :] != -1))
+                    double_match_fh, double_match_fw = torch.where((head_cls_targets[batch_idx, 0, :, :] == 1) & match_mask)
+
+                    # set matches as fg
+                    head_cls_targets[batch_idx, [0], match_fh, match_fw] = 1
+
+                    head_reg_targets[batch_idx, 0, match_fh, match_fw] = (rf_centers[match_fh, match_fw, 0] - x1) / rf_normalizer
+                    head_reg_targets[batch_idx, 1, match_fh, match_fw] = (rf_centers[match_fh, match_fw, 1] - y1) / rf_normalizer
+                    head_reg_targets[batch_idx, 2, match_fh, match_fw] = (rf_centers[match_fh, match_fw, 0] - x2) / rf_normalizer
+                    head_reg_targets[batch_idx, 3, match_fh, match_fw] = (rf_centers[match_fh, match_fw, 1] - y2) / rf_normalizer
+
+                    # set multi-matches as ignore
+                    head_cls_targets[batch_idx, [0], double_match_fh, double_match_fw] = -1
+
+            targets.append(
+                torch.cat([
+                    head_reg_targets.view(batch_size, 4, fh*fw),
+                    head_cls_targets.view(batch_size, 1, fh*fw),
+                ], dim=1)
+            )
+        targets = torch.cat(targets, dim=-1)
+
+        return targets
+
+    def configure_optimizers(self, hparams: Dict ={}):
+        # TODO handle here
+        return torch.optim.SGD(self.parameters(), lr=1e-3, momentum=0.9, weight_decay=0)

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from ...utils.box import generate_grids
+from ....utils.box import generate_grids
 
 class Anchor(nn.Module):
 
@@ -10,7 +10,6 @@ class Anchor(nn.Module):
         self.rf_start_offset = rf_start_offset
         self.rf_size = rf_size
 
-    @torch.jit.unused
     def estimated_forward(self, imgh: int, imgw: int) -> torch.Tensor:
         """Estimates anchors using image dimensions
 
@@ -21,8 +20,8 @@ class Anchor(nn.Module):
         Returns:
             torch.Tensor: anchors with shape (fh x fw x 4) as xmin, ymin, xmax, ymax
         """
-        fh = imgh // self.rf_stride
-        fw = imgw // self.rf_stride
+        fh = imgh // self.rf_stride - 1
+        fw = imgw // self.rf_stride - 1
         return self.forward(fh, fw)
 
     def forward(self, fh: int, fw: int) -> torch.Tensor:
@@ -73,4 +72,3 @@ class Anchor(nn.Module):
         pred_boxes[:, :, :, 3] = torch.clamp(pred_boxes[:, :, :, 3], 0, fh*self.rf_stride)
 
         return pred_boxes
-

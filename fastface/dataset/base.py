@@ -11,12 +11,11 @@ class _IdentitiyTransforms():
         return img, targets
 
 class BaseDataset(Dataset):
-    def __init__(self, ids: List[str], targets: List[Dict], transforms: Callable=None, **kwargs):
+    def __init__(self, ids: List[str], targets: List[Dict], transforms=None, **kwargs):
         super().__init__()
         assert isinstance(ids, list), "given `ids` must be list"
         assert isinstance(targets, list), "given `targets must be list"
         assert len(ids) == len(targets), "lenght of both lists must be equal"
-        assert isinstance(transforms, (type(callable), type(None))), "given `transforms` must be none or function"
 
         self.ids = ids
         self.targets = targets
@@ -31,7 +30,7 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple:
         img = self._load_image(self.ids[idx])
-        targets = self.targets[idx]
+        targets = self.targets[idx].copy()
 
         # apply transforms
         return self.transforms(img, targets)
@@ -61,4 +60,4 @@ class BaseDataset(Dataset):
             # found GRAYSCALE, converting to => RGB
             img = np.stack([img, img, img], axis=-1)
 
-        return img
+        return np.array(img, dtype=np.uint8)

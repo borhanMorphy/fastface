@@ -1,15 +1,15 @@
 import torch
 
-# TODO make nn.Module
-class BinaryFocalLoss():
+class BinaryFocalLoss(torch.nn.Module):
     """Binary Focal Loss
     """
 
     def __init__(self, gamma: float = 2, alpha: float = 1, **kwargs):
+        super().__init__()
         self.gamma = gamma
         self.alpha = alpha
 
-    def __call__(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # TODO pydoc
         # TODO converge test
         # TODO do not get mean
@@ -25,4 +25,4 @@ class BinaryFocalLoss():
 
         loss = torch.cat([pos_loss,neg_loss])
 
-        return loss.mean()
+        return loss

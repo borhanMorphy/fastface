@@ -22,8 +22,8 @@ def _ellipse2box(major_r, minor_r, angle, center_x, center_y):
     t = math.atan(tan_t)
     y1 = center_y + (minor_r*math.sin(t)*math.cos(angle) + major_r*math.cos(t)*math.sin(angle))
     y2 = center_y + (minor_r*math.sin(t+math.pi)*math.cos(angle) + major_r*math.cos(t+math.pi)*math.sin(angle))
-    y_max = max(y1,y2)
-    y_min = min(y1,y2)
+    y_max = max(y1, y2)
+    y_min = min(y1, y2)
 
     return x_min, y_min, x_max, y_max
 
@@ -67,17 +67,28 @@ def _load_single_annotation_fold(source_path: str, fold_idx: int):
     return ids, targets
 
 class FDDBDataset(BaseDataset):
-    """FDDB fastface.dataset.BaseDataset Instance"""
+    """FDDB fastface.dataset.BaseDataset Instance
+    
+    paper: http://vis-www.cs.umass.edu/fddb/fddb.pdf
+    specs:
+        - total number of images: 2845
+        - total number of faces: 5171
 
-    __phases__ = ("train", "val")
+    """
+
+    __phases__ = ("train", "val", "custom")
     __folds__ = tuple((i+1 for i in range(10)))
-    def __init__(self, source_dir: str, phase: str = 'train',
+    __splits__ = ((1, 2, 4, 5, 7, 9, 10), (3, 6, 8))
+
+    def __init__(self, source_dir: str, phase: str = "custom",
             folds: List[int] = None, transforms=None, **kwargs):
         # TODO make use of `phase`
         assert phase in FDDBDataset.__phases__, f"given phase {phase} is not valid, must be one of: {self.__phases__}"
 
-        # TODO handle train or val stage
         folds = list(self.__folds__) if folds is None else folds
+
+        if phase != "custom":
+            folds = self.__splits__[self.__phases__.index(phase)]
 
         ids = []
         targets = []
@@ -88,7 +99,7 @@ class FDDBDataset(BaseDataset):
             # TODO each targets must be dict
             for target in raw_targets:
                 targets.append({
-                    "target_boxes": target.astype(np.int32)
+                    "target_boxes": target.astype(np.float32)
                 })
             del raw_targets
         super().__init__(ids, targets, transforms=transforms, **kwargs)
