@@ -1,11 +1,10 @@
 import fastface as ff
 import pytest
-from typing import List,Dict
-import torch.nn as nn
 
 @pytest.mark.parametrize("api",
     [
-        "list_losses","get_loss_by_name"
+        "list_losses",
+        "get_loss_by_name"
     ]
 )
 def test_api_exists(api):
@@ -13,7 +12,7 @@ def test_api_exists(api):
 
 def test_get_available_losses():
     losses = ff.loss.list_losses()
-    assert isinstance(losses,List),f"returned value must be list but found:{type(losses)}"
+    assert isinstance(losses, list),f"returned value must be list but found:{type(losses)}"
     for loss in losses:
         assert isinstance(loss,str),f"loss must contain name as string but found:{type(loss)}"
 

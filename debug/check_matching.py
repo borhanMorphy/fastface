@@ -15,10 +15,10 @@ arch_cls = ff.utils.config.get_arch_cls(arch)
 
 anchor_heads = arch_cls.get_anchor_generators(config)
 
-transforms = ff.transform.Compose(
-    ff.transform.Interpolate(max_dim=img_size),
-    ff.transform.Padding(target_size=(img_size, img_size), pad_value=0),
-    ff.transform.ToTensor(),
+transforms = ff.transforms.Compose(
+    ff.transforms.Interpolate(max_dim=img_size),
+    ff.transforms.Padding(target_size=(img_size, img_size), pad_value=0),
+    ff.transforms.ToTensor(),
     arch_pkg.Matcher(config)
 )
 

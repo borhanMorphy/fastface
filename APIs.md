@@ -24,14 +24,14 @@
 - fastface.loss.L2Loss
 
 ## Transform APIs
-- fastface.transform.Interpolate
-- fastface.transform.Padding
-- fastface.transform.FaceDiscarder
-- fastface.transform.ToTensor
-- fastface.transform.Normalize
-- fastface.transform.LFFDRandomSample
-- fastface.transform.RandomHorizontalFlip
-- fastface.transform.Compose
+- fastface.transforms.Interpolate
+- fastface.transforms.Padding
+- fastface.transforms.FaceDiscarder
+- fastface.transforms.ToTensor
+- fastface.transforms.Normalize
+- fastface.transforms.LFFDRandomSample
+- fastface.transforms.RandomHorizontalFlip
+- fastface.transforms.Compose
 
 ## Dataset APIs
 - fastface.dataset.WiderFaceDataset

@@ -8,7 +8,7 @@ from typing import List
 from ..dataset import FDDBDataset
 from ..utils import cache
 from ..adapter import download_object
-from ..transform import (
+from ..transforms import (
     Compose,
     Interpolate,
     Padding,

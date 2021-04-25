@@ -28,9 +28,9 @@ dm = ff.datamodule.WiderFaceDataModule(
         'batch_size':1,
         'num_workers':8
     },
-    test_transforms= ff.transform.Compose(
-        ff.transform.Normalize(mean=127.5, std=127.5),
-        ff.transform.ToTensor()
+    test_transforms= ff.transforms.Compose(
+        ff.transforms.Normalize(mean=127.5, std=127.5),
+        ff.transforms.ToTensor()
     )
 )
 # dm: pl.LightningDataModule

@@ -1,11 +1,13 @@
-from torch.utils.data import Dataset
-import os
-from typing import List, Tuple
-import numpy as np
-import imageio
-import math
+__all__ = ["FDDBDataset"]
 
-def ellipse2box(major_r, minor_r, angle, center_x, center_y):
+import os
+from typing import List
+import math
+import numpy as np
+
+from .base import BaseDataset
+
+def _ellipse2box(major_r, minor_r, angle, center_x, center_y):
     tan_t = -(minor_r/major_r)*math.tan(angle)
     t = math.atan(tan_t)
     x1 = center_x + (major_r*math.cos(t)*math.cos(angle) - minor_r*math.sin(t)*math.sin(angle))
@@ -25,7 +27,7 @@ def ellipse2box(major_r, minor_r, angle, center_x, center_y):
 
     return x_min, y_min, x_max, y_max
 
-def load_single_annotation_fold(source_path: str, fold_idx: int):
+def _load_single_annotation_fold(source_path: str, fold_idx: int):
     # source_path/FDDB-fold-{:02d}-ellipseList.txt
     # TODO check fold idx range
 
@@ -56,7 +58,7 @@ def load_single_annotation_fold(source_path: str, fold_idx: int):
                 # indicates box
                 # 123.583300 85.549500 1.265839 269.693400 161.781200  1
                 major_r, minor_r, angle, cx, cy, _ = [float(l) for l in line.split(" ") if l != '']
-                box = ellipse2box(major_r, minor_r, angle, cx, cy)
+                box = _ellipse2box(major_r, minor_r, angle, cx, cy)
                 boxes.append(box)
         if len(boxes) > 0:
             boxes = np.array(boxes)
@@ -64,66 +66,29 @@ def load_single_annotation_fold(source_path: str, fold_idx: int):
 
     return ids, targets
 
-
-class FDDBDataset(Dataset):
-    """FDDB torch.utils.data.Dataset Instance"""
+class FDDBDataset(BaseDataset):
+    """FDDB fastface.dataset.BaseDataset Instance"""
 
     __phases__ = ("train", "val")
     __folds__ = tuple((i+1 for i in range(10)))
-    def __init__(self, source_dir:str, phase:str='train',
-            folds: List[int] = None, transforms=None):
+    def __init__(self, source_dir: str, phase: str = 'train',
+            folds: List[int] = None, transforms=None, **kwargs):
         # TODO make use of `phase`
-        assert phase in FDDBDataset.__phases__,f"given phase {phase} is not valid, must be one of: {self.__phases__}"
-        super().__init__()
+        assert phase in FDDBDataset.__phases__, f"given phase {phase} is not valid, must be one of: {self.__phases__}"
 
         # TODO handle train or val stage
         folds = list(self.__folds__) if folds is None else folds
 
-        self.ids = []
-        self.targets = []
-        self.source_dir = source_dir
+        ids = []
+        targets = []
         for fold_idx in folds:
             assert fold_idx in self.__folds__, f"given fold {fold_idx} is not in the fold list"
-            ids,targets = load_single_annotation_fold(source_dir, fold_idx)
-            self.ids += ids
+            raw_ids, raw_targets = _load_single_annotation_fold(source_dir, fold_idx)
+            ids += raw_ids
             # TODO each targets must be dict
-            self.targets += targets
-
-        self.transforms = transforms
-
-    def __getitem__(self, idx: int):
-        img = self._load_image(self.ids[idx])
-        targets = self.targets[idx]
-
-        if self.transforms:
-            img, targets = self.transforms(img, targets=targets)
-
-        return (img, targets)
-
-    def __len__(self):
-        return len(self.ids)
-
-    @staticmethod
-    def _load_image(img_file_path: str):
-        """loads rgb image using given file path
-
-        Args:
-            img_path (str): image file path to load
-
-        Returns:
-            np.ndarray: rgb image as np.ndarray
-        """
-        img = imageio.imread(img_file_path)
-        if not img.flags['C_CONTIGUOUS']:
-            # if img is not contiguous than fix it
-            img = np.ascontiguousarray(img, dtype=img.dtype)
-
-        if len(img.shape) == 4:
-            # found RGBA
-            img = img[:, :, :3]
-
-        if len(img.shape) == 2:
-            # gray image found
-            # TODO checkout here
-            img = np.stack([img,img,img], axis=-1)
-        return img
+            for target in raw_targets:
+                targets.append({
+                    "target_boxes": target.astype(np.int32)
+                })
+            del raw_targets
+        super().__init__(ids, targets, transforms=transforms, **kwargs)

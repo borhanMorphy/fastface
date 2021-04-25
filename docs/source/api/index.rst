@@ -5,7 +5,7 @@
    module.rst
    metric.rst
    loss.rst
-   transform.rst
+   transforms.rst
    dataset.rst
    datamodule.rst
    utils.rst

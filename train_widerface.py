@@ -59,24 +59,24 @@ def main(kwargs:Dict, resume:bool, seed:int):
 
     matcher = arch_pkg.Matcher(**arch_configs)
 
-    train_transforms = ff.transform.Compose(
-        ff.transform.FaceDiscarder(min_face_size=2),
-        ff.transform.LFFDRandomSample( # TODO handle different configurations
+    train_transforms = ff.transforms.Compose(
+        ff.transforms.FaceDiscarder(min_face_size=2),
+        ff.transforms.LFFDRandomSample( # TODO handle different configurations
             [
                 (10,15),(15,20),(20,40),(40,70),
                 (70,110),(110,250),(250,400),(400,560)
             ], target_size=(640,640)),
-        ff.transform.FaceDiscarder(min_face_size=8),
-        ff.transform.RandomHorizontalFlip(p=0.5),
-        ff.transform.Normalize(mean=127.5, std=127.5),
-        ff.transform.ToTensor()
+        ff.transforms.FaceDiscarder(min_face_size=8),
+        ff.transforms.RandomHorizontalFlip(p=0.5),
+        ff.transforms.Normalize(mean=127.5, std=127.5),
+        ff.transforms.ToTensor()
     )
 
-    val_transforms = ff.transform.Compose(
-        ff.transform.Interpolate(max_dim=640),
-        ff.transform.Padding(target_size=(640,640), pad_value=0),
-        ff.transform.Normalize(mean=127.5, std=127.5),
-        ff.transform.ToTensor()
+    val_transforms = ff.transforms.Compose(
+        ff.transforms.Interpolate(max_dim=640),
+        ff.transforms.Padding(target_size=(640,640), pad_value=0),
+        ff.transforms.Normalize(mean=127.5, std=127.5),
+        ff.transforms.ToTensor()
     )
 
     datamodule['train'].update({"collate_fn":arch_pkg.Matcher.collate_fn})

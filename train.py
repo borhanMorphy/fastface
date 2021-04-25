@@ -14,12 +14,12 @@ arch_pkg = ff.utils.config.get_arch_pkg(arch)
 
 matcher = arch_pkg.Matcher(config)
 
-transforms = ff.transform.Compose(
-    ff.transform.Interpolate(max_dim=img_size),
-    ff.transform.Padding(target_size=(img_size,img_size), pad_value=0),
-    ff.transform.Normalize(mean=0, std=255),
-    ff.transform.FaceDiscarder(min_face_size=3),
-    ff.transform.ToTensor(),
+transforms = ff.transforms.Compose(
+    ff.transforms.Interpolate(max_dim=img_size),
+    ff.transforms.Padding(target_size=(img_size,img_size), pad_value=0),
+    ff.transforms.Normalize(mean=0, std=255),
+    ff.transforms.FaceDiscarder(min_face_size=3),
+    ff.transforms.ToTensor(),
     matcher
 )
 

@@ -1,16 +1,17 @@
-from torch.utils.data import Dataset
-import os
-from typing import List,Tuple
-import numpy as np
-import imageio
-from scipy.io import loadmat
-import torch
+__all__ = ["WiderFaceDataset"]
 
-def parse_annotation_file(lines:List, ranges:List) -> Tuple[List,List]:
+import os
+from typing import List, Tuple
+import numpy as np
+from scipy.io import loadmat
+
+from .base import BaseDataset
+
+def _parse_annotation_file(lines: List, ranges: List) -> Tuple[List, List]:
     idx = 0
     length = len(lines)
     def parse_box(box):
-        x,y,w,h = [int(b) for b in box.split(" ")[:4]]
+        x, y, w, h = [int(b) for b in box.split(" ")[:4]]
         return x,y,x+w,y+h
 
     ids = []
@@ -38,11 +39,11 @@ def parse_annotation_file(lines:List, ranges:List) -> Tuple[List,List]:
             targets.append(boxes)
         idx = idx + len(boxes) + 2
 
-    return ids,targets
+    return ids, targets
 
-def get_validation_set(root_path:str, partition:str):
-    val_mat = loadmat(os.path.join(root_path,f'eval_tools/ground_truth/wider_{partition}_val.mat'))
-    source_image_dir = os.path.join(root_path, f"WIDER_val/images")
+def _get_validation_set(root_path: str, partition: str):
+    val_mat = loadmat(os.path.join(root_path, f'eval_tools/ground_truth/wider_{partition}_val.mat'))
+    source_image_dir = os.path.join(root_path, "WIDER_val/images")
     ids = []
     targets = []
     total = val_mat['file_list'].shape[0]
@@ -65,21 +66,24 @@ def get_validation_set(root_path:str, partition:str):
 
             targets.append(gt_boxes)
 
-    return ids,targets
+    return ids, targets
 
-class WiderFaceDataset(Dataset):
-    """Widerface torch.utils.data.Dataset Instance"""
+class WiderFaceDataset(BaseDataset):
+    """Widerface fastface.dataset.BaseDataset Instance"""
 
     __phases__ = ("train","val")
     __partitions__ = ("hard","medium","easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
-    def __init__(self, source_dir:str, phase:str='train',
-            partitions:List=None, transforms=None):
+    def __init__(self, source_dir: str, phase: str='train',
+            partitions: List = None, transforms=None, **kwargs):
 
-        assert phase in WiderFaceDataset.__phases__,f"given phase {phase} is not valid, must be one of: {WiderFaceDataset.__phases__}"
-        if not partitions: partitions = WiderFaceDataset.__partitions__
-        for partition in partitions: assert partition in WiderFaceDataset.__partitions__,f"given partition {partition} is not in the defined list: {self.__partitions__}"
-        super(WiderFaceDataset,self).__init__()
+        assert phase in WiderFaceDataset.__phases__, f"given phase {phase} is not valid, must be one of: {WiderFaceDataset.__phases__}"
+        if not partitions:
+            partitions = WiderFaceDataset.__partitions__
+
+        for partition in partitions:
+            assert partition in WiderFaceDataset.__partitions__, f"given partition {partition} is not in the defined list: {self.__partitions__}"
+
         if phase == 'train':
             ranges = []
             for partition in partitions:
@@ -88,11 +92,11 @@ class WiderFaceDataset(Dataset):
             annotation_path = os.path.join(source_dir, f"wider_face_split/wider_face_{phase}_bbx_gt.txt")
             with open(annotation_path,"r") as foo:
                 annotations = foo.read().split("\n")
-            ids,targets = parse_annotation_file(annotations, ranges)
+            raw_ids, raw_targets = _parse_annotation_file(annotations, ranges)
             del annotations
-            self.ids = []
-            self.targets = []
-            for idx,target in zip(ids,targets):
+            ids = []
+            targets = []
+            for idx, target in zip(raw_ids, raw_targets):
                 if len(target) == 0:
                     continue
                 target = np.array(target, dtype=np.float32)
@@ -100,44 +104,21 @@ class WiderFaceDataset(Dataset):
                 target = target[~mask, :]
                 if len(target) == 0:
                     continue
-                self.targets.append(target)
-                self.ids.append(os.path.join(source_image_dir,idx))
+                targets.append({
+                    "target_boxes": target
+                })
+                ids.append(os.path.join(source_image_dir, idx))
         else:
             # TODO each targets must be dict and handle hard parameter
-            self.ids, self.targets = get_validation_set(source_dir, partitions[0])
+            ids, raw_targets = _get_validation_set(source_dir, partitions[0])
+            targets = []
+            for target in raw_targets:
+                targets.append({
+                    "target_boxes": target[:, :4],
+                    "meta": {
+                        "ignore": target[:, 4]
+                    }
+                })
+            del raw_targets
 
-        self.transforms = transforms
-
-    def __getitem__(self, idx:int):
-        img = self._load_image(self.ids[idx])
-        targets = self.targets[idx]
-
-        if self.transforms:
-            img, targets = self.transforms(img, targets)
-
-        return (img, targets)
-
-    def __len__(self):
-        return len(self.ids)
-
-    @staticmethod
-    def _load_image(img_file_path:str):
-        """loads rgb image using given file path
-
-        Args:
-            img_path (str): image file path to load
-
-        Returns:
-            np.ndarray: rgb image as np.ndarray
-        """
-        img = imageio.imread(img_file_path)
-        if not img.flags['C_CONTIGUOUS']:
-            # if img is not contiguous than fix it
-            img = np.ascontiguousarray(img, dtype=img.dtype)
-
-        if len(img.shape) == 4:
-            # found RGBA
-            img = img[:, :, :3]
-        # TODO what about gray scale images ?
-
-        return img
+        super().__init__(ids, targets, transforms=transforms, **kwargs)

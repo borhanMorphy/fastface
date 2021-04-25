@@ -30,11 +30,11 @@ def main(model:str, device:str, partition:str,
 
     matcher = arch_pkg.Matcher(**arch_configs)
 
-    transforms = ff.transform.Compose(
-        ff.transform.Interpolate(max_dim=640),
-        ff.transform.Padding(target_size=(640,640), pad_value=0),
-        ff.transform.Normalize(mean=127.5, std=127.5),
-        ff.transform.ToTensor()
+    transforms = ff.transforms.Compose(
+        ff.transforms.Interpolate(max_dim=640),
+        ff.transforms.Padding(target_size=(640,640), pad_value=0),
+        ff.transforms.Normalize(mean=127.5, std=127.5),
+        ff.transforms.ToTensor()
     )
 
     dm = ff.datamodule.WiderFaceDataModule(

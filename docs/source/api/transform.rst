@@ -1,11 +1,11 @@
 fastface.transform
 ++++++++++++++++++
 
-.. autoclass:: fastface.transform.Interpolate
-.. autoclass:: fastface.transform.Padding
-.. autoclass:: fastface.transform.FaceDiscarder
-.. autoclass:: fastface.transform.ToTensor
-.. autoclass:: fastface.transform.Normalize
-.. autoclass:: fastface.transform.LFFDRandomSample
-.. autoclass:: fastface.transform.RandomHorizontalFlip
-.. autoclass:: fastface.transform.Compose
+.. autoclass:: fastface.transforms.Interpolate
+.. autoclass:: fastface.transforms.Padding
+.. autoclass:: fastface.transforms.FaceDiscarder
+.. autoclass:: fastface.transforms.ToTensor
+.. autoclass:: fastface.transforms.Normalize
+.. autoclass:: fastface.transforms.LFFDRandomSample
+.. autoclass:: fastface.transforms.RandomHorizontalFlip
+.. autoclass:: fastface.transforms.Compose

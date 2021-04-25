@@ -7,9 +7,9 @@ from tqdm import tqdm
 
 img_size = 608
 
-transforms = ff.transform.Compose(
-    ff.transform.Interpolate(max_dim=img_size),
-    ff.transform.Padding(target_size=(img_size, img_size), pad_value=0),
+transforms = ff.transforms.Compose(
+    ff.transforms.Interpolate(max_dim=img_size),
+    ff.transforms.Padding(target_size=(img_size, img_size), pad_value=0),
 )
 
 source_dir = ff.utils.cache.get_data_cache_path("widerface")
