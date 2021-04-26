@@ -84,7 +84,6 @@ class FaceDetector(pl.LightningModule):
         loss = self.arch.compute_loss(logits, targets,
             hparams=self.hparams, input_shape=batch.shape)
         # loss: dict of losses or loss
-        print(loss)
 
         return loss
 
@@ -111,7 +110,7 @@ class FaceDetector(pl.LightningModule):
         batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
         batch_gt_boxes = [target["target_boxes"].cpu() for target in targets]
 
-        self.debug_step(batch, batch_preds, batch_gt_boxes)
+        #self.debug_step(batch, batch_preds, batch_gt_boxes)
 
         for metric in self.__metrics.values():
             metric.update(

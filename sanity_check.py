@@ -4,7 +4,7 @@ import fastface as ff
 pl.seed_everything(42)
 
 # configs
-dataset_path = "/mnt/a212519a-146d-42a9-b84a-32d6e9875a58/datasets/face_detection_datasets/FDDB"
+dataset_path = "/home/morphy/datasets/FDDB"
 ckpt_path = None
 
 arch = "lffd"
@@ -18,17 +18,17 @@ gradient_clip_val = 10
 batch_size = 4
 
 train_transforms = ff.transforms.Compose(
-    ff.transforms.Interpolate(max_dim=640),
-    ff.transforms.Padding(target_size=(640, 640)),
-    ff.transforms.FaceDiscarder(min_face_size=5),
-    #ff.transforms.RandomHorizontalFlip(p=0.5),
+    ff.transforms.Interpolate(max_dim=480),
+    ff.transforms.Padding(target_size=(480, 480)),
+    ff.transforms.FaceDiscarder(min_face_size=10),
+    ff.transforms.RandomHorizontalFlip(p=0.5),
     ff.transforms.Normalize(mean=0, std=255)
 )
 
 val_transforms = ff.transforms.Compose(
-    ff.transforms.Interpolate(max_dim=640),
-    ff.transforms.Padding(target_size=(640, 640)),
-    ff.transforms.FaceDiscarder(min_face_size=5),
+    ff.transforms.Interpolate(max_dim=480),
+    ff.transforms.Padding(target_size=(480, 480)),
+    ff.transforms.FaceDiscarder(min_face_size=10),
     ff.transforms.Normalize(mean=0, std=255)
 )
 
