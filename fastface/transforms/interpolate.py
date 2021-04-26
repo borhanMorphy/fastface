@@ -13,7 +13,7 @@ class Interpolate():
         assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(len(img.shape))
         h, w = img.shape[:2]
 
-        sf = self.max_dim / max(h,w)
+        sf = self.max_dim / max(h, w)
 
         nh = int(sf*h)
         nw = int(sf*w)

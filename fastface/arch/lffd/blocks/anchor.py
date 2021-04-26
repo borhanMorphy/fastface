@@ -34,6 +34,7 @@ class Anchor(nn.Module):
         Returns:
             torch.Tensor: anchors with shape (fh x fw x 4) as xmin, ymin, xmax, ymax
         """
+
         grids = generate_grids(fh, fw)
         rfs = grids*self.rf_stride
         rfs = rfs+self.rf_start_offset
@@ -42,7 +43,7 @@ class Anchor(nn.Module):
         rfs[:, :, 2:] = rfs[:, :, 2:] + self.rf_size/2
         return rfs
 
-    def logits_to_boxes(self, reg_logits:torch.Tensor) -> torch.Tensor:
+    def logits_to_boxes(self, reg_logits: torch.Tensor) -> torch.Tensor:
         """Applies bounding box regression using regression logits
         Args:
             reg_logits (torch.Tensor): bs,fh,fw,4
@@ -57,7 +58,7 @@ class Anchor(nn.Module):
         # rfs: fh,fw,4
         rf_normalizer = self.rf_size/2
 
-        rf_centers = (rfs[:,:, :2] + rfs[:,:, 2:]) / 2
+        rf_centers = (rfs[:, :, :2] + rfs[:, :, 2:]) / 2
 
         pred_boxes = reg_logits.clone()
 

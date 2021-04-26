@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Union, List
+from typing import Dict, Union
+import numpy as np
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -12,6 +13,9 @@ from .api import (
 from .utils.config import (
     get_arch_cls
 )
+
+from .utils.visualize import draw_rects
+from PIL import Image
 
 class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection
@@ -80,6 +84,7 @@ class FaceDetector(pl.LightningModule):
         loss = self.arch.compute_loss(logits, targets,
             hparams=self.hparams, input_shape=batch.shape)
         # loss: dict of losses or loss
+        print(loss)
 
         return loss
 
@@ -102,15 +107,31 @@ class FaceDetector(pl.LightningModule):
 
         # compute predictions
         preds = self.arch.postprocess(logits, input_shape=batch.shape)
-        print(preds)
+
+        batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
+        batch_gt_boxes = [target["target_boxes"].cpu() for target in targets]
+
+        self.debug_step(batch, batch_preds, batch_gt_boxes)
 
         for metric in self.__metrics.values():
             metric.update(
-                [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)],
-                [target["target_boxes"].cpu() for target in targets]
+                batch_preds,
+                batch_gt_boxes
             )
 
         return loss
+
+    def debug_step(self, batch, batch_preds, batch_gt_boxes):
+        for img, preds, gt_boxes in zip(batch, batch_preds, batch_gt_boxes):
+            img = (img.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
+            preds = preds.cpu().long().numpy()
+            gt_boxes = gt_boxes.cpu().long().numpy()
+            img = draw_rects(img, preds[:, :4], color=(255, 0, 0))
+            img = draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
+            pil_img = Image.fromarray(img)
+            pil_img.show()
+            if input("press `q` to exit") == "q":
+                exit(0)
 
     def on_validation_epoch_end(self):
         for name, metric in self.__metrics.items():

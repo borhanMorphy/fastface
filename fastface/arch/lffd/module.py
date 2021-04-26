@@ -11,7 +11,8 @@ from .blocks import (
 )
 
 from ...loss import BinaryFocalLoss
-from ...utils import box as box_ops
+#from ...utils import box as box_ops
+import torchvision.ops.boxes as box_ops
 
 class LFFD(nn.Module):
 
@@ -83,7 +84,7 @@ class LFFD(nn.Module):
             LFFDHead(idx+1, infeatures, outfeatures, rf_size, rf_start_offset, rf_stride,
                 num_classes=1)
             for idx, (infeatures, outfeatures, rf_size, rf_start_offset, rf_stride) in enumerate(zip(
-                head_infeatures, head_outfeatures,rf_sizes ,rf_start_offsets ,rf_strides ))
+                head_infeatures, head_outfeatures, rf_sizes, rf_start_offsets, rf_strides))
         ])
 
         self.cls_loss_fn = BinaryFocalLoss(gamma=2, alpha=1)
@@ -110,7 +111,7 @@ class LFFD(nn.Module):
             nreg, fh, fw = reg_logits.shape[1:]
 
             nc = cls_logits.size(1)
- 
+
             logits.append(
                 # concat channel wise
                 torch.cat([
@@ -149,8 +150,9 @@ class LFFD(nn.Module):
             counter += (fh*fw)
 
             head_reg_logits = reg_logits[:, start_index:end_index, :].view(-1, fh, fw, 4)
-            
-            boxes = self.heads[head_idx].anchor.logits_to_boxes(head_reg_logits).view(-1, fh*fw, 4)
+
+            # TODO revert here
+            boxes = self.heads[head_idx].anchor.forward(fh, fw).to(logits.device).view(fh*fw, 4).repeat(batch_size, 1, 1)#.logits_to_boxes(head_reg_logits).view(-1, fh*fw, 4)
             # boxes: bs,(fh*fw),4
 
             scores = cls_logits[:, start_index:end_index, :].view(-1, fh*fw, 1)
@@ -162,19 +164,36 @@ class LFFD(nn.Module):
         preds = torch.cat(preds, dim=1) # bs, N, 5
 
         # filter with det_threshold
-        pick_b, pick_n = torch.where(preds[:, :, 4] >= 0.2)
+        pick_b, pick_n = torch.where(preds[:, :, 4] >= 0.3)
 
         boxes = preds[pick_b, pick_n, :4]
         scores = preds[pick_b, pick_n, 4]
 
         # keep only k
         order = scores.argsort(descending=True)
-        boxes = boxes[order][:100, :]
-        scores = scores[order][:100]
-        batch_ids = pick_b[order][:100]
+        boxes = boxes[order]
+        scores = scores[order]
+        batch_ids = pick_b[order]
+
+        preds: List[torch.Tensor] = []
+        for batch_idx in range(batch_size):
+            batch_mask = batch_idx == batch_ids
+            preds.append(
+                torch.cat([
+                    boxes[batch_mask, :],
+                    scores[batch_mask].unsqueeze(1),
+                    batch_ids[batch_mask].unsqueeze(1)
+                ], dim=1)[:50, :]
+            )
+
+        preds = torch.cat(preds, dim=0)
+        # 100*bs, 6 as [0:4] x1,y1,x2,y2 [4] score [5] batch ids
 
         # filter with nms
-        preds, batch_ids = box_ops.batched_nms(boxes, scores, batch_ids)
+        #preds, batch_ids = box_ops.batched_nms(preds[:, :4], preds[:, 4], preds[:, 5])
+        # TODO revert here
+        keep = box_ops.batched_nms(preds[:, :4], preds[:, 4], preds[:, 5], 0.4)
+        return preds[keep, :]
 
         return torch.cat([preds, batch_ids.unsqueeze(1)], dim=1)
 
@@ -256,7 +275,7 @@ class LFFD(nn.Module):
         for target in raw_targets:
             t_boxes = target["target_boxes"]
             batch_target_boxes.append(t_boxes)
-            
+
             # select max face dim as `face scale` (defined in the paper)
             batch_target_face_scales.append(
                 (t_boxes[:, [2, 3]] - t_boxes[:, [0, 1]]).max(dim=1)[0]
@@ -280,6 +299,7 @@ class LFFD(nn.Module):
 
             # get rf centers
             rf_centers = (rfs[..., [2, 3]] + rfs[..., [0, 1]]) / 2
+
             # rf_centers: fh x fw x 2 as center_x, center_y
 
             rfs = rfs.repeat(batch_size, 1, 1, 1)
@@ -319,6 +339,7 @@ class LFFD(nn.Module):
                     elif gt_idx not in head_accept_box_ids:
                         # if gt not in gray scale and not in accepted ids, than skip it
                         continue
+
 
                     match_fh, match_fw = torch.where(match_mask & (head_cls_targets[batch_idx, 0, :, :] != -1))
                     double_match_fh, double_match_fw = torch.where((head_cls_targets[batch_idx, 0, :, :] == 1) & match_mask)

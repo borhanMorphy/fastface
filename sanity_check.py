@@ -1,17 +1,17 @@
 import pytorch_lightning as pl
 import fastface as ff
 
-pl.seed_everything(2)
+pl.seed_everything(42)
 
 # configs
-dataset_path = "/home/morphy/datasets/FDDB"
+dataset_path = "/mnt/a212519a-146d-42a9-b84a-32d6e9875a58/datasets/face_detection_datasets/FDDB"
 ckpt_path = None
 
 arch = "lffd"
 config = "slim"
 
 accumulate_grad_batches = 1
-check_val_every_n_epoch = 2
+check_val_every_n_epoch = 50
 max_epochs = 100
 precision = 32
 gradient_clip_val = 10
@@ -21,13 +21,15 @@ train_transforms = ff.transforms.Compose(
     ff.transforms.Interpolate(max_dim=640),
     ff.transforms.Padding(target_size=(640, 640)),
     ff.transforms.FaceDiscarder(min_face_size=5),
-    ff.transforms.RandomHorizontalFlip(p=0.5)
+    #ff.transforms.RandomHorizontalFlip(p=0.5),
+    ff.transforms.Normalize(mean=0, std=255)
 )
 
 val_transforms = ff.transforms.Compose(
     ff.transforms.Interpolate(max_dim=640),
     ff.transforms.Padding(target_size=(640, 640)),
-    ff.transforms.FaceDiscarder(min_face_size=5)
+    ff.transforms.FaceDiscarder(min_face_size=5),
+    ff.transforms.Normalize(mean=0, std=255)
 )
 
 # get datamodule
@@ -45,7 +47,6 @@ for img, targets in ff.dataset.FDDBDataset(dataset_path, phase='train', transfor
 model = ff.FaceDetector.build(arch, config=config)
 
 model.add_metric("average_precision", ff.metric.AveragePrecision())
-
 
 trainer = pl.Trainer(
     overfit_batches=4, # for debug purpose

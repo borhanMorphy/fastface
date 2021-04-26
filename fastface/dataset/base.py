@@ -1,6 +1,8 @@
 __all__ = ["BaseDataset"]
 
-from typing import List, Dict, Callable, Tuple
+from typing import List, Dict, Tuple
+import copy
+
 from torch.utils.data import Dataset
 import numpy as np
 import imageio
@@ -30,10 +32,12 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple:
         img = self._load_image(self.ids[idx])
-        targets = self.targets[idx].copy()
+        targets = copy.deepcopy(self.targets[idx])
 
         # apply transforms
-        return self.transforms(img, targets)
+        img, targets = self.transforms(img, targets)
+
+        return (img, targets)
 
     def __len__(self) -> int:
         return len(self.ids)

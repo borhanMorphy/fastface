@@ -14,7 +14,7 @@ def _ellipse2box(major_r, minor_r, angle, center_x, center_y):
     x2 = center_x + (major_r*math.cos(t+math.pi)*math.cos(angle) - minor_r*math.sin(t+math.pi)*math.sin(angle))
     x_max = max(x1,x2)
     x_min = min(x1,x2)
-    
+
     if math.tan(angle) != 0:
         tan_t = (minor_r/major_r)*(1/math.tan(angle))
     else:
@@ -68,7 +68,7 @@ def _load_single_annotation_fold(source_path: str, fold_idx: int):
 
 class FDDBDataset(BaseDataset):
     """FDDB fastface.dataset.BaseDataset Instance
-    
+
     paper: http://vis-www.cs.umass.edu/fddb/fddb.pdf
     specs:
         - total number of images: 2845
