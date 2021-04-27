@@ -1,5 +1,4 @@
 import torch
-from typing import Tuple
 from torchvision.ops import nms
 
 def generate_grids(fh: int, fw: int) -> torch.Tensor:
@@ -105,7 +104,7 @@ def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
 
 @torch.jit.script
 def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tensor,
-    iou_threshold: float = 0.4) -> Tuple[torch.Tensor, torch.Tensor]:
+    iou_threshold: float = 0.4) -> torch.Tensor:
     """Applies batched non max suppression to given boxes
 
     Args:
@@ -115,13 +114,10 @@ def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tens
         iou_threshold (float, optional): nms threshold. Defaults to 0.4.
 
     Returns:
-        Tuple[torch.Tensor, torch.Tensor]:
-            (0): predictions as torch.Tensor(N',5) xmin, ymin, xmax, ymax, score
-            (1): batch_ids as torch.LongTensor(N',)
+        torch.Tensor: keep mask
     """
-
-    if boxes.shape[0] == 0:
-        return torch.empty(0, 5, dtype=boxes.dtype, device=boxes.device), torch.empty(0, dtype=torch.long)
+    if boxes.size(0) == 0:
+        return torch.empty((0,), dtype=torch.long)
 
     max_val = torch.max(boxes)
 
@@ -131,9 +127,4 @@ def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tens
 
     cboxes += offsets.unsqueeze(1).repeat(1,4)
 
-    pick = nms(cboxes, scores, iou_threshold)
-
-    preds = torch.cat([boxes[pick], scores[pick].unsqueeze(1)], dim=1)
-    batch_ids = batch_ids[pick]
-
-    return preds, batch_ids
+    return nms(cboxes, scores, iou_threshold)

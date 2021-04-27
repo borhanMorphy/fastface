@@ -67,9 +67,9 @@ class Anchor(nn.Module):
         pred_boxes[:, :, :, 2] = rf_centers[:, :, 0] - (rf_normalizer*reg_logits[:, :, :, 2])
         pred_boxes[:, :, :, 3] = rf_centers[:, :, 1] - (rf_normalizer*reg_logits[:, :, :, 3])
 
-        pred_boxes[:, :, :, 0] = torch.clamp(pred_boxes[:, :, :, 0], 0, fw*self.rf_stride)
-        pred_boxes[:, :, :, 1] = torch.clamp(pred_boxes[:, :, :, 1], 0, fh*self.rf_stride)
-        pred_boxes[:, :, :, 2] = torch.clamp(pred_boxes[:, :, :, 2], 0, fw*self.rf_stride)
-        pred_boxes[:, :, :, 3] = torch.clamp(pred_boxes[:, :, :, 3], 0, fh*self.rf_stride)
+        #pred_boxes[:, :, :, 0] = torch.clamp(pred_boxes[:, :, :, 0], 0, fw*self.rf_stride)
+        #pred_boxes[:, :, :, 1] = torch.clamp(pred_boxes[:, :, :, 1], 0, fh*self.rf_stride)
+        #pred_boxes[:, :, :, 2] = torch.clamp(pred_boxes[:, :, :, 2], 0, fw*self.rf_stride)
+        #pred_boxes[:, :, :, 3] = torch.clamp(pred_boxes[:, :, :, 3], 0, fh*self.rf_stride)
 
         return pred_boxes

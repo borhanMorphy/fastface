@@ -21,23 +21,11 @@ class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection
     """
 
-    __MODES__ = ("training", "inference", "deployment")
-
     def __init__(self, arch: nn.Module = None, hparams: Dict = None):
         super().__init__()
         self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
-        self.__mode = FaceDetector.__MODES__[0]
-
-    @property
-    def mode(self) -> str:
-        return self.__mode
-
-    @mode.setter
-    def mode(self, val: str):
-        assert val in FaceDetector.__MODES__, "given mode {} is not valid".format(val)
-        self.__mode = val
 
     def add_metric(self, name: str, metric: pl.metrics.Metric):
         """Adds given metric with name key
@@ -57,6 +45,8 @@ class FaceDetector(pl.LightningModule):
         """
         return {k:v for k,v in self.__metrics.items()}
 
+    # ! use forward only for inference not training
+    @torch.no_grad()
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         """batch of images with float and B x C x H x W shape
 
@@ -65,14 +55,34 @@ class FaceDetector(pl.LightningModule):
 
         Returns:
             torch.Tensor: preds with shape (N, 6);
-                (0:1) batch idx
-                (1:5) xmin, ymin, xmax, ymax
-                (5:6) score
+                (1:4) xmin, ymin, xmax, ymax
+                (4:5) score
+                (5:6) batch idx
         """
+        image_h = batch.size(2)
+        image_w = batch.size(3)
+
+        # apply preprocess
+        batch, sf, pad = self.arch.preprocess(batch)
+
+        # get logits
         logits = self.arch.forward(batch)
         # logits: torch.Tensor(B, C', N)
 
-        return self.arch.postprocess(logits)
+        # apply postprocess
+        preds = self.arch.postprocess(logits)
+        # preds: torch.Tensor(N, 6)
+
+        # adjuts predictions
+        ## fix padding
+        preds[:, :4] = preds[:, :4] - pad[:2].repeat(2)
+        ## fix scale
+        preds[:, :4] = preds[:, :4] / (sf + 1e-16)
+        ## fix boundaries
+        preds[:, [0, 2]] = preds[:, [0, 2]].clamp(min=0, max=image_w)
+        preds[:, [1, 3]] = preds[:, [1, 3]].clamp(min=0, max=image_h)
+
+        return preds
 
     def training_step(self, batch, batch_idx):
         batch, targets = batch
@@ -81,8 +91,7 @@ class FaceDetector(pl.LightningModule):
         logits = self.arch.forward(batch)
 
         # compute loss
-        loss = self.arch.compute_loss(logits, targets,
-            hparams=self.hparams, input_shape=batch.shape)
+        loss = self.arch.compute_loss(logits, targets, hparams=self.hparams)
         # loss: dict of losses or loss
 
         return loss
@@ -101,16 +110,17 @@ class FaceDetector(pl.LightningModule):
 
         # compute loss
         loss = self.arch.compute_loss(logits, targets,
-            hparams=self.hparams, input_shape=batch.shape)
+            hparams=self.hparams)
         # loss: dict of losses or loss
 
         # compute predictions
-        preds = self.arch.postprocess(logits, input_shape=batch.shape)
+        preds = self.arch.postprocess(logits)
+        # preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
         batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
         batch_gt_boxes = [target["target_boxes"].cpu() for target in targets]
 
-        #self.debug_step(batch, batch_preds, batch_gt_boxes)
+        self.debug_step(batch, batch_preds, batch_gt_boxes)
 
         for metric in self.__metrics.values():
             metric.update(

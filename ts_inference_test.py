@@ -1,5 +1,6 @@
 from typing import Tuple, Dict
-import onnxruntime as ort
+import torch
+import fastface as ff
 import imageio
 import sys
 from PIL import Image, ImageDraw, ImageColor
@@ -24,14 +25,16 @@ def prettify_detections(img: np.ndarray, preds: Dict,
     return pil_img
 
 img = imageio.imread(sys.argv[1])[:,:,:3]
-sess = ort.InferenceSession("lffd_slim.onnx")
 
-input_name = sess.get_inputs()[0].name
+data = torch.from_numpy(img).permute(2,0,1).unsqueeze(0).float()
 
-o_preds, = sess.run(None, {input_name: [(np.transpose(img, (2,0,1))).astype(np.float32)]})
+sc_model = ff.FaceDetector.from_pretrained("lffd_slim").eval().to_torchscript()
 
-boxes = o_preds[:, :4].astype(np.int32).tolist()
-scores = o_preds[:, 4].tolist()
+with torch.no_grad():
+    ts_preds = sc_model.forward(data).cpu().numpy()
+
+boxes = ts_preds[:, :4].astype(np.int32).tolist()
+scores = ts_preds[:, 4].tolist()
 
 # visualize predictions
 pretty_img = prettify_detections(img, {

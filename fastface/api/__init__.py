@@ -27,7 +27,7 @@ def list_pretrained_models() -> List[str]:
     """
     return list(get_registry().keys())
 
-def download_pretrained_model(model:str, target_path:str=None) -> str:
+def download_pretrained_model(model: str, target_path: str = None) -> str:
     """Downloads pretrained model to given target path,
     if target path is None, it will use model cache path.
     If model already exists in the given target path than it will do notting.
@@ -42,9 +42,9 @@ def download_pretrained_model(model:str, target_path:str=None) -> str:
     if target_path is None:
         target_path = get_model_cache_path()
     registry = get_registry()
-    assert model in registry,f"given model: {model} is not in the registry"
-    assert os.path.exists(target_path),f"given target path: {target_path} does not exists"
-    assert os.path.isdir(target_path),f"given target path must be directory not a file"
+    assert model in registry, f"given model: {model} is not in the registry"
+    assert os.path.exists(target_path), f"given target path: {target_path} does not exists"
+    assert os.path.isdir(target_path), "given target path must be directory not a file"
 
     adapter = registry[model]["adapter"]
     file_name = registry[model]["adapter"]["kwargs"]["file_name"]
@@ -67,9 +67,9 @@ def list_archs() -> List[str]:
     ['lffd', 'yolov4']
 
     """
-    return [arch for arch,_ in discover_archs()]
+    return [arch for arch, _ in discover_archs()]
 
-def list_arch_configs(arch:str) -> List[str]:
+def list_arch_configs(arch: str) -> List[str]:
     """Returns available architecture configurations as list
 
     Args:
@@ -85,7 +85,7 @@ def list_arch_configs(arch:str) -> List[str]:
     """
     return list(get_arch_cls(arch).__CONFIGS__.keys())
 
-def get_arch_config(arch:str, config:str) -> Dict:
+def get_arch_config(arch: str, config: str) -> Dict:
     """Returns configuration dictionary for given arch and config names
 
     Args:
