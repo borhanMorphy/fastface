@@ -5,7 +5,7 @@ model_name = "lffd_slim"
 model = ff.FaceDetector.from_pretrained(model_name).eval()
 input_shape = model.hparams["config"]["input_shape"][1:]
 file_path = "{}.onnx".format(model_name)
-input_sample = torch.rand(1,*input_shape)
+input_sample = torch.rand(1, *input_shape)
 opset_version = 12
 dynamic_axes = {
     "input_data": {0: "batch", 2: "height", 3: "width"}, # write axis names

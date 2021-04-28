@@ -244,7 +244,7 @@ class LFFD(nn.Module):
         pos_mask = cls_targets == 1
         neg_mask = cls_targets == 0
         num_of_positives = pos_mask.sum()
-    
+
         pos_cls_loss = self.cls_loss_fn(cls_logits[pos_mask], cls_targets[pos_mask])
         neg_cls_loss = self.cls_loss_fn(cls_logits[neg_mask], cls_targets[neg_mask])
         order = neg_cls_loss.argsort(descending=True)

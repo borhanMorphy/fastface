@@ -125,6 +125,6 @@ def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tens
 
     offsets = batch_ids.to(boxes.dtype) # N,
 
-    cboxes += offsets.unsqueeze(1).repeat(1,4)
+    cboxes += offsets.unsqueeze(1).repeat(1, 4)
 
     return nms(cboxes, scores, iou_threshold)
