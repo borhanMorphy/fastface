@@ -1,6 +1,9 @@
 __all__ = [
-    "list_pretrained_models", "download_pretrained_model",
-    "list_archs", "list_arch_configs", "get_arch_config"
+    "list_pretrained_models",
+    "download_pretrained_model",
+    "list_archs",
+    "list_arch_configs",
+    "get_arch_config"
 ]
 
 from typing import List,Dict

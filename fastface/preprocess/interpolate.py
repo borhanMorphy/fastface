@@ -44,7 +44,7 @@ class Interpolate(torch.nn.Module):
 		image_w = x.size(3)
 		image_h = x.size(2)
 
-		scale_factor: float = self.target_size / max(image_h, image_w)
+		scale_factor: float = self.max_size / max(image_h, image_w)
 		x = torch.nn.functional.interpolate(x,
 			scale_factor=scale_factor, mode=self.mode,
 			align_corners=self.align_corners, recompute_scale_factor=True)

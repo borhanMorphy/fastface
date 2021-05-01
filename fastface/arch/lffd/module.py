@@ -10,9 +10,6 @@ from .blocks import (
     LFFDHead
 )
 
-from ...utils import box as box_ops
-from ... import preprocess as pp
-
 class LFFD(nn.Module):
 
     __CONFIGS__ = {
@@ -44,12 +41,8 @@ class LFFD(nn.Module):
         }
     }
 
-    def __init__(self, config: Union[str, Dict], **kwargs):
+    def __init__(self, config: Dict, **kwargs):
         super().__init__()
-
-        if isinstance(config, str):
-            assert config in self.__CONFIGS__, "given config {} is invalid".format(config)
-            config = self.__CONFIGS__[config].copy()
 
         assert "input_shape" in config, "`input_shape` must be defined in the config"
         assert "backbone_name" in config, "`backbone_name` must be defined in the config"
@@ -86,10 +79,6 @@ class LFFD(nn.Module):
                 head_infeatures, head_outfeatures, rf_sizes, rf_start_offsets, rf_strides))
         ])
 
-        self.normalize = pp.Normalize(mean=0, std=255)
-        self.interpolate = pp.DummyInterpolate()
-        self.pad = pp.DummyPad()
-
         self.cls_loss_fn = nn.BCEWithLogitsLoss(reduction='none')#BinaryFocalLoss(gamma=2, alpha=1)
         self.reg_loss_fn = nn.MSELoss(reduction='none')
 
@@ -123,24 +112,7 @@ class LFFD(nn.Module):
 
         return logits
 
-    def preprocess(self, batch: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """applies preprocess to the given batch
-
-        Args:
-            batch (torch.Tensor): input image as torch.FloatTensor(B x C x H x W)
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-                (0): preprocessed input as torch.FloatTensor(B x C x H' x W')
-                (1): scale factor as torch.FloatTensor(1)
-                (2): applied padding as torch.FloatTensor(4) pad left, pad top, pad right, pad bottom
-        """
-        x = self.normalize(batch)
-        x, sf = self.interpolate(x)
-        x, pad = self.pad(x)
-        return (x, sf, pad)
-
-    def postprocess(self, logits: List[torch.Tensor]) -> torch.Tensor:
+    def logits_to_preds(self, logits: List[torch.Tensor]) -> torch.Tensor:
         """Applies postprocess to given logits
 
         Args:
@@ -148,7 +120,7 @@ class LFFD(nn.Module):
                 (0:4) reg logits
                 (4:5) cls logits
         Returns:
-            torch.Tensor as preds with shape N, 6 where x1,y1,x2,y2,score,batch_idx
+            torch.Tensor: as preds with shape of B x N x 5 where x1,y1,x2,y2,score
         """
         preds: List[torch.Tensor] = []
 
@@ -166,38 +138,8 @@ class LFFD(nn.Module):
                 torch.cat([boxes, scores], dim=2)
             )
 
-        preds = torch.cat(preds, dim=1)
-        # preds: B x N x 5
-
-        batch_size = preds.size(0)
-
-        # filter out some predictions using score
-        pick_b, pick_n = torch.where(preds[:, :, 4] >= 0.3)
-
-        # add batch_idx dim
-        preds = torch.cat([preds[pick_b, pick_n, :], pick_b.to(preds.dtype).unsqueeze(1)], dim=1)
-        # preds: N x 6
-
-        batch_preds: List[torch.Tensor] = []
-        for batch_idx in range(batch_size):
-            pick_n, = torch.where(batch_idx == preds[:, 5])
-            order = preds[pick_n, 4].sort(descending=True)[1]
-
-            batch_preds.append(
-                # preds: n, 6
-                preds[pick_n, :][order][:200, :]
-            )
-
-        batch_preds = torch.cat(batch_preds, dim=0)
-        # batch_preds: N x 6
-
-        # filter with nms
-        pick = box_ops.batched_nms(
-            batch_preds[:, :4],
-            batch_preds[:, 4],
-            batch_preds[:, 5], 0.4)
-
-        return batch_preds[pick, :]
+        # concat channelwise: B x N x 5
+        return torch.cat(preds, dim=1)
 
     def compute_loss(self, logits: List[torch.Tensor],
             raw_targets: List[Dict], hparams: Dict = {}) -> Dict[str, torch.Tensor]:

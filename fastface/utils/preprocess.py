@@ -25,7 +25,7 @@ def prepare_batch(batch: List[torch.Tensor], target_size: int,
     scales: List = []
     paddings: List = []
 
-    for i,img in enumerate(batch):
+    for i, img in enumerate(batch):
         # apply interpolation
         img_h: int = img.size(-2)
         img_w: int = img.size(-1)
@@ -76,7 +76,7 @@ def adjust_results(preds: List[torch.Tensor], scales: torch.Tensor,
     Returns:
         torch.Tensor: torch.Tensor(B, N, 5) as xmin, ymin, xmax, ymax, score
     """
-    for i,pred in enumerate(preds):
+    for i, pred in enumerate(preds):
         if pred.size(0) == 0: continue
 
         preds[i][:, :4] = pred[:, :4] - paddings[i, :2].repeat(1,2)
