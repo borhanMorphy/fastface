@@ -84,7 +84,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
 
     checkpoint_dirpath = kwargs['checkpoint']['dirpath']
     if checkpoint_dirpath is None:
-        checkpoint_dirpath = ff.utils.cache.get_checkpoint_cache_path(f"{arch}_{config}")
+        checkpoint_dirpath = ff.utils.cache.get_checkpoint_cache_dir(f"{arch}_{config}")
 
     if resume:
         ckpt_path = select_checkpoint(checkpoint_dirpath) if ckpt_path is None else ckpt_path
@@ -135,7 +135,7 @@ def main(kwargs:Dict, resume:bool, seed:int):
     )
 
     trainer = pl.Trainer(
-        default_root_dir=ff.utils.cache.get_cache_path(),
+        default_root_dir=ff.utils.cache.get_cache_dir(),
         gpus=trainer_configs.get('gpus',1),
         accumulate_grad_batches=trainer_configs.get('accumulate_grad_batches',1),
         callbacks=[checkpoint_callback],

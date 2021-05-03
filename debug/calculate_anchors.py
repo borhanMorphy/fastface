@@ -12,7 +12,7 @@ transforms = ff.transforms.Compose(
     ff.transforms.Padding(target_size=(img_size, img_size), pad_value=0),
 )
 
-source_dir = ff.utils.cache.get_data_cache_path("widerface")
+source_dir = ff.utils.cache.get_data_cache_dir("widerface")
 
 ds = ff.dataset.WiderFaceDataset(source_dir, transforms=transforms, phase='train')
 

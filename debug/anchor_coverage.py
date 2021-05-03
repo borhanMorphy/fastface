@@ -17,7 +17,7 @@ transforms = ff.transforms.Compose(
 def target_transform(targets: np.ndarray) -> torch.Tensor:
     return torch.from_numpy(targets)
 
-source_dir = ff.utils.cache.get_data_cache_path(dataset)
+source_dir = ff.utils.cache.get_data_cache_dir(dataset)
 
 # TODO make it parametric
 ds = ff.dataset.WiderFaceDataset(source_dir, transforms=transforms,

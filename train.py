@@ -48,7 +48,7 @@ model = ff.FaceDetector.build(arch, config=config)
 model.add_metric("average_precision", ff.metric.AveragePrecision())
 
 trainer = pl.Trainer(
-    default_root_dir="./",#ff.utils.cache.get_cache_path(),
+    default_root_dir="./",#ff.utils.cache.get_cache_dir(),
     gpus=1,
     accumulate_grad_batches=accumulate_grad_batches,
     callbacks=[],#[checkpoint_callback],

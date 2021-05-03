@@ -2,22 +2,27 @@ import pytest
 from pytorch_lightning.metrics import Metric
 import fastface as ff
 
-@pytest.mark.parametrize("api",
+# TODO expand this
+
+@pytest.mark.parametrize("metric_name",
     [
-        "list_metrics",
-        "get_metric_by_name"
+        "AveragePrecision",
+        "AverageRecall",
+        "WiderFaceAP"
     ]
 )
-def test_api_exists(api):
-    assert api in dir(ff.metric), f"{api} not found in the fastface.metric"
+def test_api_exists(metric_name: str):
+    assert hasattr(ff.metric, metric_name), "{} not found in the fastface.metric".format(metric_name)
 
-def test_get_available_metrics():
-    metrics = ff.metric.list_metrics()
-    assert isinstance(metrics, list), f"returned value must be list but found:{type(metrics)}"
-    for metric in metrics:
-        assert isinstance(metric,str), f"metric must contain name as string but found:{type(metric)}"
 
-@pytest.mark.parametrize("metric_name", ff.metric.list_metrics())
-def test_list_arch_configs(metric_name: str):
-    metric = ff.metric.get_metric_by_name(metric_name)
-    assert isinstance(metric, Metric), f"returned value must be Metric but found:{type(metric)}"
+@pytest.mark.parametrize("metric_name",
+    [
+        "AveragePrecision",
+        "AverageRecall",
+        "WiderFaceAP"
+    ]
+)
+def test_get_available_metrics(metric_name: str):
+    metric_cls = getattr(ff.metric, metric_name)
+    metric = metric_cls()
+    assert isinstance(metric, Metric), "returned value must be `pytorch_lightning.metrics.Metric` but found:{}".format(type(metric))

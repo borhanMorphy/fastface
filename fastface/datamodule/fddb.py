@@ -22,7 +22,7 @@ class FDDBDataModule(pl.LightningDataModule):
 
         super().__init__()
         if source_dir is None:
-            source_dir = cache.get_data_cache_path("fddb")
+            source_dir = cache.get_data_cache_dir("fddb")
 
         self.source_dir = source_dir
         self.dl_kwargs = {

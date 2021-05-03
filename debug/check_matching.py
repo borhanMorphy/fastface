@@ -22,7 +22,7 @@ transforms = ff.transforms.Compose(
     arch_pkg.Matcher(config)
 )
 
-source_dir = ff.utils.cache.get_data_cache_path(dataset)
+source_dir = ff.utils.cache.get_data_cache_dir(dataset)
 
 # TODO make it parametric
 ds = ff.dataset.WiderFaceDataset(source_dir, transforms=transforms,

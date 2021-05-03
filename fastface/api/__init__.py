@@ -14,7 +14,7 @@ from ..utils.config import (
     get_arch_cls,
     get_registry
 )
-from ..utils.cache import get_model_cache_path
+from ..utils.cache import get_model_cache_dir
 
 from ..adapter import download_object
 
@@ -43,7 +43,7 @@ def download_pretrained_model(model: str, target_path: str = None) -> str:
         str: file path of the model
     """
     if target_path is None:
-        target_path = get_model_cache_path()
+        target_path = get_model_cache_dir()
     registry = get_registry()
     assert model in registry, f"given model: {model} is not in the registry"
     assert os.path.exists(target_path), f"given target path: {target_path} does not exists"

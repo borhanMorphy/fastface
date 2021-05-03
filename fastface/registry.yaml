@@ -3,7 +3,7 @@ lffd_original:
     type: "gdrive"
     kwargs:
       file_name: "lffd_original.ckpt"
-      file_id: "1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1"
+      file_id: "13rpqTFcXOTdYgtDkqk2A2JDYGjTh-cEi"
       overwrite: false
       unzip: false
       showsize: true
@@ -12,7 +12,7 @@ lffd_slim:
     type: "gdrive"
     kwargs:
       file_name: "lffd_slim.ckpt"
-      file_id: "1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN"
+      file_id: "1a58utrdpFMxVWYbMOvI8LX1UzdgrpLbC"
       overwrite: false
       unzip: false
       showsize: true

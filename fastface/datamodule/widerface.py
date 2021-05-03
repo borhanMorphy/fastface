@@ -63,7 +63,7 @@ class WiderFaceDataModule(pl.LightningDataModule):
     def __init__(self, source_dir:str=None, partitions:List[str]=None, **kwargs):
         super().__init__()
         if source_dir is None:
-            source_dir = cache.get_data_cache_path("widerface")
+            source_dir = cache.get_data_cache_dir("widerface")
         self.source_dir = source_dir
         self.partitions = partitions
 

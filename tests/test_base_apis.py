@@ -1,3 +1,5 @@
+import os
+
 import fastface as ff
 import pytest
 
@@ -35,3 +37,9 @@ def test_get_arch_config(arch: str):
     for arch_config in arch_configs:
         config = ff.get_arch_config(arch, arch_config)
         assert isinstance(config, dict), f"{arch}.{arch_config} must be dictionary but found: {type(config)}"
+
+@pytest.mark.parametrize("model_name", ff.list_pretrained_models())
+def test_download(model_name: str):
+    model_file_path = ff.download_pretrained_model(
+        model_name, target_path=ff.utils.cache.get_model_cache_dir())
+    assert os.path.exists(model_file_path), "model file is not exists in {}".format(model_file_path)
