@@ -48,8 +48,8 @@ class Normalize(torch.nn.Module):
 			torch.Tensor -- tensor with shape of (batch_size,channel,height,width)
 
 		>>> import torch
-		>>> import objectdetection as od
-		>>> normalize = od.preprocess.Normalize(mean=0, std=1)
+		>>> import fastface as ff
+		>>> normalize = ff.preprocess.Normalize(mean=0, std=1)
 		>>> rgb_image = torch.rand(1,3,20,20)
 		>>> normalized_rgb_image = normalize(rgb_image)
 		>>> normalized_rgb_image.shape

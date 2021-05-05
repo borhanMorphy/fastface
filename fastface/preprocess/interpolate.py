@@ -30,7 +30,7 @@ class Interpolate(torch.nn.Module):
 		>>> import fastface as ff
 		>>> interpolate = ff.preprocess.Interpolate(max_size=100)
 		>>> img = torch.rand(1,3,50,22)
-		>>> scaled_img, sf = interpolate(scaled_img)
+		>>> scaled_img, scale_factor = interpolate(img)
 		>>> scaled_img.shape
 		torch.Size([1, 3, 100, 44])
 		>>> scale_factor.shape
@@ -69,7 +69,7 @@ class DummyInterpolate(torch.nn.Module):
 		>>> import fastface as ff
 		>>> interpolate = ff.preprocess.DummyInterpolate()
 		>>> img = torch.rand(1,3,75,65)
-		>>> scaled_img, sf = interpolate(scaled_img)
+		>>> scaled_img, scale_factor = interpolate(img)
 		>>> scaled_img.shape
 		torch.Size([1, 3, 75, 65])
 		>>> scale_factor.shape

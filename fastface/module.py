@@ -70,7 +70,7 @@ class FaceDetector(pl.LightningModule):
         >>> model = ff.FaceDetector.from_pretrained('lffd_original').eval()
         >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
         >>> model.predict(img)
-        [{'boxes': [[1055, 177, 1187, 356], [574, 225, 704, 391], [129, 217, 263, 381], [321, 231, 447, 390], [858, 265, 977, 410]], 'scores': [0.9999922513961792, 0.9999910593032837, 0.9999610185623169, 0.9999467134475708, 0.9874875545501709]}]
+        [{'boxes': [[1050, 181, 1188, 360], [562, 226, 710, 404], [143, 220, 276, 388], [321, 230, 444, 399], [867, 273, 976, 402]], 'scores': [0.9953292608261108, 0.9898390769958496, 0.8949605822563171, 0.8432055711746216, 0.46091383695602417]}]
         """
 
         batch = self.to_tensor(data)
@@ -101,7 +101,6 @@ class FaceDetector(pl.LightningModule):
         return preds
 
     # ! use forward only for inference not training
-    @torch.no_grad()
     def forward(self, batch: torch.Tensor, det_threshold: float = 0.3,
             iou_threshold: float = 0.4, keep_n: int = 200) -> torch.Tensor:
         """batch of images with float and B x C x H x W shape
@@ -123,7 +122,8 @@ class FaceDetector(pl.LightningModule):
         batch, scale_factor, padding = self.preprocess(batch)
 
         # get logits
-        logits = self.arch.forward(batch)
+        with torch.no_grad():
+            logits = self.arch.forward(batch)
         # logits: Any (depends on the architecture)
 
         # converts logits to preds
@@ -219,8 +219,8 @@ class FaceDetector(pl.LightningModule):
             img = (img.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
             preds = preds.cpu().long().numpy()
             gt_boxes = gt_boxes.cpu().long().numpy()
-            img = draw_rects(img, preds[:, :4], color=(255, 0, 0))
-            img = draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
+            img = utils.visualize.draw_rects(img, preds[:, :4], color=(255, 0, 0))
+            img = utils.visualize.draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
             pil_img = Image.fromarray(img)
             pil_img.show()
             if input("press `q` to exit") == "q":

@@ -19,7 +19,7 @@ class Preprocess(nn.Module):
         # TODO pydoc
         self.register_buffer(
             "divider",
-            torch.tensor(255.0) if normalized_input else torch.tensor(1.0),
+            torch.tensor(255.0) if normalized_input else torch.tensor(1.0), # pylint: disable=not-callable
             persistent=False)
             
         self.normalize = Normalize(mean=mean, std=std)

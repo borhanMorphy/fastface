@@ -5,6 +5,9 @@ import sys
 from PIL import Image, ImageDraw, ImageColor
 import random
 import numpy as np
+import tempfile
+import fastface as ff
+import torch
 
 def prettify_detections(img: np.ndarray, preds: Dict,
         color: Tuple[int, int, int] = None) -> Image:
@@ -23,11 +26,43 @@ def prettify_detections(img: np.ndarray, preds: Dict,
         ImageDraw.Draw(pil_img).rectangle([(x1,y1),(x2,y2)], outline=color, width=3)
     return pil_img
 
+
+def get_ort_sess():
+    module = ff.FaceDetector.from_pretrained("lffd_slim").eval()
+    opset_version = 12
+    dynamic_axes = {
+        "input_data": {0: "batch", 2: "height", 3: "width"}, # write axis names
+        "preds": {0: "batch"}
+    }
+    input_names = [
+        "input_data"]
+
+    output_names = [
+        "preds"
+    ]
+
+    input_sample = torch.rand(1,*module.arch.input_shape[1:])
+
+    with tempfile.NamedTemporaryFile(suffix='.onnx', delete=True) as tmpfile:
+
+        module.to_onnx(tmpfile.name,
+            input_sample=input_sample,
+            opset_version=opset_version,
+            input_names=input_names,
+            output_names=output_names,
+            dynamic_axes=dynamic_axes,
+            export_params=True
+        )
+        sess = ort.InferenceSession(tmpfile.name)
+    return sess
+
+sess = get_ort_sess()
 img = imageio.imread(sys.argv[1])[:,:,:3]
-sess = ort.InferenceSession("lffd_slim.onnx")
 
 input_name = sess.get_inputs()[0].name
-
+o_preds = sess.run(None, {input_name: [(np.transpose(img, (2,0,1))).astype(np.float32)]})
+print(o_preds[0].shape)
+exit(0)
 o_preds, = sess.run(None, {input_name: [(np.transpose(img, (2,0,1))).astype(np.float32)]})
 
 boxes = o_preds[:, :4].astype(np.int32).tolist()

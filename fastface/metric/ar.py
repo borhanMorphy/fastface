@@ -58,8 +58,8 @@ class AverageRecall(Metric):
 			# N,M
 			iou = jaccard_vectorized(pred[:, :4], gt[:, :4])
 			select_i, select_j = linear_sum_assignment(-1*iou.numpy())
-			select_i = torch.tensor(select_i)
-			select_j = torch.tensor(select_j)
+			select_i = torch.tensor(select_i) # pylint: disable=not-callable
+			select_j = torch.tensor(select_j) # pylint: disable=not-callable
 			ious += iou[select_i, select_j].tolist()
 
 		# pylint: disable=no-member
@@ -68,6 +68,7 @@ class AverageRecall(Metric):
 	def compute(self):
 		"""Calculates average recall
 		"""
+
 		# pylint: disable=no-member
 		# pylint: disable=not-callable
 		ious = torch.tensor(self.ious, dtype=torch.float32)

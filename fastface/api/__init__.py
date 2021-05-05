@@ -67,7 +67,7 @@ def list_archs() -> List[str]:
 
     >>> import fastface as ff
     >>> ff.list_archs()
-    ['lffd', 'yolov4']
+    ['lffd']
 
     """
     return [arch for arch, _ in discover_archs()]

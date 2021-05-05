@@ -82,7 +82,7 @@ class DummyPad(torch.nn.Module):
 		>>> data = torch.rand(1,1,80,70)
 		>>> padded_data, paddings = pad(data)
 		>>> padded_data.shape
-		torch.Size([1, 1, 80, 70])
+		torch.Size([1, 1, 88, 77])
 		>>> paddings.shape
 		torch.Size([4])
 		"""

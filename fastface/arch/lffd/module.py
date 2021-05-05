@@ -197,7 +197,7 @@ class LFFD(nn.Module):
         if pos_mask.sum() > 0:
             reg_loss = self.reg_loss_fn(reg_logits[pos_mask], reg_targets[pos_mask]).mean()
         else:
-            reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True)
+            reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True) # pylint: disable=not-callable
 
         loss = cls_loss + reg_loss
 
