@@ -78,6 +78,7 @@ def main(model: str, device: str, img_path: str, det_threshold: float,
     pretty_img.show()
 
 if __name__ == '__main__':
+    # python demo.py -m lffd_original -d cuda -t 640 -i <img_file_path>
     args = get_arguments()
     main(args.model, args.device, args.input, args.det_threshold,
         args.iou_threshold, args.target_size)

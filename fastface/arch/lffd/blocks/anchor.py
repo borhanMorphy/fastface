@@ -9,7 +9,7 @@ class Anchor(nn.Module):
         self.rf_stride = rf_stride
         self.rf_start_offset = rf_start_offset
         self.rf_size = rf_size
-        grids = generate_grids(800//rf_stride, 800//rf_stride)
+        grids = generate_grids(1500//rf_stride, 1500//rf_stride)
         rfs = (grids * rf_stride + rf_start_offset).repeat(1, 1, 2) # fh x fw x 2 => fh x fw x 4
         rfs[:, :, :2] = rfs[:, :, :2] - rf_size/2
         rfs[:, :, 2:] = rfs[:, :, 2:] + rf_size/2

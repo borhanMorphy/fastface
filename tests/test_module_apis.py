@@ -101,7 +101,6 @@ def test_module_deploy_to_torchscript(arch: str, config: str):
 
 @pytest.mark.parametrize("arch,config", list(utils.build_module_args()))
 def test_module_deploy_to_onnx(arch: str, config: str):
-
     try:
         import onnxruntime as ort
     except ImportError:
@@ -111,17 +110,21 @@ def test_module_deploy_to_onnx(arch: str, config: str):
     module.eval()
 
     opset_version = 11
+
     dynamic_axes = {
         "input_data": {0: "batch", 2: "height", 3: "width"}, # write axis names
         "preds": {0: "batch"}
     }
+
     input_names = [
-        "input_data"]
+        "input_data"
+    ]
 
     output_names = [
         "preds"
     ]
-    input_sample = torch.rand(*module.arch.input_shape)
+
+    input_sample = torch.rand(1, *module.arch.input_shape[1:])
 
     with tempfile.NamedTemporaryFile(suffix='.onnx', delete=True) as tmpfile:
 
@@ -136,7 +139,9 @@ def test_module_deploy_to_onnx(arch: str, config: str):
 
         sess = ort.InferenceSession(tmpfile.name)
 
-    dummy_input = np.random.rand(2, 3, 400, 300)
+    del module
+
+    dummy_input = np.random.rand(2, 3, 200, 200).astype(np.float32)
     input_name = sess.get_inputs()[0].name
     ort_output, = sess.run(None, {input_name: dummy_input})
 
