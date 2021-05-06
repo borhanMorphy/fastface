@@ -127,19 +127,16 @@ class LFFD(nn.Module):
         for head_idx, head in enumerate(self.heads):
             batch_size, fh, fw, _ = logits[head_idx].shape
 
-            scores = torch.sigmoid(logits[head_idx][:, :, :, 4]).view(batch_size, fh*fw, 1)
-
-            boxes = head.anchor.logits_to_boxes(
-                logits[head_idx][:, :, :, :4]).view(batch_size, fh*fw, 4)
-            # boxes: B x (fh*fw) x 4 as x1,y1,x2,y2
+            scores = torch.sigmoid(logits[head_idx][:, :, :, [4]])
+            boxes = head.logits_to_boxes(logits[head_idx][:, :, :, :4])
 
             preds.append(
                 # B x n x 5 as x1,y1,x2,y2,score
-                torch.cat([boxes, scores], dim=2)
+                torch.cat([boxes, scores], dim=3).flatten(start_dim=1, end_dim=2).contiguous()
             )
 
         # concat channelwise: B x N x 5
-        return torch.cat(preds, dim=1)
+        return torch.cat(preds, dim=1).contiguous()
 
     def compute_loss(self, logits: List[torch.Tensor],
             raw_targets: List[Dict], hparams: Dict = {}) -> Dict[str, torch.Tensor]:

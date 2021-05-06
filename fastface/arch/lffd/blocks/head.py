@@ -43,3 +43,23 @@ class LFFDHead(nn.Module):
         reg_logits = self.reg_head(data)
         # (b,c,h,w)
         return reg_logits, cls_logits
+
+    def logits_to_boxes(self, reg_logits: torch.Tensor) -> torch.Tensor:
+        """Applies bounding box regression using regression logits
+        Args:
+            reg_logits (torch.Tensor): bs,fh,fw,4
+
+        Returns:
+            pred_boxes (torch.Tensor): bs,fh,fw,4 as xmin,ymin,xmax,ymax
+        """
+        _, fh, fw, _ = reg_logits.shape
+
+        rf_centers = self.anchor.rf_centers[:fh, :fw]
+        # rf_centers: fh,fw,4 cx1,cy1,cx1,cy1
+
+        #reg_logits[:, :, :, 0] = torch.clamp(reg_logits[:, :, :, 0], 0, fw*self.rf_stride)
+        #reg_logits[:, :, :, 1] = torch.clamp(reg_logits[:, :, :, 1], 0, fh*self.rf_stride)
+        #reg_logits[:, :, :, 2] = torch.clamp(reg_logits[:, :, :, 2], 0, fw*self.rf_stride)
+        #reg_logits[:, :, :, 3] = torch.clamp(reg_logits[:, :, :, 3], 0, fh*self.rf_stride)
+
+        return rf_centers - reg_logits * self.anchor.rf_normalizer

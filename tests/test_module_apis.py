@@ -101,12 +101,16 @@ def test_module_deploy_to_torchscript(arch: str, config: str):
 
 @pytest.mark.parametrize("arch,config", list(utils.build_module_args()))
 def test_module_deploy_to_onnx(arch: str, config: str):
-    # TODO handle this test
-    pytest.skip("Ignore")
+
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        pytest.skip("skipping test, onnxruntime is not installed")
+
     module = ff.FaceDetector.build(arch, config)
     module.eval()
 
-    opset_version = 12
+    opset_version = 11
     dynamic_axes = {
         "input_data": {0: "batch", 2: "height", 3: "width"}, # write axis names
         "preds": {0: "batch"}
@@ -129,8 +133,6 @@ def test_module_deploy_to_onnx(arch: str, config: str):
             dynamic_axes=dynamic_axes,
             export_params=True
         )
-
-        import onnxruntime as ort
 
         sess = ort.InferenceSession(tmpfile.name)
 

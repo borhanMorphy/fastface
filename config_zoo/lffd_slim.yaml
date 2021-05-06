@@ -13,4 +13,3 @@ preprocess:
   normalized_input: false
   mean: 127.5
   std: 127.5
-  target_size: [640, 640]

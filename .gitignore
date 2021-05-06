@@ -1,6 +1,7 @@
 # dev
 .vscode
 .idea
+backup
 
 # cache
 *.pyc
