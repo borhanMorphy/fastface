@@ -9,17 +9,12 @@
 ====================================
 **Version**: |release|
 
-**Lightweight face detection framework using** `pytorch-lightning <https://www.pytorchlightning.ai/>`_
+**FastFace is a easy-to-use face detection framework using** `pytorch-lightning <https://www.pytorchlightning.ai/>`_
 
-* |:fire:| **Easy to use pretrained models for inference**
-* |:hammer_and_wrench:| **Train & Test pre-defined architectures with open source datasets or custom datasets**
-* |:rocket:| **Deploy trained models into production**
-
----------
-Goal
----------
-**The first step of most face analysis tasks is face detection, fastface aims to provide, simple and easy to use face detection models into your pipeline.**
-
+* |:fire:| **Use pretrained models for inference with just few lines of code**
+* |:chart_with_upwards_trend:| **Evaluate models on different datasets**
+* |:hammer_and_wrench:| **Train and prototype new models, using pre-defined architectures**
+* |:rocket:| **Deploy trained models into production with ease**
 
 .. toctree::
    :maxdepth: 2

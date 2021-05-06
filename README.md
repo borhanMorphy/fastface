@@ -5,7 +5,7 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
 
-**FastFace is a easy-to-use face detection framework written on top of [pytorch-lightning](https://www.pytorchlightning.ai/)**
+**FastFace is a easy-to-use face detection framework using [pytorch-lightning](https://www.pytorchlightning.ai/)**
 
 ## Key Features
 * :fire: **Use pretrained models for inference with just few lines of code**
@@ -67,8 +67,8 @@ model.to("cuda")
 preds = model.predict(img, det_threshold=.8, iou_threshold=.4)
 # preds: [
 #   {
-#       'boxes': [xmin, ymin, xmax, ymax],
-#       'scores':<float>
+#       'boxes': [[xmin, ymin, xmax, ymax], ...],
+#       'scores':[<float>, ...]
 #   },
 #   ...
 # ]

@@ -1,13 +1,12 @@
 # Pretrained Models
 **fastface** offers pretrained models and can be easly accessable **without manually downloading weights**.<br>
 
-
 ## Model Zoo
 
-Name|Widerface-Easy Val AP|Widerface-Medium Val AP|Widerface-Hard Val AP|Link
-:------:|:------:|:------:|:------:|:------:
-**lffd_original**|0.893|0.866|0.756|[weights](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
-**lffd_slim**|0.854|0.845|0.735|[weights](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
+Name|Architecture|Configuration|Parameters|Model Size|Link
+:------:|:------:|:------:|:------:|:------:|:------:
+**lffd_original**|lffd|original|2.3M|8.8mb|[weights](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
+**lffd_slim**|lffd|slim|1.5M|5.9mb|[weights](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
 
 ## Usage
 To get any of pretrained models as `pl.LightningModule`

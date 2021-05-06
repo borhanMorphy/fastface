@@ -29,8 +29,8 @@ class AverageRecall(Metric):
 	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor]):
 		"""
 		Arguments:
-			preds {List} -- [Ni,4 dimensional as xmin,ymin,xmax,ymax]
-			targets {List} -- [Ni,4 dimensional as xmin,ymin,xmax,ymax]
+			preds [List]: [Ni,4 dimensional as xmin,ymin,xmax,ymax]
+			targets [List]: [Ni,4 dimensional as xmin,ymin,xmax,ymax]
 		"""
 		# TODO this might speed down the pipeline
 

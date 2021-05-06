@@ -1,21 +1,24 @@
+## Bugs
+- [ ] average recall seems to be bugged, check it out
+
 ## Hot
-- [x] apply `det_threshold` filter
-- [x] apply `nms` filter
-- [x] nms Torchscript & ONNX build
-- [x] lffd anchor generation Torchscript & ONNX build
-- [ ] handle loss functions for archs
+- [x] fill `Inference` section under the `CORE CONCEPTS`
+- [x] fill `Testing` section under the `CORE CONCEPTS`
+- [ ] fill `Training` section under the `CORE CONCEPTS`
+- [ ] fill `Deployment` section under the `CORE CONCEPTS`
+- [ ] add `ADVENCED GUIDE` to the docs
+- [ ] make sure tutorials works
 - [ ] add ci/cd for unittest, linting test and doc test
-- [x] implement `fastface.utils.preprocess.prepare_batch`
+- [ ] add coverage badge
+- [ ] add ci/cd pipeline badge
+- [ ] add doctest badge
 - [ ] test on windows 10
-- [ ] add FDDB dataset
+- [ ] add FDDB dataset & datamodule
+- [ ] add UFDD dataset & datamodule
 
 ## Near Future
 - [ ] complete pydoc and doc-test for all functions
 - [ ] add ONNX & torchscipt deployment notebooks
-- [ ] add coverage badge and pipeline
-- [ ] fill `Training` section under the `CORE CONCEPTS`
-- [ ] fill `Testing` section under the `CORE CONCEPTS`
-- [ ] fill `Deployment` section under the `CORE CONCEPTS`
 
 ## Future
 - [ ] extend Architecture docs

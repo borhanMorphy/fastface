@@ -80,12 +80,14 @@ class FaceDetector(pl.LightningModule):
 	def predict(self, data: Union[np.ndarray, List], target_size: int = None,
 			det_threshold: float = 0.3, iou_threshold: float = 0.4, keep_n: int = 200):
 		"""Performs face detection using given image or images
+
 		Args:
 			data (Union[np.ndarray, List]): numpy RGB image or list of RGB images
 			target_size (int): if given than images will be up or down sampled using `target_size`, Default: None
 			det_threshold (float): detection score threshold, Default: 0.3
 			iou_threshold (float): iou value threshold for nms, Default: 0.4
 			keep_n (int): describes how many prediction will be selected for each batch, Default: 200
+
 		Returns:
 			List: prediction result as list of dictionaries.
 			[
@@ -253,12 +255,45 @@ class FaceDetector(pl.LightningModule):
 		for name, metric in self.__metrics.items():
 			print(f"{name}: {metric.compute()}")
 
+	def on_test_epoch_start(self):
+		for metric in self.__metrics.values():
+			metric.reset()
+
+	def test_step(self, batch, batch_idx):
+		batch, targets = batch
+		batch_size = batch.size(0)
+
+		# compute preds
+		preds = self.forward(batch, det_threshold=0.1, iou_threshold=0.4, keep_n=300)
+		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
+
+		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
+		batch_gt_boxes = [target["target_boxes"].cpu() for target in targets]
+		for metric in self.__metrics.values():
+			metric.update(
+				batch_preds,
+				batch_gt_boxes
+			)
+
+	def test_epoch_end(self, _):
+		metric_results = {}
+		for name, metric in self.__metrics.items():
+			metric_results[name] = metric.compute()
+		return metric_results
+
 	def configure_optimizers(self):
 		return self.arch.configure_optimizers(hparams=self.hparams["hparams"])
 
 	@classmethod
 	def build_from_yaml(cls, yaml_file_path: str) -> pl.LightningModule:
-		# TODO pydoc
+		"""Classmethod for creating `fastface.FaceDetector` instance from scratch using yaml file
+
+		Args:
+			yaml_file_path (str): yaml file path
+
+		Returns:
+			pl.LightningModule: fastface.FaceDetector instance with random weights initialization
+		"""
 
 		assert os.path.isfile(yaml_file_path), "could not find the yaml file given {}".format(yaml_file_path)
 		with open(yaml_file_path, "r") as foo:
@@ -295,7 +330,7 @@ class FaceDetector(pl.LightningModule):
 		Returns:
 			pl.LightningModule: fastface.FaceDetector instance with random weights initialization
 		"""
-		assert isinstance(preprocess, dict), "preprocess must be dict not {}".format(type(preprocess))
+		assert isinstance(preprocess, dict), "preprocess must be dict, not {}".format(type(preprocess))
 
 		# get architecture nn.Module class
 		arch_cls = utils.config.get_arch_cls(arch)
@@ -329,7 +364,7 @@ class FaceDetector(pl.LightningModule):
 
 	@classmethod
 	def from_checkpoint(cls, ckpt_path: str, **kwargs) -> pl.LightningModule:
-		"""Classmethod for creating `fastface.FaceDetector` instance with given checkpoint weights
+		"""Classmethod for creating `fastface.FaceDetector` instance, using checkpoint file path
 
 		Args:
 			ckpt_path (str): file path of the checkpoint
@@ -341,7 +376,7 @@ class FaceDetector(pl.LightningModule):
 
 	@classmethod
 	def from_pretrained(cls, model: str, target_path: str = None, **kwargs) -> pl.LightningModule:
-		"""Classmethod for creating `fastface.FaceDetector` instance with pretrained weights
+		"""Classmethod for creating `fastface.FaceDetector` instance, using model name
 
 		Args:
 			model (str): pretrained model name.
