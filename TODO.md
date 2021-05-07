@@ -13,8 +13,8 @@
 - [ ] add ci/cd pipeline badge
 - [ ] add doctest badge
 - [ ] test on windows 10
-- [ ] add FDDB dataset & datamodule
-- [ ] add UFDD dataset & datamodule
+- [ ] add FDDB dataset
+- [ ] add UFDD dataset
 
 ## Near Future
 - [ ] complete pydoc and doc-test for all functions

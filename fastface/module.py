@@ -155,9 +155,20 @@ class FaceDetector(pl.LightningModule):
 		with torch.no_grad():
 			logits = self.arch.forward(batch)
 		# logits, any
-		
+		batch_preds = self._postprocess(logits, det_threshold=det_threshold,
+			iou_threshold=iou_threshold, keep_n=keep_n)
+
+		return batch_preds
+
+	def _postprocess(self, logits, det_threshold: float = 0.3,
+			iou_threshold: float = 0.4, keep_n: int = 200) -> torch.Tensor:
+
+		# TODO pydoc
+
 		# preds: torch.Tensor(B, N, 5)
 		preds = self.arch.logits_to_preds(logits)
+
+		batch_size = preds.size(0)
 
 		# filter out some predictions using score
 		pick_b, pick_n = torch.where(preds[:, :, 4] >= det_threshold)
@@ -167,7 +178,7 @@ class FaceDetector(pl.LightningModule):
 		# preds: N x 6
 
 		batch_preds: List[torch.Tensor] = []
-		for batch_idx in range(batch.size(0)):
+		for batch_idx in range(batch_size):
 			pick_n, = torch.where(batch_idx == preds[:, 5])
 			order = preds[pick_n, 4].sort(descending=True)[1]
 
@@ -189,11 +200,13 @@ class FaceDetector(pl.LightningModule):
 		# select picked preds
 		batch_preds = batch_preds[pick, :]
 		# batch_preds: N x 6
-
 		return batch_preds
 
 	def training_step(self, batch, batch_idx):
 		batch, targets = batch
+
+		# apply preprocess
+		batch = ((batch / self.normalizer) - self.mean) / self.std
 
 		# compute logits
 		logits = self.arch.forward(batch)
@@ -204,6 +217,23 @@ class FaceDetector(pl.LightningModule):
 
 		return loss
 
+	def training_epoch_end(self, outputs):
+		losses = {}
+		for output in outputs:
+			if isinstance(output, dict):
+				for k,v in output.items():
+					if k not in losses:
+						losses[k] = []
+					losses[k].append(v)
+			else:
+				# only contains `loss`
+				if "loss" not in losses:
+					losses["loss"] = []
+				losses["loss"].append(output)
+
+		for name, loss in losses.items():
+			self.log("{}/training".format(name), sum(loss)/len(loss))
+
 	def on_validation_epoch_start(self):
 		for metric in self.__metrics.values():
 			metric.reset()
@@ -213,6 +243,9 @@ class FaceDetector(pl.LightningModule):
 		batch, targets = batch
 		batch_size = batch.size(0)
 
+		# apply preprocess
+		batch = ((batch / self.normalizer) - self.mean) / self.std
+
 		# compute logits
 		logits = self.arch.forward(batch)
 
@@ -221,8 +254,8 @@ class FaceDetector(pl.LightningModule):
 			hparams=self.hparams["hparams"])
 		# loss: dict of losses or loss
 
-		# compute predictions # TODO fix here
-		preds = self.arch.postprocess(logits)
+		# compute predictions
+		preds = self._postprocess(logits, det_threshold=0.1, iou_threshold=0.4, keep_n=300)
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
@@ -251,9 +284,25 @@ class FaceDetector(pl.LightningModule):
 			if input("press `q` to exit") == "q":
 				exit(0)
 
-	def on_validation_epoch_end(self):
+	def validation_epoch_end(self, outputs):
+		losses = {}
+		for output in outputs:
+			if isinstance(output, dict):
+				for k,v in output.items():
+					if k not in losses:
+						losses[k] = []
+					losses[k].append(v)
+			else:
+				# only contains `loss`
+				if "loss" not in losses:
+					losses["loss"] = []
+				losses["loss"].append(output)
+
+		for name, loss in losses.items():
+			self.log("{}/validation".format(name), sum(loss)/len(loss))
+
 		for name, metric in self.__metrics.items():
-			print(f"{name}: {metric.compute()}")
+			self.log(name, metric.compute())
 
 	def on_test_epoch_start(self):
 		for metric in self.__metrics.values():

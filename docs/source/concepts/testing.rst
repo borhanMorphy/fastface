@@ -8,7 +8,7 @@ Testing
     import torch
 
     # checkout available pretrained models
-    ff.list_pretrained_models()
+    print(ff.list_pretrained_models())
     # ["lffd_slim", "lffd_original"]
 
     # build pl.LightningModule using pretrained weights
@@ -23,10 +23,11 @@ Testing
         ff.transforms.Padding(target_size=(480, 480))
     )
 
-    # build pl.LightningDataModule
-    dm = ff.datamodule.FDDBDataModule(
-        batch_size=1, num_workers=0,
-        test_transforms=transforms)
+    # build torch.utils.data.Dataset
+    ds = ff.dataset.FDDBDataset(phase="test", transforms=transforms)
+
+    # build torch.utils.data.DataLoader
+    dl = ds.get_dataloader(batch_size=1, num_workers=0)
 
     # add average precision pl.metrics.Metric to the model
     model.add_metric("average_precision",
@@ -41,8 +42,8 @@ Testing
         precision=32)
 
     # run test
-    trainer.test(model, datamodule=dm)
+    trainer.test(model, test_dataloaders=[dl])
     """
     DATALOADER:0 TEST RESULTS
-    {'average_precision': 0.9021232724189758}
+    {'average_precision': 0.9138654470443726}
     """

@@ -155,7 +155,8 @@ class LFFD(nn.Module):
 
         """
         batch_size = len(raw_targets)
-        # TODO use hparams
+        neg_select_ratio = hparams.get("ratio", 10)
+
         fmap_shapes = [head_logits.shape[1:3] for head_logits in logits]
 
         logits = torch.cat(
@@ -187,7 +188,7 @@ class LFFD(nn.Module):
         pos_cls_loss = self.cls_loss_fn(cls_logits[pos_mask], cls_targets[pos_mask])
         neg_cls_loss = self.cls_loss_fn(cls_logits[neg_mask], cls_targets[neg_mask])
         order = neg_cls_loss.argsort(descending=True)
-        keep_cls = max(num_of_positives*10, 100)
+        keep_cls = max(num_of_positives*neg_select_ratio, 100)
 
         cls_loss = torch.cat([pos_cls_loss, neg_cls_loss[order][: keep_cls]]).mean()
 
@@ -314,6 +315,15 @@ class LFFD(nn.Module):
         return torch.cat(targets, dim=1)
 
     def configure_optimizers(self, hparams: Dict ={}):
-        # TODO handle here
-        return torch.optim.SGD(self.parameters(), lr=1e-1,
-            momentum=0.9, weight_decay=0)
+        optimizer = torch.optim.SGD(
+            self.parameters(),
+            lr=hparams.get('learning_rate', 1e-1),
+            momentum=hparams.get('momentum', 0.9),
+            weight_decay=hparams.get('weight_decay', 1e-5))
+
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer,
+            milestones=hparams.get("milestones", [600000, 1000000, 1200000, 1400000]),
+            gamma=hparams.get("gamma", 0.1))
+
+        return [optimizer], [lr_scheduler]

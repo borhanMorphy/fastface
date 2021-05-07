@@ -3,9 +3,11 @@ __all__ = ["BaseDataset"]
 from typing import List, Dict, Tuple
 import copy
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import imageio
+from tqdm import tqdm
+from ..utils.data import default_collate_fn
 
 class _IdentitiyTransforms():
     """Dummy tranforms"""
@@ -65,3 +67,30 @@ class BaseDataset(Dataset):
             img = np.stack([img, img, img], axis=-1)
 
         return np.array(img, dtype=np.uint8)
+
+    def get_dataloader(self, batch_size: int = 1,
+            shuffle: bool = False, num_workers: int = 0,
+            collate_fn = default_collate_fn, pin_memory: bool = False, **kwargs
+        ):
+
+        return DataLoader(self, batch_size=batch_size, shuffle=shuffle,
+            num_workers=num_workers, collate_fn=collate_fn, pin_memory=pin_memory, **kwargs)
+
+    def get_mean_std(self) -> Dict:
+        # TODO pydoc
+        mean_sum, mean_sq_sum = np.zeros(3), np.zeros(3)
+        for img, _ in tqdm(self, total=len(self), desc="calculating mean and std for the dataset"):
+            d = img.astype(np.float32) / 255
+
+            mean_sum[0] += np.mean(d[:, :, 0])
+            mean_sum[1] += np.mean(d[:, :, 1])
+            mean_sum[2] += np.mean(d[:, :, 2])
+
+            mean_sq_sum[0] += np.mean(d[:, :, 0] ** 2)
+            mean_sq_sum[1] += np.mean(d[:, :, 1] ** 2)
+            mean_sq_sum[2] += np.mean(d[:, :, 2] ** 2)
+
+        mean = mean_sum / len(self)
+        std = (mean_sq_sum / len(self) - mean**2)**0.5
+
+        return {"mean": mean.tolist(), "std": std.tolist()}

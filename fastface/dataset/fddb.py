@@ -6,6 +6,7 @@ import math
 import numpy as np
 
 from .base import BaseDataset
+from ..utils.cache import get_data_cache_dir
 
 def _ellipse2box(major_r, minor_r, angle, center_x, center_y):
     tan_t = -(minor_r/major_r)*math.tan(angle)
@@ -76,18 +77,24 @@ class FDDBDataset(BaseDataset):
 
     """
 
-    __phases__ = ("train", "val", "custom")
+    __phases__ = ("train", "val", "test")
     __folds__ = tuple((i+1 for i in range(10)))
-    __splits__ = ((1, 2, 4, 5, 7, 9, 10), (3, 6, 8))
+    __splits__ = ((1, 2, 4, 5, 7, 9, 10), (3, 6, 8), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 
-    def __init__(self, source_dir: str, phase: str = "custom",
+    def __init__(self, source_dir: str = None, phase: str = None,
             folds: List[int] = None, transforms=None, **kwargs):
-        # TODO make use of `phase`
-        assert phase in FDDBDataset.__phases__, f"given phase {phase} is not valid, must be one of: {self.__phases__}"
 
-        folds = list(self.__folds__) if folds is None else folds
+        source_dir = get_data_cache_dir(suffix="fddb") if source_dir is None else source_dir
 
-        if phase != "custom":
+        assert os.path.exists(source_dir), "given source directory for fddb is not exist at {}".format(source_dir)
+        assert phase is None or phase in FDDBDataset.__phases__, "given phase {} is \
+            not valid, must be one of: {}".format(phase, self.__phases__)
+
+
+        if phase is None:
+            folds = list(self.__folds__) if folds is None else folds
+        else:
+            # TODO log here if `phase` is not None, folds argument will be ignored
             folds = self.__splits__[self.__phases__.index(phase)]
 
         ids = []

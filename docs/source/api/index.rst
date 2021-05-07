@@ -7,5 +7,4 @@
    loss.rst
    transforms.rst
    dataset.rst
-   datamodule.rst
    utils.rst
