@@ -30,7 +30,7 @@ Training
     )
 
     # build torch.utils.data.DataLoader for validation
-    val_dl = ff.dataset.FDDBDataset(phase="train", transforms=val_transforms).get_dataloader(
+    val_dl = ff.dataset.FDDBDataset(phase="val", transforms=val_transforms).get_dataloader(
         batch_size=8, shuffle=False, num_workers=8
     )
 
