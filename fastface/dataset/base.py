@@ -2,12 +2,19 @@ __all__ = ["BaseDataset"]
 
 from typing import List, Dict, Tuple
 import copy
+import os
+import logging
+
+import checksumdir
+
+logger = logging.getLogger("fastface.dataset")
 
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import imageio
 from tqdm import tqdm
 from ..utils.data import default_collate_fn
+from ..adapter import download_object
 
 class _IdentitiyTransforms():
     """Dummy tranforms"""
@@ -94,3 +101,28 @@ class BaseDataset(Dataset):
         std = (mean_sq_sum / len(self) - mean**2)**0.5
 
         return {"mean": mean.tolist(), "std": std.tolist()}
+    
+    def download(self, urls: List, target_dir: str):
+        for k, v in urls.items():
+
+            keys = list(v["check"].items())
+            checked_keys = []
+
+            for key, md5hash in keys:
+                target_sub_dir = os.path.join(target_dir, key)
+                if not os.path.exists(target_sub_dir):
+                    checked_keys.append(False)
+                else:
+                    checked_keys.append(
+                        checksumdir.dirhash(target_sub_dir, hashfunc="md5") == md5hash
+                    )
+
+            if sum(checked_keys) == len(keys):
+                logger.debug("found {} at {}".format(k, target_dir))
+                continue
+
+            # download
+            adapter = v.get('adapter')
+            kwargs = v.get('kwargs', {})
+            logger.warning("{} not found in the {}, downloading...".format(k, target_dir))
+            download_object(adapter, dest_path=target_dir, **kwargs)

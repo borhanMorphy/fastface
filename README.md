@@ -5,13 +5,13 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
 
-**FastFace is a easy-to-use face detection framework using [pytorch-lightning](https://www.pytorchlightning.ai/)**
+**Easy-to-use face detection framework with [pytorch-lightning](https://www.pytorchlightning.ai/)**
 
 ## Key Features
 * :fire: **Use pretrained models for inference with just few lines of code**
 * :chart_with_upwards_trend: **Evaluate models on different datasets**
 * :hammer_and_wrench: **Train and prototype new models, using pre-defined architectures**
-* :rocket: **Deploy trained models into production with ease**
+* :rocket: **Export trained models with ease, to use in production**
 
 ## Contents
 - [Installation](#installation)

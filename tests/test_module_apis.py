@@ -82,7 +82,7 @@ def test_module_forward(model_name: str, img_file_path: str):
     assert ((preds[:, [2, 3]] - preds[:, [0, 1]]) >= 0).all(), "predicted box height and width must be greater than 0"
 
 @pytest.mark.parametrize("arch,config", list(utils.build_module_args()))
-def test_module_deploy_to_torchscript(arch: str, config: str):
+def test_module_export_to_torchscript(arch: str, config: str):
     module = ff.FaceDetector.build(arch, config)
     module.eval()
 
@@ -96,11 +96,11 @@ def test_module_deploy_to_torchscript(arch: str, config: str):
 
     sc_output = sc_module.forward(dummy_input)
 
-    assert (output == sc_output).all(), "module output and deployed module output \
+    assert (output == sc_output).all(), "module output and exported module output \
         does not match for {} with config {}".format(arch, config)
 
 @pytest.mark.parametrize("arch,config", list(utils.build_module_args()))
-def test_module_deploy_to_onnx(arch: str, config: str):
+def test_module_export_to_onnx(arch: str, config: str):
     try:
         import onnxruntime as ort
     except ImportError:

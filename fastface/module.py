@@ -155,19 +155,19 @@ class FaceDetector(pl.LightningModule):
 		with torch.no_grad():
 			logits = self.arch.forward(batch)
 		# logits, any
-		batch_preds = self._postprocess(logits, det_threshold=det_threshold,
+
+		preds = self.arch.logits_to_preds(logits)
+		# preds: torch.Tensor(B, N, 5)
+
+		batch_preds = self._postprocess(preds, det_threshold=det_threshold,
 			iou_threshold=iou_threshold, keep_n=keep_n)
 
 		return batch_preds
 
-	def _postprocess(self, logits, det_threshold: float = 0.3,
+	def _postprocess(self, preds: torch.Tensor, det_threshold: float = 0.3,
 			iou_threshold: float = 0.4, keep_n: int = 200) -> torch.Tensor:
 
 		# TODO pydoc
-
-		# preds: torch.Tensor(B, N, 5)
-		preds = self.arch.logits_to_preds(logits)
-
 		batch_size = preds.size(0)
 
 		# filter out some predictions using score
@@ -254,8 +254,12 @@ class FaceDetector(pl.LightningModule):
 			hparams=self.hparams["hparams"])
 		# loss: dict of losses or loss
 
-		# compute predictions
-		preds = self._postprocess(logits, det_threshold=0.1, iou_threshold=0.4, keep_n=300)
+		# logits to preds
+		preds = self.arch.logits_to_preds(logits)
+		# preds: torch.Tensor(B, N, 5)
+
+		# postprocess predictions
+		preds = self._postprocess(preds, det_threshold=0.1, iou_threshold=0.4, keep_n=300)
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]

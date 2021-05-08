@@ -4,4 +4,4 @@
    inference.rst
    testing.rst
    training.rst
-   deployment.rst
+   export.rst

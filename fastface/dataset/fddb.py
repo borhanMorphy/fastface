@@ -8,6 +8,7 @@ import numpy as np
 from .base import BaseDataset
 from ..utils.cache import get_data_cache_dir
 
+
 def _ellipse2box(major_r, minor_r, angle, center_x, center_y):
     tan_t = -(minor_r/major_r)*math.tan(angle)
     t = math.atan(tan_t)
@@ -77,6 +78,31 @@ class FDDBDataset(BaseDataset):
 
     """
 
+    __URLS__ = {
+        "fddb-images": {
+            "adapter": "http",
+            "check":{
+                "2002": "ffd8ac86d9f407ac415cfe4dd2421407",
+                "2003": "6356cbce76b26a92fc9788b221f5e5bb"
+            },
+            "kwargs":{
+                "url": "http://vis-www.cs.umass.edu/fddb/originalPics.tar.gz",
+                "extract": True
+            }
+        },
+
+        "fddb-annotations": {
+            "adapter": "http",
+            "check":{
+                "FDDB-folds": "694de7a9144611e2353b7055819026e3" 
+            },
+            "kwargs": {
+                "url": "http://vis-www.cs.umass.edu/fddb/FDDB-folds.tgz",
+                "extract": True
+            }
+        }
+    }
+
     __phases__ = ("train", "val", "test")
     __folds__ = tuple((i+1 for i in range(10)))
     __splits__ = ((1, 2, 4, 5, 7, 9, 10), (3, 6, 8), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
@@ -85,6 +111,9 @@ class FDDBDataset(BaseDataset):
             folds: List[int] = None, transforms=None, **kwargs):
 
         source_dir = get_data_cache_dir(suffix="fddb") if source_dir is None else source_dir
+
+        # check if download
+        self.download(self.__URLS__, source_dir)
 
         assert os.path.exists(source_dir), "given source directory for fddb is not exist at {}".format(source_dir)
         assert phase is None or phase in FDDBDataset.__phases__, "given phase {} is \

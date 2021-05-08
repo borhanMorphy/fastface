@@ -7,7 +7,7 @@ Inference
     import imageio
 
     # checkout available pretrained models
-    ff.list_pretrained_models()
+    print(ff.list_pretrained_models())
     # ["lffd_slim", "lffd_original"]
 
     # build pl.LightningModule using pretrained weights

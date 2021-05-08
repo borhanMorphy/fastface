@@ -6,6 +6,7 @@ import numpy as np
 from scipy.io import loadmat
 
 from .base import BaseDataset
+from ..utils.cache import get_data_cache_dir
 
 def _parse_annotation_file(lines: List, ranges: List) -> Tuple[List, List]:
     idx = 0
@@ -71,18 +72,74 @@ def _get_validation_set(root_path: str, partition: str):
 class WiderFaceDataset(BaseDataset):
     """Widerface fastface.dataset.BaseDataset Instance"""
 
-    __phases__ = ("train","val")
-    __partitions__ = ("hard","medium","easy")
+    __URLS__ = {
+        'widerface-train': {
+            'adapter': 'gdrive',
+            'check': {
+                "WIDER_train/images/0--Parade": "312740df0cd71f60a46867d703edd7d6"
+            },
+            'kwargs':{
+                'file_id': '0B6eKvaijfFUDQUUwd21EckhUbWs',
+                'file_name': 'WIDER_train.zip',
+                'extract': True
+            }
+        },
+        'widerface-val': {
+            'adapter': 'gdrive',
+            'check': {
+                "WIDER_val": "31c304a9e3b85d384f25447de1159f85"
+            },
+            'kwargs':{
+                'file_id':'0B6eKvaijfFUDd3dIRmpvSk8tLUk',
+                'file_name': 'WIDER_val.zip',
+                'extract': True
+            }
+        },
+        'widerface-annotations': {
+            'adapter': 'http',
+            'check': {
+                "wider_face_split": "46114d331b8081101ebd620fbfdafa7a"
+            },
+            'kwargs':{
+                'url': 'http://mmlab.ie.cuhk.edu.hk/projects/WIDERFace/support/bbx_annotation/wider_face_split.zip',
+                'extract': True
+            }
+        },
+        'widerface-eval-code': {
+            'adapter': 'http',
+            'check': {
+                "eval_tools": "e406d444da4b005008e3af0807b19d45"
+            },
+            'kwargs':{
+                'url': 'http://shuoyang1213.me/WIDERFACE/support/eval_script/eval_tools.zip',
+                'extract': True
+            }
+        }
+    }
+
+    __phases__ = ("train", "val", "test")
+    __partitions__ = ("hard", "medium", "easy")
     __partition_ranges__ = ( tuple(range(21)), tuple(range(21,41)), tuple(range(41,62)) )
-    def __init__(self, source_dir: str, phase: str='train',
+    def __init__(self, source_dir: str = None, phase: str = None,
             partitions: List = None, transforms=None, **kwargs):
 
-        assert phase in WiderFaceDataset.__phases__, f"given phase {phase} is not valid, must be one of: {WiderFaceDataset.__phases__}"
+        source_dir = get_data_cache_dir(suffix="widerface") if source_dir is None else source_dir
+
+        # check if download
+        self.download(self.__URLS__, source_dir)
+
+        assert os.path.exists(source_dir), "given source directory for fddb is not exist at {}".format(source_dir)
+        assert phase is None or phase in WiderFaceDataset.__phases__, "given phase {} is not \
+            valid, must be one of: {}".format(phase, WiderFaceDataset.__phases__)
+
         if not partitions:
             partitions = WiderFaceDataset.__partitions__
 
         for partition in partitions:
-            assert partition in WiderFaceDataset.__partitions__, f"given partition {partition} is not in the defined list: {self.__partitions__}"
+            assert partition in WiderFaceDataset.__partitions__, "given partition {} is \
+                not in the defined list: {}".format(partition, self.__partitions__)
+
+        # TODO handle phase
 
         if phase == 'train':
             ranges = []

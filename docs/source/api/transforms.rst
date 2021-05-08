@@ -1,4 +1,4 @@
-fastface.transform
+fastface.transforms
 ++++++++++++++++++
 
 .. autoclass:: fastface.transforms.Interpolate
