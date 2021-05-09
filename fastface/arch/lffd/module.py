@@ -79,7 +79,7 @@ class LFFD(nn.Module):
                 head_infeatures, head_outfeatures, rf_sizes, rf_start_offsets, rf_strides))
         ])
 
-        self.cls_loss_fn = nn.BCEWithLogitsLoss(reduction='none')#BinaryFocalLoss(gamma=2, alpha=1)
+        self.cls_loss_fn = nn.BCEWithLogitsLoss(reduction='none')
         self.reg_loss_fn = nn.MSELoss(reduction='none')
 
     def forward(self, batch: torch.Tensor) -> List[torch.Tensor]:

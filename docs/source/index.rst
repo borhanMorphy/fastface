@@ -9,7 +9,7 @@
 ====================================
 **Version**: |release|
 
-**Easy-to-use face detection framework with** `pytorch-lightning <https://www.pytorchlightning.ai/>`_
+**Easy-to-use face detection framework, developed using** `pytorch-lightning <https://www.pytorchlightning.ai/>`_
 
 * |:fire:| **Use pretrained models for inference with just few lines of code**
 * |:chart_with_upwards_trend:| **Evaluate models on different datasets**

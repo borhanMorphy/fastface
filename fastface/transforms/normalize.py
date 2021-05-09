@@ -11,7 +11,7 @@ class Normalize():
 
     def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
         img = img.astype(np.float32)
-        img -= self.mean
-        img /= self.std
+        img = img - self.mean
+        img = img / self.std
 
         return (img, targets)

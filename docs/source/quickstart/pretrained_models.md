@@ -5,8 +5,8 @@
 
 Name|Architecture|Configuration|Parameters|Model Size|Link
 :------:|:------:|:------:|:------:|:------:|:------:
-**lffd_original**|lffd|original|2.3M|8.8mb|[weights](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
-**lffd_slim**|lffd|slim|1.5M|5.9mb|[weights](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
+**lffd_original**|lffd|original|2.3M|9mb|[weights](https://drive.google.com/file/d/1qFRuGhzoMWrW9WNlWw9jHXPY51MBssQD/view?usp=sharing)
+**lffd_slim**|lffd|slim|1.5M|6mb|[weights](https://drive.google.com/file/d/1UOHllYp5NY4mV7lHmq0c9xsryRIufpAQ/view?usp=sharing)
 
 ## Usage
 To get any of pretrained models as `pl.LightningModule`

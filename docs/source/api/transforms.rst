@@ -1,5 +1,5 @@
 fastface.transforms
-++++++++++++++++++
++++++++++++++++++++
 
 .. autoclass:: fastface.transforms.Interpolate
 .. autoclass:: fastface.transforms.Padding

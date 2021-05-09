@@ -5,7 +5,7 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
 
-**Easy-to-use face detection framework with [pytorch-lightning](https://www.pytorchlightning.ai/)**
+**Easy-to-use face detection framework, developed using [pytorch-lightning](https://www.pytorchlightning.ai/)**
 
 ## Key Features
 * :fire: **Use pretrained models for inference with just few lines of code**
@@ -17,6 +17,7 @@
 - [Installation](#installation)
 - [Pretrained Models](#pretrained-models)
 - [Demo](#demo)
+- [Benchmarks](#benchmarks)
 - [Tutorials](#tutorials)
 - [References](#references)
 - [Citations](#citations)
@@ -38,8 +39,8 @@ pip install .
 Pretrained models can be accessable via `fastface.FaceDetector.from_pretrained(<name>)`
 Name|Architecture|Configuration|Parameters|Model Size|Link
 :------:|:------:|:------:|:------:|:------:|:------:
-**lffd_original**|lffd|original|2.3M|8.8mb|[weights](https://drive.google.com/file/d/1xizV0s_Ei_BQcUQI_MylqC0K2SszrXP1/view?usp=sharing)
-**lffd_slim**|lffd|slim|1.5M|5.9mb|[weights](https://drive.google.com/file/d/1vA5Ywi_bJgEKwpMi9bOUD42Aaz6-fiKN/view?usp=sharing)
+**lffd_original**|lffd|original|2.3M|9mb|[weights](https://drive.google.com/file/d/1qFRuGhzoMWrW9WNlWw9jHXPY51MBssQD/view?usp=sharing)
+**lffd_slim**|lffd|slim|1.5M|6mb|[weights](https://drive.google.com/file/d/1UOHllYp5NY4mV7lHmq0c9xsryRIufpAQ/view?usp=sharing)
 
 ## Demo
 Using package
@@ -64,14 +65,11 @@ model.eval()
 model.to("cuda")
 
 # model inference
-preds = model.predict(img, det_threshold=.8, iou_threshold=.4)
-# preds: [
-#   {
-#       'boxes': [[xmin, ymin, xmax, ymax], ...],
-#       'scores':[<float>, ...]
-#   },
-#   ...
-# ]
+preds, = model.predict(img, det_threshold=.8, iou_threshold=.4)
+# preds: {
+#    'boxes': [[xmin, ymin, xmax, ymax], ...],
+#    'scores':[<float>, ...]
+# }
 
 ```
 
@@ -81,6 +79,17 @@ python demo.py --model lffd_original --device cuda --input <your_image_file_path
 ```
 sample output;
 ![alt text](resources/friends.jpg)
+
+## Benchmarks
+**Following results are obtained with this repository**
+
+#### WIDER FACE
+validation set results
+Name|Easy|Medium|Hard|
+:------:|:------:|:------:|:------:
+**lffd_original**|**0.893**|**0.866**|**0.758**
+**lffd_slim**|**0.866**|**0.854**|**0.742**
+
 
 ## Tutorials
 * [Widerface Benchmark](./tutorials/widerface_benchmark/README.md)

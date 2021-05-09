@@ -1,5 +1,5 @@
 ## Bugs
-- [ ] fix performance drop for tutorials/widerface_benchmark
+- [x] fix performance drop for tutorials/widerface_benchmark
 - [ ] average recall seems to be bugged, check it out
 
 ## Hot
@@ -7,8 +7,7 @@
 - [x] fill `Testing` section under the `CORE CONCEPTS`
 - [x] fill `Training` section under the `CORE CONCEPTS`
 - [x] fill `Export` section under the `CORE CONCEPTS`
-- [ ] add `ADVENCED GUIDE` to the docs
-- [ ] make sure tutorials works
+- [x] make sure tutorials works
 - [ ] add ci/cd for unittest, linting test and doc test
 - [ ] add coverage badge
 - [ ] add ci/cd pipeline badge
@@ -18,7 +17,8 @@
 - [ ] add UFDD dataset
 
 ## Near Future
-- [ ] complete pydoc and doc-test for all functions
+- [ ] add `ADVENCED GUIDE` to the docs
+- [ ] increase coverage of pydoc and doc-test for apis
 - [ ] add ONNX & torchscipt usecase deployment notebooks
 
 ## Future

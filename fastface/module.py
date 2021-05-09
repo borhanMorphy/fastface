@@ -5,14 +5,12 @@ from typing import Dict, Union, List
 
 import yaml
 import numpy as np
-from PIL import Image
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
 from . import api
 from . import utils
-
 
 class FaceDetector(pl.LightningModule):
 	"""Generic pl.LightningModule definition for face detection
@@ -103,7 +101,7 @@ class FaceDetector(pl.LightningModule):
 		>>> model = ff.FaceDetector.from_pretrained('lffd_original').eval()
 		>>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
 		>>> model.predict(img, target_size=640)
-		[{'boxes': [[1051, 179, 1186, 359], [561, 225, 708, 403], [142, 221, 260, 384], [321, 230, 444, 397], [870, 275, 976, 404]], 'scores': [0.9970086216926575, 0.9921219348907471, 0.896735668182373, 0.8310102224349976, 0.5529152750968933]}]
+		[{'boxes': [[1057, 180, 1187, 352], [571, 212, 697, 393], [140, 218, 270, 382], [864, 271, 979, 406], [327, 252, 442, 392]], 'scores': [0.9992133378982544, 0.9971852898597717, 0.9246336817741394, 0.8549349308013916, 0.8072562217712402]}]
 		"""
 
 		batch = self.to_tensor(data)
@@ -238,7 +236,6 @@ class FaceDetector(pl.LightningModule):
 		for metric in self.__metrics.values():
 			metric.reset()
 
-	@torch.no_grad()
 	def validation_step(self, batch, batch_idx):
 		batch, targets = batch
 		batch_size = batch.size(0)
@@ -246,13 +243,14 @@ class FaceDetector(pl.LightningModule):
 		# apply preprocess
 		batch = ((batch / self.normalizer) - self.mean) / self.std
 
-		# compute logits
-		logits = self.arch.forward(batch)
+		with torch.no_grad():
+			# compute logits
+			logits = self.arch.forward(batch)
 
-		# compute loss
-		loss = self.arch.compute_loss(logits, targets,
-			hparams=self.hparams["hparams"])
-		# loss: dict of losses or loss
+			# compute loss
+			loss = self.arch.compute_loss(logits, targets,
+				hparams=self.hparams["hparams"])
+			# loss: dict of losses or loss
 
 		# logits to preds
 		preds = self.arch.logits_to_preds(logits)
@@ -290,6 +288,7 @@ class FaceDetector(pl.LightningModule):
 		return loss
 
 	def debug_step(self, batch, batch_preds, batch_gt_boxes):
+		from PIL import Image
 		for img, preds, gt_boxes in zip(batch, batch_preds, batch_gt_boxes):
 			img = (img.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
 			preds = preds.cpu().long().numpy()
@@ -330,7 +329,7 @@ class FaceDetector(pl.LightningModule):
 		batch_size = batch.size(0)
 
 		# compute preds
-		preds = self.forward(batch, det_threshold=0.1, iou_threshold=0.4, keep_n=500)
+		preds = self.forward(batch, det_threshold=0.1, iou_threshold=0.4, keep_n=10000)
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]

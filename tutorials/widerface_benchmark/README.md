@@ -3,7 +3,7 @@
 ## Setup
 Install latest version of `fastface` with
 ```
-pip install fastface -U
+pip install -U
 ```
 
 ## Discovery
@@ -31,7 +31,7 @@ model = ff.FaceDetector.from_pretrained("lffd_original")
 # model: pl.LightningModule
 ```
 
-**If you don't have pretrained model weights in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`**
+**If you don't have pretrained model weights on your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`**
 
 
 Add widerface average precision(defined in the widerface competition) metric to the model
@@ -48,16 +48,19 @@ Define widerface dataset. For this tutorial `easy` partition is selected but `me
 ```python
 ds = ff.dataset.WiderFaceDataset(
     phase="test",
-    partitions=[partition],
+    partitions=["easy"],
     transforms= ff.transforms.Compose(
         ff.transforms.ConditionalInterpolate(max_size=1500),
-        ff.transforms.FaceDiscarder(min_face_size=10)
     )
 )
 # ds: torch.utils.data.Dataset
+
+# get dataloader
+dl = ds.get_dataloader(batch_size=1, num_workers=1)
+# dl: torch.utils.data.DataLoader
 ```
 
-**If you don't have widerface validation dataset in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/data/widerface/`**
+**If you don't have widerface validation dataset on your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/data/widerface/`**
 
 Define `pytorch_lightning.Trainer`
 ```python
@@ -71,7 +74,7 @@ trainer = pl.Trainer(
 
 Run test
 ```python
-trainer.test(model, datamodule=dm)
+trainer.test(model, test_dataloaders=dl)
 ```
 
 You should get output like this after test is done
@@ -79,7 +82,7 @@ You should get output like this after test is done
 ```script
 --------------------------------------------------------------------------------
 DATALOADER:0 TEST RESULTS
-{'widerface_ap': 0.8013776499910676}
+{'widerface_ap': 0.8929094818903156}
 --------------------------------------------------------------------------------
 ```
 

@@ -6,7 +6,6 @@ import fastface as ff
 @pytest.mark.parametrize("dataset_name",
     [
         "FDDBDataset",
-        "UFDDDataset",
         "WiderFaceDataset"
     ]
 )

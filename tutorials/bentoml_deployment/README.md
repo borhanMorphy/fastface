@@ -1,11 +1,12 @@
-# fastface BentoML Deployment
-**[BentoML](https://www.bentoml.ai/) is a model serving framework, enabling to deliver prediction services in a fast, repeatable, and scalable way.<br>
-This tutorial will explain how to use bentoml to deploy [fastface](https://github.com/borhanMorphy/light-face-detection) models into production as a service.**
+# FaceFace BentoML Deployment
+**[BentoML](https://www.bentoml.ai/) is a model serving framework, enabling to deliver prediction services in a fast, repeatable and scalable way.<br>**
+
+**This tutorial will explain how to export [fastface]((https://github.com/borhanMorphy/light-face-detection)) models as [ONNX](https://onnx.ai/) and deploy to bentoml production service.**
 
 ## Installation
 **install latest fastface and bentoml via pip**
 ```
-pip install fastface BentoML==0.11.0 -U
+pip install fastface==0.1.0 BentoML==0.12.1 -U
 ```
 
 ## BentoService Definition
@@ -13,54 +14,37 @@ define BentoService as [service.py](./service.py)
 ```python
 from bentoml import env, artifacts, api, BentoService
 from bentoml.adapters import ImageInput
-from bentoml.frameworks.pytorch import PytorchModelArtifact
-from bentoml.service.artifacts.json_file import JSONArtifact
-from bentoml.service.artifacts.common import PickleArtifact
+from bentoml.frameworks.onnx import OnnxModelArtifact
 
 import numpy as np
-from typing import List
-import torch
+from typing import List, Dict
 
-@env(pip_dependencies=["fastface"])
+@env(infer_pip_packages=True)
 @artifacts([
-    PytorchModelArtifact('model'),
-    JSONArtifact('config'),
-    PickleArtifact('preprocess')
+    OnnxModelArtifact('model', backend="onnxruntime")
 ])
 class FaceDetectionService(BentoService):
 
+    def prepare_input(self, img: np.ndarray) -> np.ndarray:
+        img = np.transpose(img[:, :, :3], (2, 0, 1))
+        return np.expand_dims(img, axis=0).astype(np.float32)
+
+    def to_json(self, results: np.ndarray) -> Dict:
+        # results: (N, 6) as x1,y1,x2,y2,score,batch_idx
+        return {
+            "boxes": results[:, :4].astype(np.int32).tolist(),
+            "scores": results[:, 4].astype(np.float32).tolist()
+        }
+
     @api(input=ImageInput(), batch=True, mb_max_batch_size=8, mb_max_latency=1000)
-    def detect(self, imgs:List[np.ndarray]):
-        # initialize model if not initialized yet
-        if not self.artifacts.config['initialized']:
-            # set model to eval mode
-            self.artifacts.model.eval()
-            # move model to specifed device
-            self.artifacts.model.to(self.artifacts.config['device'])
-
-            # enable tracking to perform postprocess after inference 
-            self.artifacts.preprocess.enable_tracking()
-
-            # set initialize flag true
-            self.artifacts.config['initialized'] = True
-
-        # apply transforms
-        imgs = torch.stack([
-            self.artifacts.preprocess(image) for image in imgs], dim=0
-            ).to(self.artifacts.config['device'])
-
-        preds:List = []
-
-        for pred in self.artifacts.model.predict(imgs):
-            # postprocess to adjust predictions
-            pred = self.artifacts.preprocess.adjust(pred.cpu().numpy())
-            # pred np.ndarray(N,5) as x1,y1,x2,y2,score
-            payload = [{'box':person[:4].astype(np.int32).tolist(), 'score':person[4]} for person in pred]
-            preds.append(payload)
-
-        # reset queue
-        self.artifacts.preprocess.flush()
-
+    def detect(self, imgs: List[np.ndarray]):
+        input_name = self.artifacts.model.get_inputs()[0].name
+        preds = []
+        for img in imgs:
+            results = self.artifacts.model.run(None, {input_name: self.prepare_input(img) })[0]
+            preds.append(
+                self.to_json(results)
+            )
         return preds
 ```
 
@@ -70,25 +54,52 @@ define operations as [build.py](./build.py)
 # import fastface package to get pretrained model
 import fastface as ff
 import torch
+import tempfile
+
+# pretrained model
+pretrained_model_name = "lffd_original"
 
 # get pretrained model
-model = ff.FaceDetector.from_pretrained("lffd_original")
-# define device
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = ff.FaceDetector.from_pretrained(pretrained_model_name)
 
-# get FaceDetectionService
-from service import FaceDetectionService
+# export as onnx
+opset_version = 11
 
-# create FaceDetectionService instance
-face_detection_service = FaceDetectionService()
+dynamic_axes = {
+    "input_data": {0: "batch", 2: "height", 3: "width"}, # write axis names
+    "preds": {0: "batch"}
+}
 
-# Pack the newly trained model artifact
-face_detection_service.pack('model', model.arch)
-face_detection_service.pack('preprocess', model.preprocess)
-face_detection_service.pack('config', {
-    'device': device,
-    'initialized': False
-})
+input_names = [
+    "input_data"
+]
+
+output_names = [
+    "preds"
+]
+
+# define dummy sample
+input_sample = torch.rand(1, *model.arch.input_shape[1:])
+
+# export model as onnx
+with tempfile.NamedTemporaryFile(suffix='.onnx', delete=True) as tmpfile:
+    model.to_onnx(tmpfile.name,
+        input_sample=input_sample,
+        opset_version=opset_version,
+        input_names=input_names,
+        output_names=output_names,
+        dynamic_axes=dynamic_axes,
+        export_params=True
+    )
+
+    # get FaceDetectionService
+    from service import FaceDetectionService
+
+    # create FaceDetectionService instance
+    face_detection_service = FaceDetectionService()
+
+    # Pack the model artifact
+    face_detection_service.pack('model', tmpfile.name)
 
 # Save the service to disk for model serving
 saved_path = face_detection_service.save(version="v{}".format(ff.__version__))
@@ -144,7 +155,7 @@ BentoML also provides docker support for distributing services.<br>
 
 Run following to build docker image
 ```
-docker build --tag face-detection-service $HOME/bentoml/repository/FaceDetectionService/v0.1.0rc1/
+docker build --tag face-detection-service $HOME/bentoml/repository/FaceDetectionService/v0.1.0/
 ```
 
 After docker image build is done, run docker container with the following
