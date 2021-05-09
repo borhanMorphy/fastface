@@ -3,7 +3,7 @@
 ## Setup
 Install latest version of `fastface` with
 ```
-pip install -U
+pip install fastface -U
 ```
 
 ## Discovery

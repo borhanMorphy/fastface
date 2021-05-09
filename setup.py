@@ -18,18 +18,14 @@ with open("README.md", "r") as foo:
 with open("requirements.txt", "r") as foo:
     requirements = foo.read().split("\n")
 
+# load docs requirements
+with open("docs/requirements.txt", "r") as foo:
+    doc_require = foo.read().split("\n")
+
 test_require = [
     "pytest",
     "pytest-pylint",
     "pytest-cov"
-]
-
-doc_require = [
-    "sphinxemoji",
-    "sphinx_rtd_theme",
-    "recommonmark",
-    "sphinx_markdown_tables",
-    "sphinxcontrib-napoleon"
 ]
 
 extras_require = {

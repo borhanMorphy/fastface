@@ -1,7 +1,7 @@
 # FaceFace BentoML Deployment
 **[BentoML](https://www.bentoml.ai/) is a model serving framework, enabling to deliver prediction services in a fast, repeatable and scalable way.<br>**
 
-**This tutorial will explain how to export [fastface]((https://github.com/borhanMorphy/light-face-detection)) models as [ONNX](https://onnx.ai/) and deploy to bentoml production service.**
+**This tutorial will explain how to export [fastface]((https://github.com/borhanMorphy/light-face-detection)) models as [ONNX](https://onnx.ai/) and deploy to bentoml prediction service.**
 
 ## Installation
 **install latest fastface and bentoml via pip**
