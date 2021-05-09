@@ -1,11 +1,13 @@
 # FastFace: Lightweight Face Detection Framework
 
 ![PyPI](https://img.shields.io/pypi/v/fastface)
+[![Documentation Status](https://readthedocs.org/projects/fastface/badge/?version=latest)](https://fastface.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://pepy.tech/badge/fastface)](https://pepy.tech/project/fastface)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
 
-**Easy-to-use face detection framework, developed using [pytorch-lightning](https://www.pytorchlightning.ai/)**
+**Easy-to-use face detection framework, developed using [pytorch-lightning](https://www.pytorchlightning.ai/).**
+**Checkout [documentation](https://fastface.readthedocs.io/en/latest/) for more.**
 
 ## Key Features
 * :fire: **Use pretrained models for inference with just few lines of code**
