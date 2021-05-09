@@ -20,7 +20,7 @@ with open("requirements.txt", "r") as foo:
 
 # load docs requirements
 with open("docs/requirements.txt", "r") as foo:
-    doc_require = foo.read().split("\n")
+    docs_require = foo.read().split("\n")
 
 test_require = [
     "pytest",
@@ -30,9 +30,9 @@ test_require = [
 
 extras_require = {
     "test": test_require,
-    "doc": doc_require,
-    "dev": test_require + doc_require,
-    "all": test_require + doc_require,
+    "docs": docs_require,
+    "dev": test_require + docs_require,
+    "all": test_require + docs_require,
 }
 
 setup(
