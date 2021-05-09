@@ -6,7 +6,7 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
 
-**Easy-to-use face detection framework, developed using [pytorch-lightning](https://www.pytorchlightning.ai/).**
+**Easy-to-use face detection framework, developed using [pytorch-lightning](https://www.pytorchlightning.ai/).**<br>
 **Checkout [documentation](https://fastface.readthedocs.io/en/latest/) for more.**
 
 ## Key Features
