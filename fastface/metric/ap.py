@@ -20,7 +20,7 @@ class AveragePrecision(Metric):
 		self.add_state("target_boxes", default=[], dist_reduce_fx=None)
 
 	# pylint: disable=method-hidden
-	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor]):
+	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor], **kwargs):
 		"""
 		Arguments:
 			preds (List) -- [Ni,5 dimensional as xmin,ymin,xmax,ymax,conf]

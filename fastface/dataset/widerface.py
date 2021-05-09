@@ -172,9 +172,7 @@ class WiderFaceDataset(BaseDataset):
             for target in raw_targets:
                 targets.append({
                     "target_boxes": target[:, :4].astype(np.float32),
-                    "meta": {
-                        "ignore": target[:, 4]
-                    }
+                    "ignore_flags": target[:, 4].astype(np.int32)
                 })
             del raw_targets
 

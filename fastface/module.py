@@ -78,13 +78,13 @@ class FaceDetector(pl.LightningModule):
 
 	@torch.jit.unused
 	def predict(self, data: Union[np.ndarray, List], target_size: int = None,
-			det_threshold: float = 0.3, iou_threshold: float = 0.4, keep_n: int = 200):
+			det_threshold: float = 0.4, iou_threshold: float = 0.4, keep_n: int = 200):
 		"""Performs face detection using given image or images
 
 		Args:
 			data (Union[np.ndarray, List]): numpy RGB image or list of RGB images
 			target_size (int): if given than images will be up or down sampled using `target_size`, Default: None
-			det_threshold (float): detection score threshold, Default: 0.3
+			det_threshold (float): detection score threshold, Default: 0.4
 			iou_threshold (float): iou value threshold for nms, Default: 0.4
 			keep_n (int): describes how many prediction will be selected for each batch, Default: 200
 
@@ -259,11 +259,23 @@ class FaceDetector(pl.LightningModule):
 		# preds: torch.Tensor(B, N, 5)
 
 		# postprocess predictions
-		preds = self._postprocess(preds, det_threshold=0.1, iou_threshold=0.4, keep_n=300)
+		preds = self._postprocess(preds, det_threshold=0.1, iou_threshold=0.4, keep_n=500)
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
-		batch_gt_boxes = [target["target_boxes"].cpu() for target in targets]
+	
+		kwargs = {}
+		batch_gt_boxes = []
+		for target in targets:
+			for k,v in target.items():
+				if isinstance(v, torch.Tensor):
+					v = v.cpu()
+				if k == "target_boxes":
+					batch_gt_boxes.append(v.cpu())
+				else:
+					if k not in kwargs:
+						kwargs[k] = []
+					kwargs[k].append(v)
 
 		# TODO handle here
 		# self.debug_step(batch, batch_preds, batch_gt_boxes)
@@ -271,7 +283,8 @@ class FaceDetector(pl.LightningModule):
 		for metric in self.__metrics.values():
 			metric.update(
 				batch_preds,
-				batch_gt_boxes
+				batch_gt_boxes,
+				**kwargs
 			)
 
 		return loss
@@ -317,15 +330,28 @@ class FaceDetector(pl.LightningModule):
 		batch_size = batch.size(0)
 
 		# compute preds
-		preds = self.forward(batch, det_threshold=0.1, iou_threshold=0.4, keep_n=300)
+		preds = self.forward(batch, det_threshold=0.1, iou_threshold=0.4, keep_n=500)
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
-		batch_gt_boxes = [target["target_boxes"].cpu() for target in targets]
+		kwargs = {}
+		batch_gt_boxes = []
+		for target in targets:
+			for k,v in target.items():
+				if isinstance(v, torch.Tensor):
+					v = v.cpu()
+				if k == "target_boxes":
+					batch_gt_boxes.append(v.cpu())
+				else:
+					if k not in kwargs:
+						kwargs[k] = []
+					kwargs[k].append(v)
+
 		for metric in self.__metrics.values():
 			metric.update(
 				batch_preds,
-				batch_gt_boxes
+				batch_gt_boxes,
+				**kwargs
 			)
 
 	def test_epoch_end(self, _):
@@ -447,6 +473,7 @@ class FaceDetector(pl.LightningModule):
 		arch = checkpoint['hyper_parameters']['arch']
 		config = checkpoint['hyper_parameters']['config']
 		preprocess = checkpoint['hyper_parameters']['preprocess']
+
 		kwargs = checkpoint['hyper_parameters']['kwargs']
 
 		# get architecture nn.Module class
@@ -507,7 +534,7 @@ class FaceDetector(pl.LightningModule):
 				boxes = pred[:, :4].astype(np.int32).tolist()
 				scores = pred[:, 4].tolist()
 			else:
-				boxes = [],
+				boxes = []
 				scores = []
 
 			results.append({

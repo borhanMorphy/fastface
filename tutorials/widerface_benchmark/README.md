@@ -31,9 +31,8 @@ model = ff.FaceDetector.from_pretrained("lffd_original")
 # model: pl.LightningModule
 ```
 
-If you don't have pretrained model weights in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`
+**If you don't have pretrained model weights in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/model/`**
 
-![plot](../../resources/tutorial_1_0.png)
 
 Add widerface average precision(defined in the widerface competition) metric to the model
 ```python
@@ -41,43 +40,29 @@ metric = ff.metric.WiderFaceAP(iou_threshold=0.5)
 # metric: pl.metrics.Metric
 
 # add metric to the model
-model.add_metric("widerface_ap",metric)
+model.add_metric("widerface_ap", metric)
 ```
 
-Define widerface datamodule. For this tutorial `easy` partition is selected but `medium` or `hard` partitions are also available<br>
-`Warning!` Do not use `batch_size` > 1, because tensors can not be stacked due to different size of images. Also using fixed image size drops metric performance.
+Define widerface dataset. For this tutorial `easy` partition is selected but `medium` or `hard` partitions are also available<br>
+**`Warning!` Do not use `batch_size` > 1**, because tensors can not be stacked due to different size of images. Also using fixed image size drops metric performance.
 ```python
-dm = ff.datamodule.WiderFaceDataModule(
-    partitions=["easy"],
-    test_kwargs={
-        'batch_size':1,
-        'num_workers':2
-    },
-    test_transforms= ff.transforms.Compose(
-        ff.transforms.Normalize(mean=127.5, std=127.5),
-        ff.transforms.ToTensor()
+ds = ff.dataset.WiderFaceDataset(
+    phase="test",
+    partitions=[partition],
+    transforms= ff.transforms.Compose(
+        ff.transforms.ConditionalInterpolate(max_size=1500),
+        ff.transforms.FaceDiscarder(min_face_size=10)
     )
 )
-# dm: pl.LightningDataModule
+# ds: torch.utils.data.Dataset
 ```
 
-Setup datamodule with the following<br>
-
-```python
-# download data if needed
-dm.prepare_data(stage='test')
-
-# setup test dataloader
-dm.setup(stage='test')
-```
-
-If you don't have widerface validation dataset in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/data/widerface/`
-
-![plot](../../resources/tutorial_1_1.png)
+**If you don't have widerface validation dataset in your PC, `fastface` will automatically download and put it under `$HOME/.cache/fastface/<package_version>/data/widerface/`**
 
 Define `pytorch_lightning.Trainer`
 ```python
 trainer = pl.Trainer(
+    benchmark=True,
     logger=False,
     checkpoint_callback=False,
     gpus=1 if torch.cuda.is_available() else 0,
@@ -91,6 +76,11 @@ trainer.test(model, datamodule=dm)
 
 You should get output like this after test is done
 
-![plot](../../resources/tutorial_1_2.png)
+```script
+--------------------------------------------------------------------------------
+DATALOADER:0 TEST RESULTS
+{'widerface_ap': 0.8013776499910676}
+--------------------------------------------------------------------------------
+```
 
 Checkout [test_widerface.py](./test_widerface.py) script to see full code

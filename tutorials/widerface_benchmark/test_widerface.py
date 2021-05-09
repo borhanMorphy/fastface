@@ -19,27 +19,21 @@ metric = ff.metric.WiderFaceAP(iou_threshold=0.5)
 # metric: pl.metrics.Metric
 
 # add metric to the model
-model.add_metric("widerface_ap",metric)
+model.add_metric("widerface_ap", metric)
 
-# get widerface data module
-dm = ff.datamodule.WiderFaceDataModule(
+# get widerface dataset
+ds = ff.dataset.WiderFaceDataset(
+    phase="test",
     partitions=[partition],
-    test_kwargs={
-        'batch_size':1,
-        'num_workers':8
-    },
-    test_transforms= ff.transforms.Compose(
-        ff.transforms.Normalize(mean=127.5, std=127.5),
-        ff.transforms.ToTensor()
+    transforms= ff.transforms.Compose(
+        ff.transforms.ConditionalInterpolate(max_size=1500)
     )
 )
-# dm: pl.LightningDataModule
+# ds: torch.utils.data.Dataset
 
-# download data if needed
-dm.prepare_data(stage='test')
-
-# setup test dataloader
-dm.setup(stage='test')
+# get dataloader
+dl = ds.get_dataloader(batch_size=1, num_workers=1)
+# dl: torch.utils.data.DataLoader
 
 # define trainer
 trainer = pl.Trainer(
@@ -49,4 +43,4 @@ trainer = pl.Trainer(
     precision=32)
 
 # run test
-trainer.test(model, datamodule=dm)
+trainer.test(model, test_dataloaders=dl)

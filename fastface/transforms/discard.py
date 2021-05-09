@@ -17,4 +17,7 @@ class FaceDiscarder():
             mask = (face_scales >= self.min_face_size) & (face_scales <= self.max_face_size)
             targets["target_boxes"] = target_boxes[mask]
 
+            if "ignore_flags" in targets:
+                targets["ignore_flags"] = targets["ignore_flags"][mask]
+
         return (img, targets)

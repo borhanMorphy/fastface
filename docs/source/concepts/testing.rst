@@ -19,7 +19,7 @@ Testing
 
     # build transforms
     transforms = ff.transforms.Compose(
-        ff.transforms.Interpolate(max_dim=480),
+        ff.transforms.Interpolate(target_size=480),
         ff.transforms.Padding(target_size=(480, 480))
     )
 

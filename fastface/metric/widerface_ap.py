@@ -13,7 +13,7 @@ class WiderFaceAP(Metric):
 	"""
 	# this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
 
-	def __init__(self, iou_threshold:float=.5):
+	def __init__(self, iou_threshold: float = 0.5):
 		super().__init__(
 			dist_sync_on_step=False,
 			compute_on_step=False)
@@ -22,16 +22,22 @@ class WiderFaceAP(Metric):
 		self.threshold_steps = 1000
 		self.add_state("pred_boxes", default=[], dist_reduce_fx=None)
 		self.add_state("gt_boxes", default=[], dist_reduce_fx=None)
+		self.add_state("ignore_flags", default=[], dist_reduce_fx=None)
 
-	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor]):
+	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor],
+			ignore_flags: List[torch.Tensor]=None, **kwargs):
 		"""
 		Arguments:
-			preds {List} -- [Ni,5 dimensional as xmin,ymin,xmax,ymax,conf]
-			targets {List} -- [Ni,5 dimensional as xmin,ymin,xmax,ymax,ignore]
+			preds [List]: [Ni,5 dimensional as xmin,ymin,xmax,ymax,conf]
+			targets [List]: [Ni,5 dimensional as xmin,ymin,xmax,ymax]
+			ignore_flags [List]: [Ni, dimensional]
 		"""
 		# pylint: disable=no-member
 		if isinstance(preds, List): self.pred_boxes += preds
 		else: self.pred_boxes.append(preds)
+
+		if isinstance(ignore_flags, List): self.ignore_flags += ignore_flags
+		else: self.ignore_flags.append(ignore_flags)
 
 		if isinstance(targets, List): self.gt_boxes += targets
 		else: self.gt_boxes.append(targets)
@@ -46,28 +52,26 @@ class WiderFaceAP(Metric):
 
 		gt_boxes = [gt_boxes.cpu().float().numpy() for gt_boxes in self.gt_boxes]
 
+		ignore_flags = [ignore_flag.cpu().numpy() for ignore_flag in self.ignore_flags]
+
 		total_faces = 0
 
-		for preds, gts in zip(normalized_preds, gt_boxes):
+		for preds, gts, i_flags in zip(normalized_preds, gt_boxes, ignore_flags):
 			# skip if no gts
 			if gts.shape[0] == 0: continue
 
-			# extract ignore mask
-			ignore = gts[:, -1]
-			gt_boxes = gts[:, :4]
-
 			# count keeped gts
-			total_faces += (ignore == 0).sum()
+			total_faces += (i_flags == 0).sum()
 
 			if preds.shape[0] == 0: continue
-			# gt_boxes: M,4 as x1,y1,x2,y2
+			# gts: M,4 as x1,y1,x2,y2
 			# preds: N,5 as x1,y1,x2,y2,norm_score
 
 			# sort preds
 			preds = preds[(-preds[:,-1]).argsort(), :]
 
 			# evaluate single image
-			match_counts, ignore_pred_mask = self.evaluate_single_image(preds, gt_boxes, ignore)
+			match_counts, ignore_pred_mask = self.evaluate_single_image(preds, gts, i_flags)
 			# match_counts: N,
 			# ignore_pred_mask: N,
 

@@ -7,6 +7,7 @@ def default_collate_fn(batch):
     batch = torch.from_numpy(batch).permute(0, 3, 1, 2).contiguous()
     for i, target in enumerate(targets):
         for k, v in target.items():
-            targets[i][k] = torch.tensor(v, dtype=torch.float32) # pylint: disable=not-callable
+            if isinstance(v, np.ndarray):
+                targets[i][k] = torch.from_numpy(v)
 
     return batch, targets

@@ -13,14 +13,14 @@ Training
 
     # build training transforms
     train_transforms = ff.transforms.Compose(
-        ff.transforms.Interpolate(max_dim=480),
+        ff.transforms.Interpolate(target_size=480),
         ff.transforms.Padding(target_size=(480, 480)),
         ff.transforms.RandomHorizontalFlip(p=0.5)
     )
 
     # build val transforms
     val_transforms = ff.transforms.Compose(
-        ff.transforms.Interpolate(max_dim=480),
+        ff.transforms.Interpolate(target_size=480),
         ff.transforms.Padding(target_size=(480, 480))
     )
 

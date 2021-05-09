@@ -14,7 +14,7 @@ class LFFDRandomSample():
         self.scales = scales
         self.target_size = target_size # W,H
         self.padding = Padding(target_size=target_size, pad_value=0)
-        self.interpolate = Interpolate(max_dim=target_size[0])
+        self.interpolate = Interpolate(target_size=target_size[0])
         self.p = p
 
     def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:

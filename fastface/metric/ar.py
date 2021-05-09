@@ -26,7 +26,7 @@ class AverageRecall(Metric):
 		self.iou_step = 0.01
 		self.add_state("ious", default=[], dist_reduce_fx=None)
 
-	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor]):
+	def update(self, preds: List[torch.Tensor], targets: List[torch.Tensor], **kwargs):
 		"""
 		Arguments:
 			preds [List]: [Ni,4 dimensional as xmin,ymin,xmax,ymax]

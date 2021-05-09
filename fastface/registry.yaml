@@ -5,7 +5,7 @@ lffd_original:
       file_name: "lffd_original.ckpt"
       file_id: "1DeAs4kHS4GFo_4C-HK3cnOuCuBj-vUCT"
       overwrite: false
-      unzip: false
+      extract: false
       showsize: true
 lffd_slim:
   adapter:
@@ -14,5 +14,5 @@ lffd_slim:
       file_name: "lffd_slim.ckpt"
       file_id: "172W2NsE45JMNYfV9qqAptnxIHxXYqBNF"
       overwrite: false
-      unzip: false
+      extract: false
       showsize: true

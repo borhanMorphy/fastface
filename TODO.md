@@ -1,4 +1,5 @@
 ## Bugs
+- [ ] fix performance drop for tutorials/widerface_benchmark
 - [ ] average recall seems to be bugged, check it out
 
 ## Hot
