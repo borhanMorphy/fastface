@@ -23,6 +23,6 @@ class BinaryFocalLoss(torch.nn.Module):
         pos_loss = -self.alpha * torch.pow(1-probs[pos_mask], self.gamma) * torch.log(probs[pos_mask] + 1e-16)
         neg_loss = -self.alpha * torch.pow(probs[~pos_mask], self.gamma) * torch.log(1-probs[~pos_mask] + 1e-16)
 
-        loss = torch.cat([pos_loss,neg_loss])
+        loss = torch.cat([pos_loss, neg_loss])
 
         return loss
