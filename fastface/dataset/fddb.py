@@ -94,7 +94,7 @@ class FDDBDataset(BaseDataset):
         "fddb-annotations": {
             "adapter": "http",
             "check":{
-                "FDDB-folds": "694de7a9144611e2353b7055819026e3" 
+                "FDDB-folds": "694de7a9144611e2353b7055819026e3"
             },
             "kwargs": {
                 "url": "http://vis-www.cs.umass.edu/fddb/FDDB-folds.tgz",
@@ -129,7 +129,7 @@ class FDDBDataset(BaseDataset):
         ids = []
         targets = []
         for fold_idx in folds:
-            assert fold_idx in self.__folds__, f"given fold {fold_idx} is not in the fold list"
+            assert fold_idx in self.__folds__, "given fold {} is not in the fold list".format(fold_idx)
             raw_ids, raw_targets = _load_single_annotation_fold(source_dir, fold_idx)
             ids += raw_ids
             # TODO each targets must be dict
