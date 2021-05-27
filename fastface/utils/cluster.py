@@ -23,8 +23,21 @@ class KMeans():
         latest_params = torch.zeros_like(self._params)
 
         while 1:
+            # points: torch.Tensor(sample_size, dim_size)
+            # self._params: torch.Tensor(k, dim_size)
             dists = self._distance_fn(points, self._params)
-            # dists: torch.Tensor(sample_size, K)
+            # dists: torch.Tensor(sample_size, k)
+
+
+            assigned_clusters = torch.argmin(dists, axis=1)
+
+            if (latest_params == assigned_clusters).all():
+                break
+
+            for i in range(self.k):
+                self._params[i] = boxes[assigned_clusters == i].median(dim=0)[0]
+
+            last_clusters = assigned_clusters
 
             if ()
 
