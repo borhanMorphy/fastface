@@ -43,6 +43,9 @@ class BaseDataset(Dataset):
         img = self._load_image(self.ids[idx])
         targets = copy.deepcopy(self.targets[idx])
 
+        # clip boxes
+        targets["target_boxes"] = self._clip_boxes(targets["target_boxes"], img.shape[:2])
+
         # apply transforms
         img, targets = self.transforms(img, targets)
 
@@ -50,6 +53,16 @@ class BaseDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.ids)
+
+    @staticmethod
+    def _clip_boxes(boxes: np.ndarray, shape: Tuple[int, int]):
+        # TODO pydoc
+        height, width = shape
+        boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(min=0, max=width)
+        boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(min=0, max=height)
+
+        return boxes
+
 
     @staticmethod
     def _load_image(img_file_path: str):
@@ -101,7 +114,16 @@ class BaseDataset(Dataset):
         std = (mean_sq_sum / len(self) - mean**2)**0.5
 
         return {"mean": mean.tolist(), "std": std.tolist()}
-    
+
+    def get_normalized_boxes(self) -> np.ndarray:
+        # TODO pydoc
+        normalized_boxes = []
+        for img, targets in tqdm(self, total=len(self), desc="computing normalized target boxes"):
+            max_size = max(img.shape)
+            normalized_boxes.append(targets["target_boxes"] / max_size)
+
+        return np.concatenate(normalized_boxes, axis=0)
+
     def download(self, urls: List, target_dir: str):
         for k, v in urls.items():
 
