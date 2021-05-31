@@ -5,3 +5,4 @@ from . import visualize
 from . import box
 from . import preprocess
 from . import data
+from . import cluster

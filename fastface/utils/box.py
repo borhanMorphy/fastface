@@ -40,6 +40,20 @@ def jaccard_vectorized(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor
     union = area_a + area_b - inter
     return inter / union
 
+def jaccard_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
+    """Calculates jaccard index of same centered boxes
+    Args:
+        wh_a (torch.Tensor): torch.Tensor(A,2) as width,height
+        wh_b (torch.Tensor): torch.Tensor(B,2) as width,height
+    Returns:
+        torch.Tensor: torch.Tensor(A,B)
+    """
+    inter = intersect_centered(wh_a, wh_b)
+    area_a = (wh_a[:, 0] * wh_a[:, 1]).unsqueeze(1).expand_as(inter) # [A,B]
+    area_b = (wh_b[:, 0] * wh_b[:, 1]).unsqueeze(0).expand_as(inter) # [A,B]
+    union = area_a + area_b - inter
+    return inter / union
+
 def intersect(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
     """Calculates intersection area of boxes given
     Args:
@@ -59,6 +73,32 @@ def intersect(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
 
     inter = torch.clamp((max_xy - min_xy), min=0)
     return inter[:, :, 0] * inter[:, :, 1]
+
+def intersect_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
+    """Calculates intersection of same centered boxes
+
+    Args:
+        wh_a (torch.Tensor): torch.Tensor(A,2) as width,height
+        wh_b (torch.Tensor): torch.Tensor(B,2) as width,height
+
+    Returns:
+        torch.Tensor: torch.Tensor(A,B)
+    """
+
+    A = wh_a.size(0)
+    B = wh_b.size(0)
+    min_w = torch.min(wh_a[:, [0]].unsqueeze(1).expand(A, B, 2),
+                        wh_b[:, [0]].unsqueeze(0).expand(A, B, 2))
+
+    # [A,2] -> [A,1,2] -> [A,B,2]
+
+    min_h = torch.min(wh_a[:, [1]].unsqueeze(1).expand(A, B, 2),
+                        wh_b[:, [1]].unsqueeze(0).expand(A, B, 2))
+    # [B,2] -> [1,B,2] -> [A,B,2]
+
+    return min_w[:, :, 0]*min_h[:, :, 0]
+
+
 
 def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, centerx centery width height to xmin ymin xmax ymax
