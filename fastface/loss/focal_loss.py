@@ -12,7 +12,6 @@ class BinaryFocalLoss(torch.nn.Module):
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # TODO pydoc
         # TODO converge test
-        # TODO do not get mean
         # input: torch.Tensor(N,)
         # target: torch.Tensor(N,)
 

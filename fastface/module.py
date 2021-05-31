@@ -293,8 +293,8 @@ class FaceDetector(pl.LightningModule):
 			img = (img.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
 			preds = preds.cpu().long().numpy()
 			gt_boxes = gt_boxes.cpu().long().numpy()
-			img = utils.visualize.draw_rects(img, preds[:, :4], color=(255, 0, 0))
-			img = utils.visualize.draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
+			img = utils.vis.draw_rects(img, preds[:, :4], color=(255, 0, 0))
+			img = utils.vis.draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
 			pil_img = Image.fromarray(img)
 			pil_img.show()
 			if input("press `q` to exit") == "q":

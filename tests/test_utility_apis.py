@@ -22,6 +22,6 @@ def test_cache_func_exists(func: str):
 def test_config_func_exists(func: str):
     assert func in dir(ff.utils.config), "{} not found in the fastface.utils.config".format(func)
 
-@pytest.mark.parametrize("func", ["prettify_detections"])
+@pytest.mark.parametrize("func", ["render_predictions"])
 def test_visualize_func_exists(func: str):
-    assert func in dir(ff.utils.visualize), "{} not found in the fastface.utils.visualize".format(func)
+    assert func in dir(ff.utils.vis), "{} not found in the fastface.utils.vis".format(func)

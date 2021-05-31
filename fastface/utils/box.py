@@ -98,8 +98,6 @@ def intersect_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
 
     return min_w[:, :, 0]*min_h[:, :, 0]
 
-
-
 def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, centerx centery width height to xmin ymin xmax ymax
 
@@ -109,17 +107,13 @@ def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: torch.Tensor(N,4) as xmin ymin xmax ymax
     """
-    o_boxes = boxes.clone().unsqueeze(0)
 
-    w_half = o_boxes[:, :, 2] / 2
-    h_half = o_boxes[:, :, 3] / 2
+    wh_half = boxes[:, 2:] / 2
 
-    o_boxes[:, :, 0] = o_boxes[:, :, 0] - w_half
-    o_boxes[:, :, 1] = o_boxes[:, :, 1] - h_half
-    o_boxes[:, :, 2] = o_boxes[:, :, 0] + w_half
-    o_boxes[:, :, 3] = o_boxes[:, :, 1] + h_half
+    x1y1 = boxes[:, :2] - wh_half
+    x2y2 = boxes[:, :2] + wh_half
 
-    return o_boxes.squeeze(0)
+    return torch.cat([x1y1, x2y2], dim=1)
 
 def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, xmin ymin xmax ymax to centerx centery width height
@@ -130,17 +124,10 @@ def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: torch.Tensor(N,4) as centerx centery width height
     """
-    o_boxes = boxes.clone().unsqueeze(0)
+    wh = boxes[:, 2:] - boxes[:, :2]
+    cxcy = (boxes[:, 2:] + boxes[:, :2]) / 2
 
-    # x1,y1,x2,y2
-    w = o_boxes[:, :, 2] - o_boxes[:, :, 0]
-    h = o_boxes[:, :, 3] - o_boxes[:, :, 1]
-
-    o_boxes[:, :, :2] = (o_boxes[:, :, :2] + o_boxes[:, :, 2:]) / 2
-    o_boxes[:, :, 2] = w
-    o_boxes[:, :, 3] = h
-
-    return o_boxes.squeeze(0)
+    return torch.cat([cxcy, wh], dim=1)
 
 @torch.jit.script
 def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tensor,

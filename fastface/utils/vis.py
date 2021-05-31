@@ -3,7 +3,7 @@ import random
 import numpy as np
 from PIL import Image, ImageDraw, ImageColor
 
-def prettify_detections(img: np.ndarray, preds: Dict,
+def render_predictions(img: np.ndarray, preds: Dict,
         color: Tuple[int, int, int] = None) -> Image:
     """Returns Rendered PIL Image using given predictions
     Args:

@@ -10,11 +10,14 @@ from .blocks import (
 
 from ...utils.box import jaccard_centered
 
+from ...loss import BinaryFocalLoss
+
 class YOLOv4(nn.Module):
 
     __CONFIGS__ = {
         "tiny":{
             "input_shape": (-1, 3, 416, 416),
+            "img_size": 416,
             "strides": [32, 16],
             "anchors": [
                 [
@@ -49,16 +52,17 @@ class YOLOv4(nn.Module):
         input_shape = config['input_shape']
         head_infeatures = config['head_infeatures']
         neck_features = config['neck_features']
+        img_size = config['img_size']
 
         self.input_shape = input_shape
         self.backbone = CSPDarknet53Tiny()
         self.neck = PANetTiny(neck_features)
         self.heads = nn.ModuleList([
-            YoloHead(in_features, stride, _anchors)
+            YoloHead(in_features, stride, _anchors, img_size)
             for stride, _anchors, in_features in zip(strides, anchors, head_infeatures)
         ])
 
-        self.cls_loss_fn = nn.BCEWithLogitsLoss(reduction='none')
+        self.cls_loss_fn = nn.BCEWithLogitsLoss(reduction='none')#BinaryFocalLoss(gamma=0.5, alpha=1)
         self.reg_loss_fn = nn.MSELoss(reduction='none')
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
@@ -104,6 +108,13 @@ class YOLOv4(nn.Module):
                 logits[head_idx][:, :, :, :, :4]).flatten(start_dim=1, end_dim=3)
             # boxes: B x n x 4
 
+            wh_half = boxes[:, :, 2:] / 2
+
+            x1y1 = boxes[:, :, :2] - wh_half
+            x2y2 = boxes[:, :, :2] + wh_half
+
+            boxes = torch.cat([x1y1, x2y2], dim=2)
+
             preds.append(
                 # B x n x 5 as x1,y1,xbox2,y2,score
                 torch.cat([boxes, scores], dim=2).contiguous()
@@ -128,18 +139,25 @@ class YOLOv4(nn.Module):
             Dict[str, torch.Tensor]: loss values as key value pairs
 
         """
+        lambda_pos_cls = hparams.get("lambda_pos_cls", 1)
+        lambda_neg_cls = hparams.get("lambda_neg_cls", 10)
+        lambda_reg = hparams.get("lambda_reg", 10)
+
         batch_size = len(raw_targets)
 
         nC_shapes = [head_logits.shape[1:4] for head_logits in logits]
 
         logits = torch.cat(
-            [head_logits.view(batch_size, -1, 5) for head_logits in logits],
+            [head_logits.flatten(start_dim=1, end_dim=3) for head_logits in logits],
             dim=1
         )
         # logits: b, n, 5
 
         reg_logits = logits[:, :, :4]
         # reg_logits: b, n, 4
+
+        # take sigmoid of tx,ty
+        reg_logits[:, :, :2] = torch.sigmoid(reg_logits[:, :, :2])
 
         cls_logits = logits[:, :, 4]
         # cls_logits: b, n
@@ -156,24 +174,22 @@ class YOLOv4(nn.Module):
 
         pos_mask = cls_targets == 1
         neg_mask = cls_targets == 0
-        num_of_positives = pos_mask.sum()
 
-        pos_cls_loss = self.cls_loss_fn(cls_logits[pos_mask], cls_targets[pos_mask])
-        neg_cls_loss = self.cls_loss_fn(cls_logits[neg_mask], cls_targets[neg_mask])
-        order = neg_cls_loss.argsort(descending=True)
-        keep_cls = max(num_of_positives*neg_select_ratio, 100)
-
-        cls_loss = torch.cat([pos_cls_loss, neg_cls_loss[order][: keep_cls]]).mean()
+        pos_cls_loss = self.cls_loss_fn(cls_logits[pos_mask], cls_targets[pos_mask]).mean()
+        neg_cls_loss = self.cls_loss_fn(cls_logits[neg_mask], cls_targets[neg_mask]).mean()
 
         if pos_mask.sum() > 0:
             reg_loss = self.reg_loss_fn(reg_logits[pos_mask], reg_targets[pos_mask]).mean()
         else:
             reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True) # pylint: disable=not-callable
 
-        loss = cls_loss + reg_loss
+        cls_loss = pos_cls_loss*lambda_pos_cls + neg_cls_loss*lambda_neg_cls
+        loss =  cls_loss + reg_loss*lambda_reg
 
         return {
             "loss": loss,
+            "positive_cls_loss": pos_cls_loss,
+            "negative_cls_loss": neg_cls_loss,
             "cls_loss": cls_loss,
             "reg_loss": reg_loss
         }
@@ -194,7 +210,7 @@ class YOLOv4(nn.Module):
         """
         ignore_iou_threshold = 0.5 # make it parametric
 
-        all_anchors = torch.cat([head.anchor.anchors for head in self.heads], dim=0)
+        all_anchors = torch.cat([head.anchor.anchors for head in self.heads], dim=0).to(device)
         # all_anchors: torch.Tensor(nA*nheads, 2) as w, h
 
         all_ids = []
@@ -254,13 +270,25 @@ class YOLOv4(nn.Module):
                 objness_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx] = 1
                 reg_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx, :] = torch.stack([tx,ty,tw,th])
 
-        return objness_targets, reg_targets
+        targets: List[torch.Tensor] = []
 
+        for head_objness_targets, head_reg_targets in zip(objness_targets, reg_targets):
+            # head_objness_targets: torch.Tensor(b, fh, fw, nA)
+            # head_reg_targets: torch.Tensor(b, fh, fw, nA, 4)
+            # head_targets: torch.Tensor(b, fh, fw, nA, 5)
+            head_targets = torch.cat([
+                head_reg_targets,
+                head_objness_targets.unsqueeze(4)], dim=4)
 
+            targets.append(head_targets.flatten(start_dim=1, end_dim=3))
 
+        # concat channelwise
+        return torch.cat(targets, dim=1).contiguous()
 
     def configure_optimizers(self, **hparams):
-        # TODO
-        optimizer = torch.optim.Adam(self.parameters(), lr=3e-3, weight_decay=0)
+        optimizer = torch.optim.SGD(
+            self.parameters(),
+            lr=hparams.get("learning_rate", 1e-3),
+            weight_decay=hparams.get("weight_decay", 0))
 
         return optimizer

@@ -1,27 +1,31 @@
 ## Bugs
-- [x] fix performance drop for tutorials/widerface_benchmark
 - [ ] average recall seems to be bugged, check it out
 
 ## Hot
-- [x] fill `Inference` section under the `CORE CONCEPTS`
-- [x] fill `Testing` section under the `CORE CONCEPTS`
-- [x] fill `Training` section under the `CORE CONCEPTS`
-- [x] fill `Export` section under the `CORE CONCEPTS`
-- [x] make sure tutorials works
+- [ ] expand augmentations
+- [x] add yolov4 tiny architecture
+- [ ] add yolov4 tiny pretrained model and benchmark results
+- [ ] add fcos architecture
+- [ ] add fcos pretrained model and benchmark results
+- [ ] add all adapters to downloading % bar
 - [ ] add ci/cd for unittest, linting test and doc test
 - [ ] add coverage badge
 - [ ] add ci/cd pipeline badge
 - [ ] add doctest badge
-- [ ] test on windows 10
-- [x] add FDDB dataset
 - [ ] add UFDD dataset
 
 ## Near Future
+- [ ] add landmark support
+- [ ] add hyperparameter search support
 - [ ] add `ADVENCED GUIDE` to the docs
 - [ ] increase coverage of pydoc and doc-test for apis
 - [ ] add ONNX & torchscipt usecase deployment notebooks
+- [ ] add EDA to fastface.dataset.base.BaseDataset
 
 ## Future
+- [ ] provide exported model zoo links
+- [ ] support quantization aware training
+- [ ] add interpreting techniques
 - [ ] extend Architecture docs
 - [ ] extend pytest.ini configuration
 - [ ] support CoreML

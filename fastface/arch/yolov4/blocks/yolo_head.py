@@ -5,8 +5,10 @@ import torch.nn as nn
 from .anchor import Anchor
 
 class YoloHead(nn.Module):
-    def __init__(self, in_features: int, stride: int, anchors: List):
+    def __init__(self, in_features: int, stride: int, anchors: List, img_size: int):
         super().__init__()
+
+        self.img_size = img_size
 
         self.conv = nn.Conv2d(in_features, int(len(anchors) * (4+1)),
             kernel_size=1, stride=1, padding=0)
@@ -38,17 +40,17 @@ class YoloHead(nn.Module):
         cell_x = priors[..., 0] / self.anchor.stride - 0.5
         cell_y = priors[..., 1] / self.anchor.stride - 0.5
 
-        # anchor sizes between 0 -> 1
-        pw = priors[..., 2] / 416 # TODO make it parameteric
-        ph = priors[..., 3] / 416 # TODO make it parameteric
+        # anchor sizes between almost 0 -> 1
+        pw = priors[..., 2] / self.img_size
+        ph = priors[..., 3] / self.img_size
 
         bx = torch.sigmoid(reg_logits[..., 0]) + cell_x
         by = torch.sigmoid(reg_logits[..., 1]) + cell_y
         bw = torch.exp(reg_logits[..., 2]) * pw
         bh = torch.exp(reg_logits[..., 3]) * ph
 
-        pred_boxes = torch.stack([bx, by, bh, bw], dim=4).contiguous()
+        pred_boxes = torch.stack([bx, by, bw, bh], dim=4).contiguous()
         pred_boxes[..., :2] *= self.anchor.stride # rescale centers
-        pred_boxes[..., 2:] *= 416 # rescale width and height | TODO make it parameteric. 
+        pred_boxes[..., 2:] *= self.img_size # rescale width and height. 
 
         return pred_boxes

@@ -16,7 +16,7 @@ fastface.utils.preprocess
 .. autofunction:: fastface.utils.preprocess.prepare_batch
 .. autofunction:: fastface.utils.preprocess.adjust_results
 
-fastface.utils.visualize
+fastface.utils.vis
 ########################
 
-.. autofunction:: fastface.utils.visualize.prettify_detections
+.. autofunction:: fastface.utils.vis.render_predictions

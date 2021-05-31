@@ -8,7 +8,7 @@ class Anchor(nn.Module):
     def __init__(self, anchors: List, stride: int):
         super().__init__()
         self.stride = stride
-        self.anchors = torch.tensor(anchors)
+        self.anchors = torch.tensor(anchors) # pylint: disable=not-callable
 
         nA = len(anchors)
 
@@ -33,6 +33,6 @@ class Anchor(nn.Module):
             fw (int): featuremap width
 
         Returns:
-            torch.Tensor: anchors with shape (na x fh x fw x 4) as cx, cy, w, h
+            torch.Tensor: anchors with shape (nA x fh x fw x 4) as cx, cy, w, h
         """
         return self.priors[:, :fh, :fw, :]

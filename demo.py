@@ -4,7 +4,7 @@ import imageio
 import numpy as np
 
 import fastface as ff
-from fastface.utils.visualize import prettify_detections
+from fastface.utils.vis import render_predictions
 
 def get_arguments():
     ap = argparse.ArgumentParser()
@@ -72,7 +72,7 @@ def main(model: str, device: str, img_path: str, det_threshold: float,
         iou_threshold=iou_threshold, target_size=target_size)
 
     # visualize predictions
-    pretty_img = prettify_detections(img, preds)
+    pretty_img = render_predictions(img, preds)
 
     # show image
     pretty_img.show()
