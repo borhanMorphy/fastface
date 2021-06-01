@@ -62,7 +62,7 @@ class YOLOv4(nn.Module):
             for stride, _anchors, in_features in zip(strides, anchors, head_infeatures)
         ])
 
-        self.cls_loss_fn = nn.BCEWithLogitsLoss(reduction='none')#BinaryFocalLoss(gamma=0.5, alpha=1)
+        self.cls_loss_fn = BinaryFocalLoss(gamma=0.5, alpha=1)
         self.reg_loss_fn = nn.MSELoss(reduction='none')
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:

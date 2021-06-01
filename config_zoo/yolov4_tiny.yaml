@@ -1,0 +1,12 @@
+arch: "yolov4"
+config: "tiny"
+
+hparams:
+  learning_rate: 0.01
+  momentum: 0.9
+  weight_decay: 0.0005
+
+preprocess:
+  normalized_input: true
+  mean: 0
+  std: 1
