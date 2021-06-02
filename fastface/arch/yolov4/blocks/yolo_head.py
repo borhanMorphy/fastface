@@ -51,6 +51,6 @@ class YoloHead(nn.Module):
 
         pred_boxes = torch.stack([bx, by, bw, bh], dim=4).contiguous()
         pred_boxes[..., :2] *= self.anchor.stride # rescale centers
-        pred_boxes[..., 2:] *= self.img_size # rescale width and height. 
+        pred_boxes[..., 2:] *= self.img_size # rescale width and height
 
         return pred_boxes

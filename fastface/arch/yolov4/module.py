@@ -147,6 +147,8 @@ class YOLOv4(nn.Module):
 
         nC_shapes = [head_logits.shape[1:4] for head_logits in logits]
 
+        # TODO use logits_to_boxes for DIoU
+
         logits = torch.cat(
             [head_logits.flatten(start_dim=1, end_dim=3) for head_logits in logits],
             dim=1
