@@ -55,4 +55,4 @@ class DIoULoss(torch.nn.Module):
         penalty = p_square / (c_square + eps)
 
         # DIoU loss
-        return 1 - (IoU - penalty)
+        return 1 - IoU + penalty

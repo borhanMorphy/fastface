@@ -10,7 +10,7 @@ from .blocks import (
 
 from ...utils.box import jaccard_centered
 
-from ...loss import BinaryFocalLoss
+from ...loss import BinaryFocalLoss, DIoULoss
 
 class YOLOv4(nn.Module):
 
@@ -63,7 +63,7 @@ class YOLOv4(nn.Module):
         ])
 
         self.cls_loss_fn = BinaryFocalLoss(gamma=0.5, alpha=1)
-        self.reg_loss_fn = nn.MSELoss(reduction='none')
+        self.reg_loss_fn = DIoULoss()
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """preprocessed image batch
@@ -141,31 +141,40 @@ class YOLOv4(nn.Module):
         """
         lambda_pos_cls = hparams.get("lambda_pos_cls", 1)
         lambda_neg_cls = hparams.get("lambda_neg_cls", 10)
-        lambda_reg = hparams.get("lambda_reg", 10)
+        lambda_reg = hparams.get("lambda_reg", 1)
 
         batch_size = len(raw_targets)
 
         nC_shapes = [head_logits.shape[1:4] for head_logits in logits]
 
-        # TODO use logits_to_boxes for DIoU
+        reg_logits = []
+        cls_logits = []
 
-        logits = torch.cat(
-            [head_logits.flatten(start_dim=1, end_dim=3) for head_logits in logits],
-            dim=1
-        )
-        # logits: b, n, 5
+        for i, head_logits in enumerate(logits):
+            reg_logits.append(
+                self.heads[i].logits_to_boxes(head_logits[..., :4]).flatten(start_dim=1, end_dim=3)
+            )
 
-        reg_logits = logits[:, :, :4]
+            cls_logits.append(
+                head_logits[..., 4].flatten(start_dim=1, end_dim=3)
+            )
+
+        reg_logits = torch.cat(reg_logits, dim=1)
         # reg_logits: b, n, 4
 
-        # take sigmoid of tx,ty
-        reg_logits[:, :, :2] = torch.sigmoid(reg_logits[:, :, :2])
+        # cxcywh => xyxy
+        wh_half = reg_logits[:, :, 2:] / 2
 
-        cls_logits = logits[:, :, 4]
+        x1y1 = reg_logits[:, :, :2] - wh_half
+        x2y2 = reg_logits[:, :, :2] + wh_half
+
+        reg_logits = torch.cat([x1y1, x2y2], dim=2)
+
+        cls_logits = torch.cat(cls_logits, dim=1)
         # cls_logits: b, n
 
         targets = self.build_targets(nC_shapes, raw_targets,
-            logits.dtype, logits.device)
+            reg_logits.dtype, reg_logits.device)
         # targets: b, n, 5
 
         reg_targets = targets[:, :, :4]
@@ -186,7 +195,7 @@ class YOLOv4(nn.Module):
             reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True) # pylint: disable=not-callable
 
         cls_loss = pos_cls_loss*lambda_pos_cls + neg_cls_loss*lambda_neg_cls
-        loss =  cls_loss + reg_loss*lambda_reg
+        loss = cls_loss + reg_loss*lambda_reg
 
         return {
             "loss": loss,
@@ -264,13 +273,13 @@ class YOLOv4(nn.Module):
                     objness_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx] = -1
                     continue
 
-                tx = gt_centers[n_idx][0] / self.heads[head_idx].anchor.stride - grid_x
-                ty = gt_centers[n_idx][1] / self.heads[head_idx].anchor.stride - grid_y
-                tw = torch.log(1e-16 + (gt_wh[n_idx][0] / all_anchors[best_anchor_ids[n_idx]][0]))
-                th = torch.log(1e-16 + (gt_wh[n_idx][1] / all_anchors[best_anchor_ids[n_idx]][1]))
+                #tx = gt_centers[n_idx][0] / self.heads[head_idx].anchor.stride - grid_x
+                #ty = gt_centers[n_idx][1] / self.heads[head_idx].anchor.stride - grid_y
+                #tw = torch.log(1e-16 + (gt_wh[n_idx][0] / all_anchors[best_anchor_ids[n_idx]][0]))
+                #th = torch.log(1e-16 + (gt_wh[n_idx][1] / all_anchors[best_anchor_ids[n_idx]][1]))
 
                 objness_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx] = 1
-                reg_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx, :] = torch.stack([tx,ty,tw,th])
+                reg_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx, :] = target_boxes[n_idx]#torch.cat([gt_centers[n_idx], gt_wh[n_idx]], dim=0)
 
         targets: List[torch.Tensor] = []
 
