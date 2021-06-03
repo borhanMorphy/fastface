@@ -139,9 +139,9 @@ class YOLOv4(nn.Module):
             Dict[str, torch.Tensor]: loss values as key value pairs
 
         """
-        lambda_pos_cls = hparams.get("lambda_pos_cls", 1)
-        lambda_neg_cls = hparams.get("lambda_neg_cls", 10)
-        lambda_reg = hparams.get("lambda_reg", 1)
+        pos_cls_loss_weight = hparams.get("pos_cls_loss_weight", 1)
+        neg_cls_loss_weight = hparams.get("neg_cls_loss_weight", 10)
+        reg_loss_weight = hparams.get("reg_loss_weight", 1)
 
         batch_size = len(raw_targets)
 
@@ -194,8 +194,8 @@ class YOLOv4(nn.Module):
         else:
             reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True) # pylint: disable=not-callable
 
-        cls_loss = pos_cls_loss*lambda_pos_cls + neg_cls_loss*lambda_neg_cls
-        loss = cls_loss + reg_loss*lambda_reg
+        cls_loss = pos_cls_loss*pos_cls_loss_weight + neg_cls_loss*neg_cls_loss_weight
+        loss = cls_loss + reg_loss*reg_loss_weight
 
         return {
             "loss": loss,

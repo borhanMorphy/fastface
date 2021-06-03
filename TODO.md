@@ -1,5 +1,6 @@
 ## Bugs
 - [ ] average recall seems to be bugged, check it out
+- [ ] use `gdown` instead of `googledrivedownloader`
 
 ## Hot
 - [ ] expand augmentations

@@ -5,6 +5,18 @@ hparams:
   learning_rate: 0.01
   momentum: 0.9
   weight_decay: 0.0005
+  batch_size: 64
+  mini_batch_size: 8
+  image_size: 416
+  pos_cls_loss_weight: 1
+  neg_cls_loss_weight: 10
+  reg_loss_weight: 1
+  gradient_clip_val: 0
+  augmentations:
+    brightness: 0.7
+    contrast: 0.7
+    saturation: 0.7
+    degree_range: 30
 
 preprocess:
   normalized_input: true
