@@ -43,11 +43,14 @@ class BaseDataset(Dataset):
         img = self._load_image(self.ids[idx])
         targets = copy.deepcopy(self.targets[idx])
 
+        # apply transforms
+        img, targets = self.transforms(img, targets)
+
         # clip boxes
         targets["target_boxes"] = self._clip_boxes(targets["target_boxes"], img.shape[:2])
 
-        # apply transforms
-        img, targets = self.transforms(img, targets)
+        # discard zero sized boxes
+        targets["target_boxes"] = self._discard_zero_size_boxes(targets["target_boxes"])
 
         return (img, targets)
 
@@ -55,13 +58,19 @@ class BaseDataset(Dataset):
         return len(self.ids)
 
     @staticmethod
-    def _clip_boxes(boxes: np.ndarray, shape: Tuple[int, int]):
+    def _clip_boxes(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
         # TODO pydoc
         height, width = shape
-        boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(min=0, max=width)
-        boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(min=0, max=height)
+        boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(min=0, max=width-1)
+        boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(min=0, max=height-1)
 
         return boxes
+
+    @staticmethod
+    def _discard_zero_size_boxes(boxes: np.ndarray) -> np.ndarray:
+        # TODO pydoc
+        scale = (boxes[:, [2, 3]] - boxes[:, [0, 1]]).min(axis=1)
+        return boxes[scale > 0]
 
 
     @staticmethod
@@ -119,6 +128,8 @@ class BaseDataset(Dataset):
         # TODO pydoc
         normalized_boxes = []
         for img, targets in tqdm(self, total=len(self), desc="computing normalized target boxes"):
+            if targets["target_boxes"].shape[0] == 0:
+                continue
             max_size = max(img.shape)
             normalized_boxes.append(targets["target_boxes"] / max_size)
 

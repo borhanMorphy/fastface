@@ -2,7 +2,7 @@ arch: "yolov4"
 config: "tiny"
 
 hparams:
-  learning_rate: 0.01
+  learning_rate: 0.007
   momentum: 0.9
   weight_decay: 0.0005
   batch_size: 64
@@ -10,7 +10,7 @@ hparams:
   image_size: 416
   pos_cls_loss_weight: 1
   neg_cls_loss_weight: 10
-  reg_loss_weight: 1
+  reg_loss_weight: 7
   gradient_clip_val: 0
   augmentations:
     brightness: 0.7
@@ -20,5 +20,5 @@ hparams:
 
 preprocess:
   normalized_input: true
-  mean: 0
-  std: 1
+  mean: [0.4700183096266855, 0.4345199880807893, 0.4083990696176792]
+  std: [0.3026302615599824, 0.29266974735666573, 0.29741784465393734]

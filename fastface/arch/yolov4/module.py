@@ -21,14 +21,16 @@ class YOLOv4(nn.Module):
             "strides": [32, 16],
             "anchors": [
                 [
-                    [177.1328, 261.872 ],
-                    [116.896 , 172.8896],
-                    [ 85.1136, 126.7136]
+                    [69.0560, 91.8112],
+                    [30.8672, 40.6432],
+                    [18.6784, 23.5456],
+                    [12.9792, 16.6400]
                 ],
                 [
-                    [ 64.1888,  95.9712],
-                    [ 39.104 ,  58.7392],
-                    [ 20.7168,  29.4528]
+                    [ 9.7344, 12.1888],
+                    [ 7.7376,  9.7344],
+                    [ 6.0736,  7.7376],
+                    [ 4.4512,  5.6992]
                 ]
             ],
             'head_infeatures': [512, 256],
@@ -267,7 +269,6 @@ class YOLOv4(nn.Module):
                     i_grid_x, i_grid_y = (gt_centers[n_idx] / self.heads[i_head_idx].anchor.stride).floor().long()
 
                     objness_targets[i_head_idx][batch_idx, i_grid_y, i_grid_x, i_anchor_idx] = -1
-
                 if objness_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx] == 1:
                     # double match ignore it
                     objness_targets[head_idx][batch_idx, grid_y, grid_x, anchor_idx] = -1
