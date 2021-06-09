@@ -2,15 +2,15 @@ arch: "yolov4"
 config: "tiny"
 
 hparams:
-  learning_rate: 0.007
+  learning_rate: 0.005
   momentum: 0.9
   weight_decay: 0.0005
-  batch_size: 64
-  mini_batch_size: 8
-  image_size: 416
+  batch_size: 32
+  mini_batch_size: 16
+  image_size: 608
   pos_cls_loss_weight: 1
-  neg_cls_loss_weight: 10
-  reg_loss_weight: 7
+  neg_cls_loss_weight: 1
+  reg_loss_weight: 1
   gradient_clip_val: 0
   augmentations:
     brightness: 0.7

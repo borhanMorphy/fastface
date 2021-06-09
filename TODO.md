@@ -1,6 +1,7 @@
 ## Bugs
 - [ ] average recall seems to be bugged, check it out
 - [ ] use `gdown` instead of `googledrivedownloader`
+- [ ] widerface dataset `eval_tools.zip` could not be found in the first try, check it out
 
 ## Hot
 - [ ] expand augmentations

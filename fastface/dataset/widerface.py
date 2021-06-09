@@ -108,7 +108,7 @@ class WiderFaceDataset(BaseDataset):
         'widerface-eval-code': {
             'adapter': 'http',
             'check': {
-                "eval_tools": "e406d444da4b005008e3af0807b19d45"
+                "eval_tools": "2831a12876417f414fd6017ef1e531ec"
             },
             'kwargs':{
                 'url': 'http://shuoyang1213.me/WIDERFACE/support/eval_script/eval_tools.zip',

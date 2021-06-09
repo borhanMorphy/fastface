@@ -36,18 +36,32 @@ val_transforms = ff.transforms.Compose(
 )
 
 # build torch.utils.data.DataLoader for training
-train_dl = ff.dataset.WiderFaceDataset(phase="train", transforms=train_transforms).get_dataloader(
+train_ds = ff.dataset.WiderFaceDataset(phase="train", transforms=val_transforms, partitions=["easy"])
+train_dl = train_ds.get_dataloader(
     batch_size=hparams["mini_batch_size"], shuffle=True, num_workers=8
 )
 
 # build torch.utils.data.DataLoader for validation
-val_dl = ff.dataset.WiderFaceDataset(phase="val", transforms=val_transforms).get_dataloader(
+val_ds = ff.dataset.FDDBDataset(phase="val", transforms=val_transforms)
+val_dl = val_ds.get_dataloader(
     batch_size=hparams["mini_batch_size"], shuffle=False, num_workers=8
 )
 
+## DEBUG
+"""
+from cv2 import cv2
+for img, target in val_ds:
+    img = img[:, :, [2,1,0]]
+    for x1,y1,x2,y2 in target["target_boxes"]:
+        print(x1,y1)
+        img = cv2.rectangle(img, (x1,y1), (x2,y2), (0,255,0), 2)
+    cv2.imshow("", img)
+    if cv2.waitKey(0) == 27:
+        exit(0)
+"""
+
 # add average precision pl.metrics.Metric to the model
-model.add_metric("average_precision",
-    ff.metric.AveragePrecision(iou_threshold=0.5))
+model.add_metric("average_precision", ff.metric.AveragePrecision(iou_threshold=0.5))
 
 model_save_name = "yolov4_tiny_fddb_best"
 ckpt_save_path = "./checkpoints"

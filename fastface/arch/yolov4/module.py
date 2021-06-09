@@ -298,7 +298,7 @@ class YOLOv4(nn.Module):
         return torch.cat(targets, dim=1).contiguous()
 
     def configure_optimizers(self, **hparams):
-        optimizer = torch.optim.SGD(
+        optimizer = torch.optim.Adam(
             self.parameters(),
             lr=hparams.get("learning_rate", 1e-3),
             weight_decay=hparams.get("weight_decay", 0))

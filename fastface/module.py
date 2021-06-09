@@ -261,7 +261,7 @@ class FaceDetector(pl.LightningModule):
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
-	
+
 		kwargs = {}
 		batch_gt_boxes = []
 		for target in targets:
