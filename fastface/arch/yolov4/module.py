@@ -16,21 +16,17 @@ class YOLOv4(nn.Module):
 
     __CONFIGS__ = {
         "tiny":{
-            "input_shape": (-1, 3, 416, 416),
-            "img_size": 416,
+            "input_shape": (-1, 3, 608, 608),
+            "img_size": 608,
             "strides": [32, 16],
             "anchors": [
                 [
-                    [69.0560, 91.8112],
-                    [30.8672, 40.6432],
-                    [18.6784, 23.5456],
-                    [12.9792, 16.6400]
+                    [52.2272, 68.8864],
+                    [21.9488, 27.9072]
                 ],
                 [
-                    [ 9.7344, 12.1888],
-                    [ 7.7376,  9.7344],
-                    [ 6.0736,  7.7376],
-                    [ 4.4512,  5.6992]
+                    [11.856 , 14.8352],
+                    [7.1136,  9.4848]
                 ]
             ],
             'head_infeatures': [512, 256],
@@ -64,7 +60,7 @@ class YOLOv4(nn.Module):
             for stride, _anchors, in_features in zip(strides, anchors, head_infeatures)
         ])
 
-        self.cls_loss_fn = BinaryFocalLoss(gamma=0.5, alpha=1)
+        self.cls_loss_fn = BinaryFocalLoss(gamma=2, alpha=1)
         self.reg_loss_fn = DIoULoss()
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
@@ -188,23 +184,25 @@ class YOLOv4(nn.Module):
         pos_mask = cls_targets == 1
         neg_mask = cls_targets == 0
 
-        pos_cls_loss = self.cls_loss_fn(cls_logits[pos_mask], cls_targets[pos_mask]).mean()
-        neg_cls_loss = self.cls_loss_fn(cls_logits[neg_mask], cls_targets[neg_mask]).mean()
+        num_positives = pos_mask.sum()
+
+        pos_cls_loss = self.cls_loss_fn(cls_logits[pos_mask], cls_targets[pos_mask]).sum()
+        neg_cls_loss = self.cls_loss_fn(cls_logits[neg_mask], cls_targets[neg_mask]).sum()
 
         if pos_mask.sum() > 0:
-            reg_loss = self.reg_loss_fn(reg_logits[pos_mask], reg_targets[pos_mask]).mean()
+            reg_loss = self.reg_loss_fn(reg_logits[pos_mask], reg_targets[pos_mask]).sum()
         else:
             reg_loss = torch.tensor(0, dtype=logits.dtype, device=logits.device, requires_grad=True) # pylint: disable=not-callable
 
         cls_loss = pos_cls_loss*pos_cls_loss_weight + neg_cls_loss*neg_cls_loss_weight
-        loss = cls_loss + reg_loss*reg_loss_weight
+        loss = (cls_loss + reg_loss*reg_loss_weight) / num_positives
 
         return {
             "loss": loss,
-            "positive_cls_loss": pos_cls_loss,
-            "negative_cls_loss": neg_cls_loss,
-            "cls_loss": cls_loss,
-            "reg_loss": reg_loss
+            "positive_cls_loss": pos_cls_loss / num_positives,
+            "negative_cls_loss": neg_cls_loss / num_positives,
+            "cls_loss": cls_loss / num_positives,
+            "reg_loss": reg_loss / num_positives
         }
 
     def build_targets(self, nC_shapes: List[Tuple[int, int, int]], raw_targets: List[Dict],

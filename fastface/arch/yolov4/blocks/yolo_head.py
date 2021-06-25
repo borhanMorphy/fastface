@@ -9,7 +9,6 @@ class YoloHead(nn.Module):
         super().__init__()
 
         self.img_size = img_size
-
         self.conv = nn.Conv2d(in_features, int(len(anchors) * (4+1)),
             kernel_size=1, stride=1, padding=0)
 

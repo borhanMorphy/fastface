@@ -7,3 +7,4 @@ googledrivedownloader==0.4
 requests~=2.25.0
 PyYAML~=5.3.1
 checksumdir==1.2.*
+matplotlib>=3.0.0

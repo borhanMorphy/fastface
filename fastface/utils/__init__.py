@@ -4,6 +4,5 @@ from . import random
 from . import vis
 from . import box
 from . import preprocess
-from . import data
 from . import cluster
 from . import geo

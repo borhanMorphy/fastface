@@ -14,8 +14,7 @@ model.eval()
 
 # build transforms
 transforms = ff.transforms.Compose(
-    ff.transforms.Interpolate(target_size=480),
-    ff.transforms.Padding(target_size=(480, 480))
+    ff.transforms.ConditionalInterpolate(max_size=640),
 )
 
 # build torch.utils.data.Dataset
@@ -25,8 +24,10 @@ ds = ff.dataset.FDDBDataset(phase="test", transforms=transforms)
 dl = ds.get_dataloader(batch_size=1, num_workers=0)
 
 # add average precision pl.metrics.Metric to the model
-model.add_metric("average_precision",
+model.add_metric("AP@0.5",
     ff.metric.AveragePrecision(iou_threshold=0.5))
+
+model.add_metric("AR@0.5", ff.metric.AverageRecall(iou_threshold_max=0.5, iou_threshold_min=0.5))
 
 # define pl.Trainer for testing
 trainer = pl.Trainer(
@@ -40,5 +41,5 @@ trainer = pl.Trainer(
 trainer.test(model, test_dataloaders=[dl])
 """
 DATALOADER:0 TEST RESULTS
-{'average_precision': 0.9459084272384644}
+{'AP@0.5': 0.9410496354103088, 'AR@0.5': 0.9590609073638916}
 """

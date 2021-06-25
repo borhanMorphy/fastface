@@ -13,13 +13,26 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import imageio
 from tqdm import tqdm
-from ..utils.data import default_collate_fn
 from ..adapter import download_object
 
 class _IdentitiyTransforms():
     """Dummy tranforms"""
     def __call__(self, img: np.ndarray, targets: Dict) -> Tuple:
         return img, targets
+
+import numpy as np
+import torch
+
+def default_collate_fn(batch):
+    batch, targets = zip(*batch)
+    batch = np.stack(batch, axis=0).astype(np.float32)
+    batch = torch.from_numpy(batch).permute(0, 3, 1, 2).contiguous()
+    for i, target in enumerate(targets):
+        for k, v in target.items():
+            if isinstance(v, np.ndarray):
+                targets[i][k] = torch.from_numpy(v)
+
+    return batch, targets
 
 class BaseDataset(Dataset):
     def __init__(self, ids: List[str], targets: List[Dict], transforms=None, **kwargs):
@@ -134,6 +147,19 @@ class BaseDataset(Dataset):
             normalized_boxes.append(targets["target_boxes"] / max_size)
 
         return np.concatenate(normalized_boxes, axis=0)
+
+    def get_box_scale_histogram(self) -> Tuple[np.ndarray, np.ndarray]:
+        bins = map(lambda x:2**x, range(10))
+        total_boxes = []
+        for _, targets in tqdm(self, total=len(self), desc="getting box sizes"):
+            if targets["target_boxes"].shape[0] == 0:
+                continue
+            total_boxes.append(targets["target_boxes"])
+
+        total_boxes = np.concatenate(total_boxes, axis=0)
+        areas = (total_boxes[:, 2] - total_boxes[:, 0]) * (total_boxes[:, 3] - total_boxes[:, 1])
+
+        return np.histogram(np.sqrt(areas), bins=list(bins))
 
     def download(self, urls: List, target_dir: str):
         for k, v in urls.items():
