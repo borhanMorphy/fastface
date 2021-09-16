@@ -1,9 +1,12 @@
 from typing import List, Tuple
+
 import torch
 import torch.nn.functional as F
 
-def prepare_batch(batch: List[torch.Tensor], target_size: int,
-        adaptive_batch: bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+
+def prepare_batch(
+    batch: List[torch.Tensor], target_size: int, adaptive_batch: bool = False
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Convert list of tensors to tensors
 
     Args:
@@ -30,13 +33,15 @@ def prepare_batch(batch: List[torch.Tensor], target_size: int,
         img_h: int = img.size(-2)
         img_w: int = img.size(-1)
 
-        scale_factor: float = min(target_size/img_h, target_size/img_w)
+        scale_factor: float = min(target_size / img_h, target_size / img_w)
 
-        img = F.interpolate(img.unsqueeze(0),
+        img = F.interpolate(
+            img.unsqueeze(0),
             scale_factor=scale_factor,
-            mode='bilinear',
+            mode="bilinear",
             recompute_scale_factor=False,
-            align_corners=False)
+            align_corners=False,
+        )
 
         new_h: int = img.size(-2)
         new_w: int = img.size(-1)
@@ -48,9 +53,7 @@ def prepare_batch(batch: List[torch.Tensor], target_size: int,
         pad_top = (target_size - new_h) // 2
         pad_bottom = pad_top + (target_size - new_h) % 2
 
-        img = F.pad(img,
-            (pad_left, pad_right, pad_top, pad_bottom),
-            value=0)
+        img = F.pad(img, (pad_left, pad_right, pad_top, pad_bottom), value=0)
 
         paddings.append([pad_left, pad_top, pad_right, pad_bottom])
         scales.append(scale_factor)
@@ -64,8 +67,10 @@ def prepare_batch(batch: List[torch.Tensor], target_size: int,
 
     return batch, scales, paddings
 
-def adjust_results(preds: List[torch.Tensor], scales: torch.Tensor,
-        paddings: torch.Tensor) -> torch.Tensor:
+
+def adjust_results(
+    preds: List[torch.Tensor], scales: torch.Tensor, paddings: torch.Tensor
+) -> torch.Tensor:
     """Re-adjust predictions using scales and paddings
 
     Args:
@@ -77,9 +82,10 @@ def adjust_results(preds: List[torch.Tensor], scales: torch.Tensor,
         torch.Tensor: torch.Tensor(B, N, 5) as xmin, ymin, xmax, ymax, score
     """
     for i, pred in enumerate(preds):
-        if pred.size(0) == 0: continue
+        if pred.size(0) == 0:
+            continue
 
-        preds[i][:, :4] = pred[:, :4] - paddings[i, :2].repeat(1,2)
+        preds[i][:, :4] = pred[:, :4] - paddings[i, :2].repeat(1, 2)
         preds[i][:, :4] = pred[:, :4] / scales[i]
 
     return preds

@@ -1,8 +1,7 @@
-import tarfile
-import os
-import zipfile
-import shutil
 import logging
+import os
+import tarfile
+import zipfile
 
 from tqdm import tqdm
 
@@ -10,10 +9,12 @@ from tqdm import tqdm
 
 logger = logging.getLogger("fastface.adapter")
 
-class ExtractHandler():
 
+class ExtractHandler:
     @staticmethod
-    def extract(file_path: str, dest_path: str, *args, remove_after: bool = True, **kwargs):
+    def extract(
+        file_path: str, dest_path: str, *args, remove_after: bool = True, **kwargs
+    ):
         logger.info("extracting {} to {}".format(file_path, dest_path))
         if file_path.endswith(".zip"):
             ExtractHandler._extract_zipfile(file_path, dest_path, *args, **kwargs)
@@ -30,22 +31,26 @@ class ExtractHandler():
     def _extract_tarfile(file_path: str, dest_path: str, set_attrs: bool = False):
         if file_path.endswith(".tar.gz") or file_path.endswith(".tgz"):
             mode = "r:gz"
-        elif file_path.endswith('.tar.bz2') or file_path.endswith('.tbz'):
+        elif file_path.endswith(".tar.bz2") or file_path.endswith(".tbz"):
             mode = "r:bz2"
         else:
             raise AssertionError("tar file extension is not valid")
-    
+
         with tarfile.open(file_path, mode=mode) as foo:
             members = foo.getmembers()
-            for member in tqdm(members, desc="extracting tar.gz file to {}".format(dest_path)):
+            for member in tqdm(
+                members, desc="extracting tar.gz file to {}".format(dest_path)
+            ):
                 try:
                     foo.extract(member, path=dest_path, set_attrs=set_attrs)
                 except PermissionError:
-                    pass # ignore
+                    pass  # ignore
                 except Exception as e:
-                    logger.error("extracing member: {} failed with\n{}".format(member, e))
+                    logger.error(
+                        "extracing member: {} failed with\n{}".format(member, e)
+                    )
 
     @staticmethod
     def _extract_zipfile(file_path: str, dest_path: str):
-        with zipfile.ZipFile(file_path,"r") as zip_ref:
+        with zipfile.ZipFile(file_path, "r") as zip_ref:
             zip_ref.extractall(dest_path)

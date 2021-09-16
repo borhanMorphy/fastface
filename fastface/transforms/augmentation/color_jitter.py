@@ -1,13 +1,21 @@
 import random
+from typing import Dict, Tuple
+
 import numpy as np
-from typing import Tuple, Dict
+
 from .. import functional as F
 
-class ColorJitter():
+
+class ColorJitter:
     """Jitters the color of the image with randomly selected values"""
 
-    def __init__(self, p: float = 0.5, brightness: float = 0,
-            contrast: float = 0, saturation: float = 0):
+    def __init__(
+        self,
+        p: float = 0.5,
+        brightness: float = 0,
+        contrast: float = 0,
+        saturation: float = 0,
+    ):
         super().__init__()
         self.p = p
         self.brightness_range = (-brightness, brightness)
@@ -15,7 +23,9 @@ class ColorJitter():
         self.saturation_range = (-saturation, saturation)
 
     def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
-        assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(len(img.shape))
+        assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(
+            len(img.shape)
+        )
 
         if random.random() > self.p:
             value = np.random.uniform(*self.brightness_range)

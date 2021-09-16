@@ -1,7 +1,9 @@
 from typing import Dict, Tuple
+
 import numpy as np
 
-class Compose():
+
+class Compose:
     """Compose given transforms"""
 
     def __init__(self, *transforms):

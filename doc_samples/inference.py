@@ -1,5 +1,6 @@
-import fastface as ff
 import imageio
+
+import fastface as ff
 
 # checkout available pretrained models
 print(ff.list_pretrained_models())
@@ -15,7 +16,7 @@ model.eval()
 img = imageio.imread("<your_img_file_path>")[:, :, :3]
 
 # find faces
-preds, = model.predict(img)
+(preds,) = model.predict(img)
 """preds
 {
     'boxes': [[xmin, ymin, xmax, ymax], ...],

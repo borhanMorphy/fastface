@@ -1,6 +1,7 @@
-import fastface as ff
 import pytorch_lightning as pl
 import torch
+
+import fastface as ff
 
 # checkout available pretrained models
 print(ff.list_pretrained_models())
@@ -15,7 +16,7 @@ model.eval()
 # build transforms
 transforms = ff.transforms.Compose(
     ff.transforms.Interpolate(target_size=480),
-    ff.transforms.Padding(target_size=(480, 480))
+    ff.transforms.Padding(target_size=(480, 480)),
 )
 
 # build torch.utils.data.Dataset
@@ -25,8 +26,7 @@ ds = ff.dataset.FDDBDataset(phase="test", transforms=transforms)
 dl = ds.get_dataloader(batch_size=1, num_workers=0)
 
 # add average precision pl.metrics.Metric to the model
-model.add_metric("average_precision",
-    ff.metric.AveragePrecision(iou_threshold=0.5))
+model.add_metric("average_precision", ff.metric.AveragePrecision(iou_threshold=0.5))
 
 # define pl.Trainer for testing
 trainer = pl.Trainer(
@@ -34,7 +34,8 @@ trainer = pl.Trainer(
     logger=False,
     checkpoint_callback=False,
     gpus=1 if torch.cuda.is_available() else 0,
-    precision=32)
+    precision=32,
+)
 
 # run test
 trainer.test(model, test_dataloaders=[dl])

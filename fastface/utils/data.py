@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+
 def default_collate_fn(batch):
     batch, targets = zip(*batch)
     batch = np.stack(batch, axis=0).astype(np.float32)

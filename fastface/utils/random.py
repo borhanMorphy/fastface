@@ -1,11 +1,16 @@
 from typing import Tuple
+
 import numpy as np
 import torch
 
 from .box import cxcywh2xyxy
 
-def generate_uniform_boxes(center_range: Tuple[float, float] = (0.1, 0.9),
-        wh_range: Tuple[float, float] = (0.2, 0.8), n: int = 100):
+
+def generate_uniform_boxes(
+    center_range: Tuple[float, float] = (0.1, 0.9),
+    wh_range: Tuple[float, float] = (0.2, 0.8),
+    n: int = 100,
+):
 
     # TODO pydoc
 

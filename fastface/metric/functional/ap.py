@@ -1,12 +1,17 @@
-from typing import List, Tuple
-import torch
 import math
+from typing import List, Tuple
+
+import torch
 
 from ..utils import generate_prediction_table
 
-def average_precision(predictions: List, targets: List,
-        iou_thresholds: List[float] = [0.5],
-        area_range: Tuple[int, int] = (0, math.inf)) -> torch.Tensor:
+
+def average_precision(
+    predictions: List,
+    targets: List,
+    iou_thresholds: List[float] = [0.5],
+    area_range: Tuple[int, int] = (0, math.inf),
+) -> torch.Tensor:
     """Calculates average precision for given inputs
 
     Args:
@@ -18,7 +23,9 @@ def average_precision(predictions: List, targets: List,
     Returns:
         torch.Tensor: average precision
     """
-    assert len(predictions) == len(targets), "prediction and ground truths must be equal in lenght"
+    assert len(predictions) == len(
+        targets
+    ), "prediction and ground truths must be equal in lenght"
     assert len(predictions) > 0, "given input list lenght must be greater than 0"
 
     table = generate_prediction_table(predictions, targets)
@@ -46,7 +53,9 @@ def average_precision(predictions: List, targets: List,
 
     # TODO make it better
     all_targets = torch.cat(targets, dim=0)
-    areas = (all_targets[:, 2] - all_targets[:, 0]) * (all_targets[:, 3] - all_targets[:, 1])
+    areas = (all_targets[:, 2] - all_targets[:, 0]) * (
+        all_targets[:, 3] - all_targets[:, 1]
+    )
     mask = (areas > area_range[0]) & (areas < area_range[1])
     M = areas[mask].size(0)
 
@@ -56,11 +65,11 @@ def average_precision(predictions: List, targets: List,
     for iou_threshold in iou_thresholds:
         ntable = table.clone()
         # set as fp if lower than iou threshold
-        ntable[ntable[:, 0] < iou_threshold, 3] = 0.
+        ntable[ntable[:, 0] < iou_threshold, 3] = 0.0
 
         accumulated_tp = torch.cumsum(ntable[:, 3], dim=0)
 
-        precision = accumulated_tp / torch.arange(1, N+1, dtype=torch.float32)
+        precision = accumulated_tp / torch.arange(1, N + 1, dtype=torch.float32)
         recall = accumulated_tp / (M + 1e-16)
 
         unique_recalls = recall.unique_consecutive()
@@ -69,9 +78,9 @@ def average_precision(predictions: List, targets: List,
         last_value = torch.tensor(0, dtype=torch.float32)
 
         for i, recall_value in enumerate(unique_recalls):
-            mask = recall == recall_value # N,
-            p_mul = precision[mask].max() # get max p
-            auc[i] = p_mul * (recall_value-last_value)
+            mask = recall == recall_value  # N,
+            p_mul = precision[mask].max()  # get max p
+            auc[i] = p_mul * (recall_value - last_value)
             last_value = recall_value
         aps.append(auc.sum())
     return sum(aps) / len(aps)

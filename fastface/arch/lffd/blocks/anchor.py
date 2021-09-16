@@ -1,22 +1,27 @@
 import torch
 import torch.nn as nn
+
 from ....utils.box import generate_grids
 
-class Anchor(nn.Module):
 
+class Anchor(nn.Module):
     def __init__(self, rf_stride: int, rf_start_offset: int, rf_size: int):
         super().__init__()
         self.rf_stride = rf_stride
         self.rf_start_offset = rf_start_offset
         self.rf_size = rf_size
-        grids = generate_grids(1500//rf_stride, 1500//rf_stride)
-        rfs = (grids * rf_stride + rf_start_offset).repeat(1, 1, 2) # fh x fw x 2 => fh x fw x 4
-        rfs[:, :, :2] = rfs[:, :, :2] - rf_size/2
-        rfs[:, :, 2:] = rfs[:, :, 2:] + rf_size/2
+        grids = generate_grids(1500 // rf_stride, 1500 // rf_stride)
+        rfs = (grids * rf_stride + rf_start_offset).repeat(
+            1, 1, 2
+        )  # fh x fw x 2 => fh x fw x 4
+        rfs[:, :, :2] = rfs[:, :, :2] - rf_size / 2
+        rfs[:, :, 2:] = rfs[:, :, 2:] + rf_size / 2
         rf_centers = (rfs[:, :, :2] + rfs[:, :, 2:]) / 2
 
         # pylint: disable=not-callable
-        self.register_buffer("rf_normalizer", torch.tensor(rf_size / 2), persistent=False)
+        self.register_buffer(
+            "rf_normalizer", torch.tensor(rf_size / 2), persistent=False
+        )
         self.register_buffer("rfs", rfs, persistent=False)
         self.register_buffer("rf_centers", rf_centers.repeat(1, 1, 2), persistent=False)
         # rfs: fh x fw x 4 as x1,y1,x2,y2

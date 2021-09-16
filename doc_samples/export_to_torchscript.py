@@ -1,5 +1,6 @@
-import fastface as ff
 import torch
+
+import fastface as ff
 
 # checkout available pretrained models
 print(ff.list_pretrained_models())

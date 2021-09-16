@@ -1,14 +1,17 @@
-from PIL import Image
 from typing import Dict
+
 import numpy as np
+from PIL import Image
+
 from ...utils.geo import get_rotation_matrix
+
 
 def rotate(img: np.ndarray, degree: int, targets: Dict = {}) -> np.ndarray:
     # clockwise rotation
 
     h, w = img.shape[:2]
-    cx = w//2
-    cy = h//2
+    cx = w // 2
+    cy = h // 2
 
     nimg = np.array(Image.fromarray(img).rotate((360 - degree), center=(cx, cy)))
 
@@ -58,8 +61,8 @@ def rotate(img: np.ndarray, degree: int, targets: Dict = {}) -> np.ndarray:
         n_boxes = np.stack([x1, y1, x2, y2], axis=1)
 
         # clip
-        n_boxes[:, [0, 2]] = n_boxes[:, [0, 2]].clip(min=0, max=w-1)
-        n_boxes[:, [1, 3]] = n_boxes[:, [1, 3]].clip(min=0, max=h-1)
+        n_boxes[:, [0, 2]] = n_boxes[:, [0, 2]].clip(min=0, max=w - 1)
+        n_boxes[:, [1, 3]] = n_boxes[:, [1, 3]].clip(min=0, max=h - 1)
 
         targets["target_boxes"] = n_boxes
 

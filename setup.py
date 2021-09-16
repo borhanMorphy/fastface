@@ -1,14 +1,13 @@
-from setuptools import setup,find_packages
+from setuptools import find_packages, setup
+
 
 def get_version() -> str:
-    with open("fastface/version.py","r") as foo:
-        version = foo.read().split("=")[-1].replace("'","").strip()
+    with open("fastface/version.py", "r") as foo:
+        version = foo.read().split("=")[-1].replace("'", "").strip()
     return version
 
-__author__ = {
-    "name" : "Ömer BORHAN",
-    "email": "borhano.f.42@gmail.com"
-}
+
+__author__ = {"name": "Ömer BORHAN", "email": "borhano.f.42@gmail.com"}
 
 # load long description
 with open("README.md", "r") as foo:
@@ -28,10 +27,15 @@ test_require = [
     "pytest-cov",
 ]
 
-dev_require = [
-    "isort",
-    "black",
-] + test_require + docs_require
+dev_require = (
+    [
+        "isort",
+        "black",
+        "flake8",
+    ]
+    + test_require
+    + docs_require
+)
 
 extras_require = {
     "test": test_require,
@@ -62,29 +66,25 @@ setup(
     # author's email adress
     author_email=__author__["email"],
     # package license
-    license='MIT',
+    license="MIT",
     # package root directory
     packages=find_packages(),
-
     # requirements
     install_requires=requirements,
-
     # extra requirements
     extras_require=extras_require,
-
     include_package_data=True,
     # keywords that resemble this package
     keywords=["pytorch_lightning", "face detection", "edge AI", "LFFD"],
     zip_safe=False,
     # classifiers for the package
     classifiers=[
-        'Environment :: Console',
-        'Natural Language :: English',
-        'Intended Audience :: Developers',
-        'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7'
-    ]
+        "Environment :: Console",
+        "Natural Language :: English",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+    ],
 )

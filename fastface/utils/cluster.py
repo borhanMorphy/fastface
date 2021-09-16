@@ -1,12 +1,13 @@
-import random
-import torch
 import math
+import random
 
-class KMeans():
-    """Test
-    """
-    def __init__(self, k: int, distance_fn=None, dim_size: int = 2,
-            nstart: int = 2):
+import torch
+
+
+class KMeans:
+    """Test"""
+
+    def __init__(self, k: int, distance_fn=None, dim_size: int = 2, nstart: int = 2):
         # TODO use nstart
         assert distance_fn is not None, "please provide a distance function"
 
@@ -15,9 +16,15 @@ class KMeans():
         self._best_distance_score = math.inf
 
     def fit(self, points: torch.Tensor):
-        assert len(points.shape) == 2, "shape length of the points \
-            must be 2 but found {}".format(len(points.shape))
-        assert isinstance(points, torch.Tensor), "points must be torch.tensor but found {}".format(type(points))
+        assert (
+            len(points.shape) == 2
+        ), "shape length of the points \
+            must be 2 but found {}".format(
+            len(points.shape)
+        )
+        assert isinstance(
+            points, torch.Tensor
+        ), "points must be torch.tensor but found {}".format(type(points))
         sample_size = points.size(0)
         k = self._params.size(0)
 

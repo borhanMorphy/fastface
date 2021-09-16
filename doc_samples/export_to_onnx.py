@@ -1,6 +1,6 @@
+import torch
 
 import fastface as ff
-import torch
 
 # checkout available pretrained models
 print(ff.list_pretrained_models())
@@ -15,27 +15,24 @@ model = ff.FaceDetector.from_pretrained(pretrained_model_name)
 opset_version = 11
 
 dynamic_axes = {
-    "input_data": {0: "batch", 2: "height", 3: "width"}, # write axis names
-    "preds": {0: "batch"}
+    "input_data": {0: "batch", 2: "height", 3: "width"},  # write axis names
+    "preds": {0: "batch"},
 }
 
-input_names = [
-    "input_data"
-]
+input_names = ["input_data"]
 
-output_names = [
-    "preds"
-]
+output_names = ["preds"]
 
 # define dummy sample
 input_sample = torch.rand(1, *model.arch.input_shape[1:])
 
 # export model as onnx
-model.to_onnx("{}.onnx".format(pretrained_model_name),
+model.to_onnx(
+    "{}.onnx".format(pretrained_model_name),
     input_sample=input_sample,
     opset_version=opset_version,
     input_names=input_names,
     output_names=output_names,
     dynamic_axes=dynamic_axes,
-    export_params=True
+    export_params=True,
 )

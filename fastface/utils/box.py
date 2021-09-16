@@ -1,6 +1,7 @@
 import torch
 from torchvision.ops import nms
 
+
 def generate_grids(fh: int, fw: int) -> torch.Tensor:
     """generates grids using given feature map dimension
 
@@ -13,13 +14,11 @@ def generate_grids(fh: int, fw: int) -> torch.Tensor:
     """
     # y: fh x fw
     # x: fh x fw
-    y, x = torch.meshgrid(
-        torch.arange(fh),
-        torch.arange(fw)
-    )
+    y, x = torch.meshgrid(torch.arange(fh), torch.arange(fw))
 
     # grids: fh x fw x 2
     return torch.stack([x, y], dim=2).float()
+
 
 def jaccard_vectorized(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
     """Calculates jaccard index with a vectorized fashion
@@ -31,14 +30,21 @@ def jaccard_vectorized(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor
     Returns:
         torch.Tensor: IoUs as torch.Tensor(A,B)
     """
-    inter = intersect(box_a,box_b)
-    area_a = ((box_a[:, 2]-box_a[:, 0]) *
-                (box_a[:, 3]-box_a[:, 1])).unsqueeze(1).expand_as(inter) # [A,B]
-    area_b = ((box_b[:, 2]-box_b[:, 0]) *
-                (box_b[:, 3]-box_b[:, 1])).unsqueeze(0).expand_as(inter) # [A,B]
+    inter = intersect(box_a, box_b)
+    area_a = (
+        ((box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1]))
+        .unsqueeze(1)
+        .expand_as(inter)
+    )  # [A,B]
+    area_b = (
+        ((box_b[:, 2] - box_b[:, 0]) * (box_b[:, 3] - box_b[:, 1]))
+        .unsqueeze(0)
+        .expand_as(inter)
+    )  # [A,B]
 
     union = area_a + area_b - inter
     return inter / union
+
 
 def jaccard_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
     """Calculates jaccard index of same centered boxes
@@ -49,10 +55,11 @@ def jaccard_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
         torch.Tensor: torch.Tensor(A,B)
     """
     inter = intersect_centered(wh_a, wh_b)
-    area_a = (wh_a[:, 0] * wh_a[:, 1]).unsqueeze(1).expand_as(inter) # [A,B]
-    area_b = (wh_b[:, 0] * wh_b[:, 1]).unsqueeze(0).expand_as(inter) # [A,B]
+    area_a = (wh_a[:, 0] * wh_a[:, 1]).unsqueeze(1).expand_as(inter)  # [A,B]
+    area_b = (wh_b[:, 0] * wh_b[:, 1]).unsqueeze(0).expand_as(inter)  # [A,B]
     union = area_a + area_b - inter
     return inter / union
+
 
 def intersect(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
     """Calculates intersection area of boxes given
@@ -65,14 +72,19 @@ def intersect(box_a: torch.Tensor, box_b: torch.Tensor) -> torch.Tensor:
 
     A = box_a.size(0)
     B = box_b.size(0)
-    max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2),
-                        box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
+    max_xy = torch.min(
+        box_a[:, 2:].unsqueeze(1).expand(A, B, 2),
+        box_b[:, 2:].unsqueeze(0).expand(A, B, 2),
+    )
 
-    min_xy = torch.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2),
-                        box_b[:, :2].unsqueeze(0).expand(A, B, 2))
+    min_xy = torch.max(
+        box_a[:, :2].unsqueeze(1).expand(A, B, 2),
+        box_b[:, :2].unsqueeze(0).expand(A, B, 2),
+    )
 
     inter = torch.clamp((max_xy - min_xy), min=0)
     return inter[:, :, 0] * inter[:, :, 1]
+
 
 def intersect_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
     """Calculates intersection of same centered boxes
@@ -87,16 +99,21 @@ def intersect_centered(wh_a: torch.Tensor, wh_b: torch.Tensor) -> torch.Tensor:
 
     A = wh_a.size(0)
     B = wh_b.size(0)
-    min_w = torch.min(wh_a[:, [0]].unsqueeze(1).expand(A, B, 2),
-                        wh_b[:, [0]].unsqueeze(0).expand(A, B, 2))
+    min_w = torch.min(
+        wh_a[:, [0]].unsqueeze(1).expand(A, B, 2),
+        wh_b[:, [0]].unsqueeze(0).expand(A, B, 2),
+    )
 
     # [A,2] -> [A,1,2] -> [A,B,2]
 
-    min_h = torch.min(wh_a[:, [1]].unsqueeze(1).expand(A, B, 2),
-                        wh_b[:, [1]].unsqueeze(0).expand(A, B, 2))
+    min_h = torch.min(
+        wh_a[:, [1]].unsqueeze(1).expand(A, B, 2),
+        wh_b[:, [1]].unsqueeze(0).expand(A, B, 2),
+    )
     # [B,2] -> [1,B,2] -> [A,B,2]
 
-    return min_w[:, :, 0]*min_h[:, :, 0]
+    return min_w[:, :, 0] * min_h[:, :, 0]
+
 
 def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, centerx centery width height to xmin ymin xmax ymax
@@ -115,6 +132,7 @@ def cxcywh2xyxy(boxes: torch.Tensor) -> torch.Tensor:
 
     return torch.cat([x1y1, x2y2], dim=1)
 
+
 def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
     """Convert box coordiates, xmin ymin xmax ymax to centerx centery width height
 
@@ -129,9 +147,14 @@ def xyxy2cxcywh(boxes: torch.Tensor) -> torch.Tensor:
 
     return torch.cat([cxcy, wh], dim=1)
 
+
 @torch.jit.script
-def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tensor,
-    iou_threshold: float = 0.4) -> torch.Tensor:
+def batched_nms(
+    boxes: torch.Tensor,
+    scores: torch.Tensor,
+    batch_ids: torch.Tensor,
+    iou_threshold: float = 0.4,
+) -> torch.Tensor:
     """Applies batched non max suppression to given boxes
 
     Args:
@@ -150,7 +173,7 @@ def batched_nms(boxes: torch.Tensor, scores: torch.Tensor, batch_ids: torch.Tens
 
     cboxes = boxes / max_val
 
-    offsets = batch_ids.to(boxes.dtype) # N,
+    offsets = batch_ids.to(boxes.dtype)  # N,
 
     cboxes += offsets.unsqueeze(1).repeat(1, 4)
 

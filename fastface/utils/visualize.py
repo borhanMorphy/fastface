@@ -1,10 +1,13 @@
-from typing import Tuple, Dict
 import random
-import numpy as np
-from PIL import Image, ImageDraw, ImageColor
+from typing import Dict, Tuple
 
-def prettify_detections(img: np.ndarray, preds: Dict,
-        color: Tuple[int, int, int] = None) -> Image:
+import numpy as np
+from PIL import Image, ImageColor, ImageDraw
+
+
+def prettify_detections(
+    img: np.ndarray, preds: Dict, color: Tuple[int, int, int] = None
+) -> Image:
     """Returns Rendered PIL Image using given predictions
     Args:
         img (np.ndarray): 3 channeled image
@@ -19,12 +22,14 @@ def prettify_detections(img: np.ndarray, preds: Dict,
     pil_img = Image.fromarray(img)
 
     # TODO use score
-    for (x1, y1, x2, y2), score in zip(preds['boxes'], preds['scores']):
+    for (x1, y1, x2, y2), score in zip(preds["boxes"], preds["scores"]):
         ImageDraw.Draw(pil_img).rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
     return pil_img
 
-def render_targets(img: np.ndarray, targets: Dict,
-        color: Tuple[int, int, int] = None) -> Image:
+
+def render_targets(
+    img: np.ndarray, targets: Dict, color: Tuple[int, int, int] = None
+) -> Image:
     """Returns Rendered PIL Image using given targets
     Args:
         img (np.ndarray): 3 channeled image
@@ -41,8 +46,10 @@ def render_targets(img: np.ndarray, targets: Dict,
         ImageDraw.Draw(pil_img).rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
     return pil_img
 
-def draw_rects(img: np.ndarray, boxes: np.ndarray,
-        color: Tuple[int, int, int] = None) -> np.ndarray:
+
+def draw_rects(
+    img: np.ndarray, boxes: np.ndarray, color: Tuple[int, int, int] = None
+) -> np.ndarray:
     """Returns Rendered numpy image using given boxes
     Args:
         img (np.ndarray): 3 channeled image

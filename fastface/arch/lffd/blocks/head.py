@@ -1,30 +1,37 @@
 from typing import Tuple
+
 import torch
 import torch.nn as nn
 
-from .conv import conv1x1
 from .anchor import Anchor
+from .conv import conv1x1
+
 
 class LFFDHead(nn.Module):
-    def __init__(self, head_idx: int, infeatures: int, features: int,
-            rf_size: int, rf_start_offset: int, rf_stride: int, num_classes: int = 1):
+    def __init__(
+        self,
+        head_idx: int,
+        infeatures: int,
+        features: int,
+        rf_size: int,
+        rf_start_offset: int,
+        rf_stride: int,
+        num_classes: int = 1,
+    ):
         super().__init__()
         self.head_idx = head_idx
         self.num_classes = num_classes
         self.anchor = Anchor(rf_stride, rf_start_offset, rf_size)
 
-        self.det_conv = nn.Sequential(
-            conv1x1(infeatures, features), nn.ReLU())
+        self.det_conv = nn.Sequential(conv1x1(infeatures, features), nn.ReLU())
 
         self.cls_head = nn.Sequential(
-            conv1x1(features, features),
-            nn.ReLU(),
-            conv1x1(features, self.num_classes))
+            conv1x1(features, features), nn.ReLU(), conv1x1(features, self.num_classes)
+        )
 
         self.reg_head = nn.Sequential(
-            conv1x1(features, features),
-            nn.ReLU(),
-            conv1x1(features, 4))
+            conv1x1(features, features), nn.ReLU(), conv1x1(features, 4)
+        )
 
         def conv_xavier_init(m):
             if type(m) == nn.Conv2d:
@@ -57,9 +64,9 @@ class LFFDHead(nn.Module):
         rf_centers = self.anchor.rf_centers[:fh, :fw]
         # rf_centers: fh,fw,4 cx1,cy1,cx1,cy1
 
-        #reg_logits[:, :, :, 0] = torch.clamp(reg_logits[:, :, :, 0], 0, fw*self.rf_stride)
-        #reg_logits[:, :, :, 1] = torch.clamp(reg_logits[:, :, :, 1], 0, fh*self.rf_stride)
-        #reg_logits[:, :, :, 2] = torch.clamp(reg_logits[:, :, :, 2], 0, fw*self.rf_stride)
-        #reg_logits[:, :, :, 3] = torch.clamp(reg_logits[:, :, :, 3], 0, fh*self.rf_stride)
+        # reg_logits[:, :, :, 0] = torch.clamp(reg_logits[:, :, :, 0], 0, fw*self.rf_stride)
+        # reg_logits[:, :, :, 1] = torch.clamp(reg_logits[:, :, :, 1], 0, fh*self.rf_stride)
+        # reg_logits[:, :, :, 2] = torch.clamp(reg_logits[:, :, :, 2], 0, fw*self.rf_stride)
+        # reg_logits[:, :, :, 3] = torch.clamp(reg_logits[:, :, :, 3], 0, fh*self.rf_stride)
 
         return rf_centers - reg_logits * self.anchor.rf_normalizer

@@ -1,9 +1,13 @@
 from typing import List
+
 import torch
 
 from ..utils.box import jaccard_vectorized
 
-def generate_prediction_table(preds: List[torch.Tensor], targets: List[torch.Tensor]) -> List[torch.Tensor]:
+
+def generate_prediction_table(
+    preds: List[torch.Tensor], targets: List[torch.Tensor]
+) -> List[torch.Tensor]:
     """Generates prediction table
 
     Args:
@@ -42,17 +46,14 @@ def generate_prediction_table(preds: List[torch.Tensor], targets: List[torch.Ten
 
         areas = (gt[:, 2] - gt[:, 0]) * (gt[:, 3] - gt[:, 1])
 
-        single_table = torch.stack([
-            iou_vals,
-            pred[:, 4],
-            areas[match_ids],
-            best_matches,
-            match_ids.float()
-        ], dim=1)
+        single_table = torch.stack(
+            [iou_vals, pred[:, 4], areas[match_ids], best_matches, match_ids.float()],
+            dim=1,
+        )
 
         single_table = single_table[single_table[:, 0].argsort(dim=0, descending=True)]
         for gt_idx in range(M):
-            match_ids, = torch.where(single_table[:, 4] == gt_idx)
+            (match_ids,) = torch.where(single_table[:, 4] == gt_idx)
             if match_ids.size(0) == 0:
                 continue
             # set best
