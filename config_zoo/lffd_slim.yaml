@@ -8,6 +8,10 @@ hparams:
   milestones: [500000, 1000000, 1500000]
   gamma: 0.1
   ratio: 10
+  image_size: 480
+  batch_size: 32
+  mini_batch_size: 8
+  gradient_clip_val: 20
 
 preprocess:
   normalized_input: false

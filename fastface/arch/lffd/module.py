@@ -231,7 +231,7 @@ class LFFD(nn.Module):
 
             # select max face dim as `face scale` (defined in the paper)
             batch_target_face_scales.append(
-                (t_boxes[:, [2, 3]] - t_boxes[:, [0, 1]]).max(dim=1)[0]
+                0 if t_boxes.size(0) == 0 else (t_boxes[:, [2, 3]] - t_boxes[:, [0, 1]]).max(dim=1)[0]
             )
 
         targets = []

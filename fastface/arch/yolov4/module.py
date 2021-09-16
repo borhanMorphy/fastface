@@ -295,10 +295,16 @@ class YOLOv4(nn.Module):
         # concat channelwise
         return torch.cat(targets, dim=1).contiguous()
 
-    def configure_optimizers(self, **hparams):
+    def configure_optimizers(self, hparams: Dict = {}):
+        # TODO move this assertion to lightning module
+        assert "learning_rate" in hparams, "hyperparameter dict must contain `learning_rate`"
         optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=hparams.get("learning_rate", 1e-3),
-            weight_decay=hparams.get("weight_decay", 0))
+            lr=hparams["learning_rate"],
+            weight_decay=hparams.get("weight_decay", 5e-4))
 
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+            step_size=hparams.get("step_size", 35),
+            gamma=hparams.get("gamma", 0.1))
+
+        return [optimizer], [scheduler]

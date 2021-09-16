@@ -7,7 +7,7 @@ print(ff.list_pretrained_models())
 # ["lffd_slim", "lffd_original"]
 
 # build pl.LightningModule using pretrained weights
-model = ff.FaceDetector.from_pretrained("lffd_slim")
+model = ff.FaceDetector.from_checkpoint("checkpoints/yolov4_tiny_widerface_best-v0.ckpt")
 
 # set model to eval mode
 model.eval()
@@ -18,7 +18,7 @@ transforms = ff.transforms.Compose(
 )
 
 # build torch.utils.data.Dataset
-ds = ff.dataset.FDDBDataset(phase="test", transforms=transforms)
+ds = ff.dataset.WiderFaceDataset(phase="test", partitions=["easy"], transforms=transforms)
 
 # build torch.utils.data.DataLoader
 dl = ds.get_dataloader(batch_size=1, num_workers=0)
@@ -27,7 +27,17 @@ dl = ds.get_dataloader(batch_size=1, num_workers=0)
 model.add_metric("AP@0.5",
     ff.metric.AveragePrecision(iou_threshold=0.5))
 
-model.add_metric("AR@0.5", ff.metric.AverageRecall(iou_threshold_max=0.5, iou_threshold_min=0.5))
+model.add_metric("AR@0.5",
+    ff.metric.AverageRecall(iou_threshold_max=0.5, iou_threshold_min=0.5))
+
+model.add_metric("APsmall@0.5",
+    ff.metric.AveragePrecision(iou_threshold=0.5, area="small"))
+
+model.add_metric("APmedium@0.5",
+    ff.metric.AveragePrecision(iou_threshold=0.5, area="medium"))
+
+model.add_metric("APlarge@0.5",
+    ff.metric.AveragePrecision(iou_threshold=0.5, area="large"))
 
 # define pl.Trainer for testing
 trainer = pl.Trainer(
@@ -41,5 +51,9 @@ trainer = pl.Trainer(
 trainer.test(model, test_dataloaders=[dl])
 """
 DATALOADER:0 TEST RESULTS
-{'AP@0.5': 0.9410496354103088, 'AR@0.5': 0.9590609073638916}
+{'AP@0.5': 0.9410496354103088,
+ 'APlarge@0.5': 0.9857767224311829,
+ 'APmedium@0.5': 0.8848604559898376,
+ 'APsmall@0.5': 0.7582277655601501,
+ 'AR@0.5': 0.9590609073638916}
 """

@@ -62,7 +62,7 @@ model = ff.FaceDetector.build(arch, config=config,
     preprocess=preprocess, hparams=hparams)
 
 # add average precision pl.metrics.Metric to the model
-model.add_metric("average_precision",
+model.add_metric("AP@0.5",
     ff.metric.AveragePrecision(iou_threshold=0.5))
 
 model_save_name = "{}_{}_{}_best".format(arch, config, "fddb")
@@ -78,9 +78,9 @@ checkpoint_callback = pl.callbacks.ModelCheckpoint(
     dirpath=ckpt_save_path,
     verbose=True,
     filename=model_save_name,
-    monitor="average_precision",
+    monitor="metrics/AP@0.5",
     save_top_k=1,
-    mode="max" # only pick max of `average_precision`
+    mode="max" # only pick max of `AP@0.5`
 )
 
 # define pl.Trainer

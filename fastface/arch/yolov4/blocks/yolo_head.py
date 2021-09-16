@@ -14,6 +14,17 @@ class YoloHead(nn.Module):
 
         self.anchor = Anchor(anchors, stride)
 
+        """
+        def conv_xavier_init(m):
+            if type(m) == nn.Conv2d:
+                nn.init.xavier_normal_(m.weight)
+
+                if m.bias is not None:
+                    m.bias.data.fill_(0)
+
+        self.apply(conv_xavier_init)
+        """
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Computes logits
         Args:

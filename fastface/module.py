@@ -236,7 +236,7 @@ class FaceDetector(pl.LightningModule):
 		for metric in self.__metrics.values():
 			metric.reset()
 
-	def validation_step(self, batch, batch_idx):
+	def validation_step(self, batch, batch_idx, *args):
 		batch, targets = batch
 		batch_size = batch.size(0)
 
@@ -318,7 +318,7 @@ class FaceDetector(pl.LightningModule):
 			self.log("{}/validation".format(name), sum(loss)/len(loss))
 
 		for name, metric in self.__metrics.items():
-			self.log(name, metric.compute())
+			self.log("metrics/{}".format(name), metric.compute())
 
 	def on_test_epoch_start(self):
 		for metric in self.__metrics.values():

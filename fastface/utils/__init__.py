@@ -6,3 +6,4 @@ from . import box
 from . import preprocess
 from . import cluster
 from . import geo
+from . import kernel

@@ -9,6 +9,13 @@ from .conv import conv3x3_ds
 from .csp import CSPBlock
 
 class CSPDarknet53Tiny(nn.Module):
+    """
+    Inputs: TODO
+    Ouputs: TODO
+    Receptive Field: TODO
+    Effective Stride: TODO 
+    """
+
     def __init__(self):
         super().__init__()
         self.conv_ds_1 = conv3x3_ds(3, 32)

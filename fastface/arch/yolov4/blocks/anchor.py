@@ -23,7 +23,7 @@ class Anchor(nn.Module):
  
         priors = torch.cat([centers, wh], dim=-1)
 
-        self.register_buffer("priors", priors)
+        self.register_buffer("priors", priors, persistent=False)
 
     def forward(self, fh: int, fw: int) -> torch.Tensor:
         """Generates anchors using featuremap dimensions
