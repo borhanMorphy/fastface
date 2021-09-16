@@ -13,13 +13,26 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import imageio
 from tqdm import tqdm
-from ..utils.data import default_collate_fn
 from ..adapter import download_object
 
 class _IdentitiyTransforms():
     """Dummy tranforms"""
     def __call__(self, img: np.ndarray, targets: Dict) -> Tuple:
         return img, targets
+
+import numpy as np
+import torch
+
+def default_collate_fn(batch):
+    batch, targets = zip(*batch)
+    batch = np.stack(batch, axis=0).astype(np.float32)
+    batch = torch.from_numpy(batch).permute(0, 3, 1, 2).contiguous()
+    for i, target in enumerate(targets):
+        for k, v in target.items():
+            if isinstance(v, np.ndarray):
+                targets[i][k] = torch.from_numpy(v)
+
+    return batch, targets
 
 class BaseDataset(Dataset):
     def __init__(self, ids: List[str], targets: List[Dict], transforms=None, **kwargs):
@@ -46,10 +59,32 @@ class BaseDataset(Dataset):
         # apply transforms
         img, targets = self.transforms(img, targets)
 
+        # clip boxes
+        targets["target_boxes"] = self._clip_boxes(targets["target_boxes"], img.shape[:2])
+
+        # discard zero sized boxes
+        targets["target_boxes"] = self._discard_zero_size_boxes(targets["target_boxes"])
+
         return (img, targets)
 
     def __len__(self) -> int:
         return len(self.ids)
+
+    @staticmethod
+    def _clip_boxes(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
+        # TODO pydoc
+        height, width = shape
+        boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(min=0, max=width-1)
+        boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(min=0, max=height-1)
+
+        return boxes
+
+    @staticmethod
+    def _discard_zero_size_boxes(boxes: np.ndarray) -> np.ndarray:
+        # TODO pydoc
+        scale = (boxes[:, [2, 3]] - boxes[:, [0, 1]]).min(axis=1)
+        return boxes[scale > 0]
+
 
     @staticmethod
     def _load_image(img_file_path: str):
@@ -101,7 +136,31 @@ class BaseDataset(Dataset):
         std = (mean_sq_sum / len(self) - mean**2)**0.5
 
         return {"mean": mean.tolist(), "std": std.tolist()}
-    
+
+    def get_normalized_boxes(self) -> np.ndarray:
+        # TODO pydoc
+        normalized_boxes = []
+        for img, targets in tqdm(self, total=len(self), desc="computing normalized target boxes"):
+            if targets["target_boxes"].shape[0] == 0:
+                continue
+            max_size = max(img.shape)
+            normalized_boxes.append(targets["target_boxes"] / max_size)
+
+        return np.concatenate(normalized_boxes, axis=0)
+
+    def get_box_scale_histogram(self) -> Tuple[np.ndarray, np.ndarray]:
+        bins = map(lambda x:2**x, range(10))
+        total_boxes = []
+        for _, targets in tqdm(self, total=len(self), desc="getting box sizes"):
+            if targets["target_boxes"].shape[0] == 0:
+                continue
+            total_boxes.append(targets["target_boxes"])
+
+        total_boxes = np.concatenate(total_boxes, axis=0)
+        areas = (total_boxes[:, 2] - total_boxes[:, 0]) * (total_boxes[:, 3] - total_boxes[:, 1])
+
+        return np.histogram(np.sqrt(areas), bins=list(bins))
+
     def download(self, urls: List, target_dir: str):
         for k, v in urls.items():
 

@@ -3,9 +3,6 @@ import torch
 class DIoULoss(torch.nn.Module):
     """DIoU loss"""
 
-    def __init__(self):
-        super().__init__()
-
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """calculates distance IoU loss
 
@@ -43,7 +40,7 @@ class DIoULoss(torch.nn.Module):
 
         enclosing_box_w = torch.max(input[:, 2], target[:, 2]) - torch.min(input[:, 0], target[:, 0])
         enclosing_box_h = torch.max(input[:, 3], target[:, 3]) - torch.min(input[:, 1], target[:, 1])
-        
+
         # convex diagonal squared
         c_square = enclosing_box_w**2 + enclosing_box_h**2
 
@@ -58,4 +55,4 @@ class DIoULoss(torch.nn.Module):
         penalty = p_square / (c_square + eps)
 
         # DIoU loss
-        return 1 - (IoU - penalty)
+        return 1 - IoU + penalty

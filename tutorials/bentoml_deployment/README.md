@@ -1,4 +1,4 @@
-# FaceFace BentoML Deployment
+# FastFace BentoML Deployment
 **[BentoML](https://www.bentoml.ai/) is a model serving framework, enabling to deliver prediction services in a fast, repeatable and scalable way.<br>**
 
 **This tutorial will explain how to export [fastface]((https://github.com/borhanMorphy/light-face-detection)) models as [ONNX](https://onnx.ai/) and deploy to bentoml prediction service.**
@@ -124,7 +124,7 @@ bentoml serve-gunicorn FaceDetectionService:latest -w 1
 test rest api with [test.py](./test.py)
 ```python
 import requests
-from fastface.utils.visualize import prettify_detections
+from fastface.utils.vis import render_predictions
 import imageio
 
 url = "http://localhost:5000/detect"
@@ -139,7 +139,7 @@ response = requests.request("POST", url, headers=headers, data=payload, files=fi
 
 print(response.json())
 
-pretty_img = prettify_detections(imageio.imread('../../resources/friends2.jpg'), response.json())
+pretty_img = render_predictions(imageio.imread('../../resources/friends2.jpg'), response.json())
 
 # show image
 pretty_img.show()

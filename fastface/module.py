@@ -236,7 +236,7 @@ class FaceDetector(pl.LightningModule):
 		for metric in self.__metrics.values():
 			metric.reset()
 
-	def validation_step(self, batch, batch_idx):
+	def validation_step(self, batch, batch_idx, *args):
 		batch, targets = batch
 		batch_size = batch.size(0)
 
@@ -261,7 +261,7 @@ class FaceDetector(pl.LightningModule):
 		# preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
 		batch_preds = [preds[preds[:, 5] == batch_idx][:, :5].cpu() for batch_idx in range(batch_size)]
-	
+
 		kwargs = {}
 		batch_gt_boxes = []
 		for target in targets:
@@ -293,8 +293,8 @@ class FaceDetector(pl.LightningModule):
 			img = (img.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
 			preds = preds.cpu().long().numpy()
 			gt_boxes = gt_boxes.cpu().long().numpy()
-			img = utils.visualize.draw_rects(img, preds[:, :4], color=(255, 0, 0))
-			img = utils.visualize.draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
+			img = utils.vis.draw_rects(img, preds[:, :4], color=(255, 0, 0))
+			img = utils.vis.draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
 			pil_img = Image.fromarray(img)
 			pil_img.show()
 			if input("press `q` to exit") == "q":
@@ -318,7 +318,7 @@ class FaceDetector(pl.LightningModule):
 			self.log("{}/validation".format(name), sum(loss)/len(loss))
 
 		for name, metric in self.__metrics.items():
-			self.log(name, metric.compute())
+			self.log("metrics/{}".format(name), metric.compute())
 
 	def on_test_epoch_start(self):
 		for metric in self.__metrics.values():

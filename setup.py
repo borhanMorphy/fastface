@@ -25,14 +25,19 @@ with open("docs/requirements.txt", "r") as foo:
 test_require = [
     "pytest",
     "pytest-pylint",
-    "pytest-cov"
+    "pytest-cov",
 ]
+
+dev_require = [
+    "isort",
+    "black",
+] + test_require + docs_require
 
 extras_require = {
     "test": test_require,
     "docs": docs_require,
-    "dev": test_require + docs_require,
-    "all": test_require + docs_require,
+    "dev": dev_require,
+    "all": dev_require,
 }
 
 setup(

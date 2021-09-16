@@ -1,21 +1,7 @@
 import numpy as np
 from typing import Tuple, Dict
-from PIL import Image
 
-def interpolate(img: np.ndarray, target_size: int, targets: Dict = {}):
-    h, w = img.shape[:2]
-
-    sf = target_size / max(h, w)
-
-    nh = int(sf*h)
-    nw = int(sf*w)
-
-    nimg = np.array(Image.fromarray(img).resize((nw, nh)), dtype=img.dtype)
-
-    if "target_boxes" in targets:
-        targets["target_boxes"] *= sf
-
-    return nimg, targets
+from . import functional as F
 
 class Interpolate():
     """Interpolates the image and boxes using target size"""
@@ -27,7 +13,7 @@ class Interpolate():
     def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
         assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(len(img.shape))
 
-        nimg, targets = interpolate(img, self.target_size, targets=targets)
+        nimg, targets = F.interpolate(img, self.target_size, targets=targets)
 
         return (nimg, targets)
 
@@ -45,6 +31,6 @@ class ConditionalInterpolate():
         if max(img.shape) <= self.max_size:
             return (img, targets)
 
-        nimg, targets = interpolate(img, self.max_size, targets=targets)
+        nimg, targets = F.interpolate(img, self.max_size, targets=targets)
 
         return (nimg, targets)
