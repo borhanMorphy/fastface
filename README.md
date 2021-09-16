@@ -39,6 +39,7 @@ pip install .
 
 ## Pretrained Models
 Pretrained models can be accessable via `fastface.FaceDetector.from_pretrained(<name>)`
+
 Name|Architecture|Configuration|Parameters|Model Size|Link
 :------:|:------:|:------:|:------:|:------:|:------:
 **lffd_original**|lffd|original|2.3M|9mb|[weights](https://drive.google.com/file/d/1qFRuGhzoMWrW9WNlWw9jHXPY51MBssQD/view?usp=sharing)
@@ -87,6 +88,7 @@ sample output;
 
 #### WIDER FACE
 validation set results
+
 Name|Easy|Medium|Hard|
 :------:|:------:|:------:|:------:
 **lffd_original**|**0.893**|**0.866**|**0.758**
