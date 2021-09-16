@@ -1,5 +1,3 @@
-__all__ = ["WiderFaceDataset"]
-
 import os
 from typing import List, Tuple
 

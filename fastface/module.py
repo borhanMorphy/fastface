@@ -1,5 +1,3 @@
-__all__ = ["FaceDetector"]
-
 import os
 from typing import Dict, List, Union
 

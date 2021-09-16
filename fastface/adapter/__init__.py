@@ -1,5 +1,3 @@
-__all__ = ["download_object"]
-
 import logging
 
 from .gdrive import GoogleDriveAdapter
@@ -16,3 +14,6 @@ def download_object(adapter: str, dest_path: str = None, **kwargs):
     )
     logger.info("Downloading object to {} with {} adapter".format(dest_path, adapter))
     return __adapters__[adapter].download(dest_path, **kwargs)
+
+
+__all__ = ["download_object"]
