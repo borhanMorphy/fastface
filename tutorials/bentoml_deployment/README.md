@@ -6,7 +6,7 @@
 ## Installation
 **install latest fastface and bentoml via pip**
 ```
-pip install fastface==0.1.1 BentoML==0.12.1 -U
+pip install fastface==0.1.3 BentoML==0.12.1 -U
 ```
 
 ## BentoService Definition
@@ -155,7 +155,7 @@ BentoML also provides docker support for distributing services.<br>
 
 Run following to build docker image
 ```
-docker build --tag face-detection-service $HOME/bentoml/repository/FaceDetectionService/v0.1.1/
+docker build --tag face-detection-service $HOME/bentoml/repository/FaceDetectionService/v0.1.3/
 ```
 
 After docker image build is done, run docker container with the following
