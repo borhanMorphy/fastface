@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 def get_version() -> str:
     with open("fastface/version.py", "r") as foo:
-        version = foo.read().split("=")[-1].replace("'", "").strip()
+        version = foo.read().split("=")[-1].replace("'", "").replace('"', '').strip()
     return version
 
 
