@@ -17,9 +17,13 @@ with open("README.md", "r") as foo:
 with open("requirements.txt", "r") as foo:
     requirements = foo.read().split("\n")
 
-# load docs requirements
-with open("docs/requirements.txt", "r") as foo:
-    docs_require = foo.read().split("\n")
+docs_require = [
+    "sphinxemoji",
+    "sphinx_rtd_theme",
+    "recommonmark",
+    "sphinx_markdown_tables",
+    "sphinxcontrib-napoleon",
+]
 
 test_require = [
     "pytest",
@@ -33,6 +37,7 @@ dev_require = (
         "black",
         "flake8",
         "tox",
+        "tox-conda",
     ]
     + test_require
     + docs_require
