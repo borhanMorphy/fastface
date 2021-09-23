@@ -32,6 +32,7 @@ dev_require = (
         "isort",
         "black",
         "flake8",
+        "tox",
     ]
     + test_require
     + docs_require

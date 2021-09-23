@@ -8,13 +8,19 @@ from . import utils
 @pytest.mark.parametrize(
     "transform_name",
     [
-        "Interpolate",
+        # regular
+        "Compose",
+        "FaceDiscarder",
         "ConditionalInterpolate",
+        "Interpolate",
         "Padding",
-        "FaceDiscarder",  # TODO
-        "LFFDRandomSample",  # TODO
-        "RandomHorizontalFlip",  # TODO
-        "Compose",  # TODO
+        "Rotate",
+        # augmentations
+        "RandomGaussianBlur",
+        "ColorJitter",
+        "LFFDRandomSample",
+        "RandomHorizontalFlip",
+        "RandomRotate",
     ],
 )
 def test_api_exists(transform_name: str):
