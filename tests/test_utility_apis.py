@@ -38,7 +38,7 @@ def test_config_func_exists(func: str):
     ), "{} not found in the fastface.utils.config".format(func)
 
 
-@pytest.mark.parametrize("func", ["render_predictions"])
+@pytest.mark.parametrize("func", ["render_predictions", "render_targets", "draw_rects"])
 def test_visualize_func_exists(func: str):
     assert func in dir(ff.utils.vis), "{} not found in the fastface.utils.vis".format(
         func
