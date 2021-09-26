@@ -4,8 +4,9 @@ import numpy as np
 
 
 def pad(
-    img: np.ndarray, target_size: Tuple, pad_value: float = 0.0, targets: Dict = {}
+    img: np.ndarray, target_size: Tuple, pad_value: float = 0.0, targets: Dict = None
 ):
+    targets = dict() if targets is None else targets
     h, w, c = img.shape
     tw, th = target_size
 

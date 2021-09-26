@@ -26,7 +26,7 @@ class LFFDRandomSample:
         self.interpolate = Interpolate(target_size=target_size[0])
         self.p = p
 
-    def __call__(self, img: np.ndarray, targets: Dict = {}) -> Tuple[np.ndarray, Dict]:
+    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
         """Randomly samples faces using given scales. All scales represents branches and
         for each branch selection probability is same.
 
@@ -37,6 +37,9 @@ class LFFDRandomSample:
         Returns:
             Tuple[np.ndarray, Dict]: transformed image and transformed targets
         """
+
+        targets = dict() if targets is None else targets
+
         target_boxes = targets.get("target_boxes")
 
         if (

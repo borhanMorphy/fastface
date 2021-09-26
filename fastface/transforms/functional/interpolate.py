@@ -4,7 +4,8 @@ import numpy as np
 from PIL import Image
 
 
-def interpolate(img: np.ndarray, target_size: int, targets: Dict = {}):
+def interpolate(img: np.ndarray, target_size: int, targets: Dict = None):
+    targets = dict() if targets is None else targets
     h, w = img.shape[:2]
 
     sf = target_size / max(h, w)

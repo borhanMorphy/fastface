@@ -6,8 +6,10 @@ from PIL import Image
 from ...utils.geo import get_rotation_matrix
 
 
-def rotate(img: np.ndarray, degree: int, targets: Dict = {}) -> np.ndarray:
+def rotate(img: np.ndarray, degree: int, targets: Dict = None) -> np.ndarray:
     # clockwise rotation
+
+    targets = dict() if targets is None else targets
 
     h, w = img.shape[:2]
     cx = w // 2
