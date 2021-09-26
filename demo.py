@@ -5,7 +5,6 @@ import numpy as np
 import torch
 
 import fastface as ff
-from fastface.utils.visualize import prettify_detections
 
 
 def get_arguments():
@@ -106,7 +105,7 @@ def main(
     )
 
     # visualize predictions
-    pretty_img = prettify_detections(img, preds)
+    pretty_img = ff.utils.vis.render_predictions(img, preds)
 
     # show image
     pretty_img.show()

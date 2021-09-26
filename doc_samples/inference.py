@@ -25,5 +25,5 @@ img = imageio.imread("<your_img_file_path>")[:, :, :3]
 """
 
 # visualize predictions
-pil_img = ff.utils.visualize.prettify_detections(img, preds)
+pil_img = ff.utils.vis.render_predictions(img, preds)
 pil_img.show()
