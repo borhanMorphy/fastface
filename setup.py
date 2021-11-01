@@ -38,6 +38,7 @@ dev_require = (
         "flake8",
         "tox",
         "tox-conda",
+        "matplotlib",
     ]
     + test_require
     + docs_require

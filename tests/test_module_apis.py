@@ -126,7 +126,7 @@ def test_module_export_to_torchscript(arch: str, config: str):
         arch, config
     )
 
-    dummy_input = torch.rand(2, 3, 480, 360)
+    dummy_input = torch.rand(2, *module.arch.input_shape[1:])
 
     output = module.forward(dummy_input)
 
@@ -177,9 +177,9 @@ def test_module_export_to_onnx(arch: str, config: str):
 
         sess = ort.InferenceSession(tmpfile.name)
 
-    del module
 
-    dummy_input = np.random.rand(2, 3, 200, 200).astype(np.float32)
+    dummy_input = np.random.rand(2, *module.arch.input_shape[1:]).astype(np.float32)
+    del module
     input_name = sess.get_inputs()[0].name
     (ort_output,) = sess.run(None, {input_name: dummy_input})
 

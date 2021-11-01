@@ -1,6 +1,8 @@
 import os
 from typing import Dict, List, Union
+import math
 
+from PIL import Image
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -8,7 +10,6 @@ import torch.nn as nn
 import yaml
 
 from . import api, utils
-
 
 class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection"""
@@ -25,8 +26,14 @@ class FaceDetector(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = {}
+        self.every_n_epoch = math.inf
+        self.every_n_batch = math.inf
 
         self.init_preprocess(mean=mean, std=std, normalized_input=normalized_input)
+
+    def is_debug_step(self, batch_idx: int) -> bool:
+        return (self.current_epoch + 1) % self.every_n_epoch == 0 and \
+            (batch_idx + 1) % self.every_n_batch == 0
 
     def init_preprocess(
         self,
@@ -256,6 +263,34 @@ class FaceDetector(pl.LightningModule):
         loss = self.arch.compute_loss(logits, targets, hparams=self.hparams["hparams"])
         # loss: dict of losses or loss
 
+        if self.is_debug_step(batch_idx):
+            batch_size = batch.size(0)
+            batch_gt_boxes = []
+            for target in targets:
+                for k, v in target.items():
+                    if isinstance(v, torch.Tensor):
+                        v = v.cpu()
+                    if k == "target_boxes":
+                        batch_gt_boxes.append(v.cpu())
+
+            with torch.no_grad():
+                # logits to preds
+                preds = self.arch.logits_to_preds(logits)
+                # preds: torch.Tensor(B, N, 5)
+
+                # postprocess predictions
+                preds = self._postprocess(
+                    preds, det_threshold=0.3, iou_threshold=0.4, keep_n=500
+                )
+                # preds: N,6 as x1,y1,x2,y2,score,batch_idx
+
+                batch_preds = [
+                    preds[preds[:, 5] == batch_idx][:, :5].cpu()
+                    for batch_idx in range(batch_size)
+                ]
+
+                self.debug_step(batch, batch_preds, batch_gt_boxes)
+
         return loss
 
     def training_epoch_end(self, outputs):
@@ -302,7 +337,7 @@ class FaceDetector(pl.LightningModule):
 
         # postprocess predictions
         preds = self._postprocess(
-            preds, det_threshold=0.1, iou_threshold=0.4, keep_n=500
+            preds, det_threshold=0.3, iou_threshold=0.4, keep_n=500
         )
         # preds: N,6 as x1,y1,x2,y2,score,batch_idx
 
@@ -324,19 +359,20 @@ class FaceDetector(pl.LightningModule):
                         kwargs[k] = []
                     kwargs[k].append(v)
 
-        # TODO handle here
-        # self.debug_step(batch, batch_preds, batch_gt_boxes)
+        if self.is_debug_step(batch_idx):
+            self.debug_step(batch, batch_preds, batch_gt_boxes)
 
         for metric in self.__metrics.values():
             metric.update(batch_preds, batch_gt_boxes, **kwargs)
 
+
         return loss
 
     def debug_step(self, batch, batch_preds, batch_gt_boxes):
-        from PIL import Image
+        imgs = (batch * self.std + self.mean) * self.normalizer
 
-        for img, preds, gt_boxes in zip(batch, batch_preds, batch_gt_boxes):
-            img = (img.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
+        for img, preds, gt_boxes in zip(imgs, batch_preds, batch_gt_boxes):
+            img = (img.permute(1, 2, 0).cpu()).numpy().astype(np.uint8)
             preds = preds.cpu().long().numpy()
             gt_boxes = gt_boxes.cpu().long().numpy()
             img = utils.vis.draw_rects(img, preds[:, :4], color=(255, 0, 0))
