@@ -4,15 +4,11 @@ lffd_original:
     kwargs:
       file_name: "lffd_original.ckpt"
       file_id: "1qFRuGhzoMWrW9WNlWw9jHXPY51MBssQD"
-      overwrite: false
       extract: false
-      showsize: true
 lffd_slim:
   adapter:
     type: "gdrive"
     kwargs:
       file_name: "lffd_slim.ckpt"
       file_id: "1UOHllYp5NY4mV7lHmq0c9xsryRIufpAQ"
-      overwrite: false
       extract: false
-      showsize: true

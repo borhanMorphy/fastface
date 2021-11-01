@@ -1,16 +1,17 @@
 import os
 
-from google_drive_downloader import GoogleDriveDownloader as gdd
+import gdown
 
+from .extract_handler import ExtractHandler
 
 class GoogleDriveAdapter:
+
     @staticmethod
     def download(
         dest_path: str,
         file_name: str = None,
         file_id: str = None,
         extract: bool = False,
-        showsize: bool = True,
         **kwargs
     ):
         assert isinstance(file_id, str), "file id must be string but found:{}".format(
@@ -22,6 +23,15 @@ class GoogleDriveAdapter:
         if not os.path.exists(dest_path):
             os.makedirs(dest_path, exist_ok=True)
         file_path = os.path.join(dest_path, file_name)
-        gdd.download_file_from_google_drive(
-            file_id, file_path, unzip=extract, showsize=showsize, **kwargs
+
+        gdown.download(
+            output=file_path,
+            quiet=False,
+            use_cookies=False,
+            id=file_id,
         )
+
+        if not extract:
+            return
+
+        ExtractHandler.extract(file_path, dest_path, **kwargs)
