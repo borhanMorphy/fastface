@@ -102,6 +102,8 @@ Name|Easy|Medium|Hard|
 ## References
 - [LFFD Paper](https://arxiv.org/pdf/1904.10633.pdf)
 - [Official LFFD Implementation](https://github.com/YonghaoHe/A-Light-and-Fast-Face-Detector-for-Edge-Devices)
+- [CenterFace Paper](https://arxiv.org/pdf/1911.03599.pdf)
+- [Official CenterFace Implementation](https://github.com/Star-Clouds/CenterFace)
 
 ## Citations
 ```bibtex
@@ -109,6 +111,15 @@ Name|Easy|Medium|Hard|
     title={LFFD: A Light and Fast Face Detector for Edge Devices},
     author={He, Yonghao and Xu, Dezhong and Wu, Lifang and Jian, Meng and Xiang, Shiming and Pan, Chunhong},
     booktitle={arXiv:1904.10633},
+    year={2019}
+}
+```
+
+```bibtex
+@inproceedings{CenterFace,
+    title={CenterFace: Joint Face Detection and Alignment Using Face as Point},
+    author={Xu, Yuanyuan and Yan, Wan and Sun, Haixin and Yang, Genke and Luo, Jiliang},
+    booktitle={arXiv:1911.03599},
     year={2019}
 }
 ```
