@@ -79,6 +79,8 @@ def _get_validation_set(root_path: str, partition: str):
 class WiderFaceDataset(BaseDataset):
     """Widerface fastface.dataset.BaseDataset Instance"""
 
+    __DATASET_NAME__ = "widerface"
+
     __URLS__ = {
         "widerface-train": {
             "adapter": "gdrive",
@@ -135,12 +137,8 @@ class WiderFaceDataset(BaseDataset):
         **kwargs,
     ):
 
-        source_dir = (
-            get_data_cache_dir(suffix="widerface") if source_dir is None else source_dir
-        )
-
         # check if download
-        self.download(self.__URLS__, source_dir)
+        source_dir = self.download(source_dir)
 
         assert os.path.exists(
             source_dir

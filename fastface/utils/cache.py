@@ -18,20 +18,25 @@ def ensure_path(fun):
 
 
 @ensure_path
-def get_cache_dir() -> str:
-    return os.path.join(os.path.expanduser("~"), ".cache", "fastface", __version__)
+def get_root_cache_dir() -> str:
+    return os.path.join(os.path.expanduser("~"), ".cache", "fastface")
 
 
 @ensure_path
-def get_model_cache_dir(suffix: str = "") -> str:
-    return os.path.join(get_cache_dir(), "model", suffix)
+def get_cache_dir(version: str = __version__) -> str:
+    return os.path.join(get_root_cache_dir(), version)
 
 
 @ensure_path
-def get_data_cache_dir(suffix: str = "") -> str:
-    return os.path.join(get_cache_dir(), "data", suffix)
+def get_model_cache_dir(suffix: str = "", version: str = __version__) -> str:
+    return os.path.join(get_cache_dir(version=version), "model", suffix)
 
 
 @ensure_path
-def get_checkpoint_cache_dir(suffix: str = "") -> str:
-    return os.path.join(get_cache_dir(), "checkpoints", suffix)
+def get_data_cache_dir(suffix: str = "", version: str = __version__) -> str:
+    return os.path.join(get_cache_dir(version=version), "data", suffix)
+
+
+@ensure_path
+def get_checkpoint_cache_dir(suffix: str = "", version: str = __version__) -> str:
+    return os.path.join(get_cache_dir(version=version), "checkpoints", suffix)

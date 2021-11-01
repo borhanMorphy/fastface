@@ -50,4 +50,5 @@ def get_gaussian_kernel(kernel_size: int, sigma: float = 1.0,
     if normalize:
         kernel = kernel / (np.pi * 2 * sigma ** 2)
         kernel /= kernel.sum()
+
     return kernel

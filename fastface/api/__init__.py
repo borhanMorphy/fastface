@@ -2,6 +2,7 @@ import os
 from typing import Dict, List
 
 from ..adapter import download_object
+from ..utils import discover_versions
 from ..utils.cache import get_model_cache_dir
 from ..utils.config import discover_archs, get_arch_cls, get_registry
 
@@ -31,18 +32,28 @@ def download_pretrained_model(model: str, target_path: str = None) -> str:
     Returns:
         str: file path of the model
     """
-    if target_path is None:
-        target_path = get_model_cache_dir()
     registry = get_registry()
     assert model in registry, f"given model: {model} is not in the registry"
+    adapter = registry[model]["adapter"]
+    file_name = registry[model]["adapter"]["kwargs"]["file_name"]
+
+    if target_path is None:
+        for version in discover_versions(include_current_version=True):
+            target_path = get_model_cache_dir(version=version)
+            model_path = os.path.join(target_path, file_name)
+            if os.path.isfile(model_path):
+                break
+            else:
+                target_path = None
+
+    target_path = target_path or get_model_cache_dir()
+
+    model_path = os.path.join(target_path, file_name)
+
     assert os.path.exists(
         target_path
     ), f"given target path: {target_path} does not exists"
     assert os.path.isdir(target_path), "given target path must be directory not a file"
-
-    adapter = registry[model]["adapter"]
-    file_name = registry[model]["adapter"]["kwargs"]["file_name"]
-    model_path = os.path.join(target_path, file_name)
 
     if not os.path.isfile(model_path):
         # download if model not exists
@@ -58,10 +69,10 @@ def list_archs() -> List[str]:
 
     >>> import fastface as ff
     >>> ff.list_archs()
-    ['lffd']
+    ['centerface', 'lffd']
 
     """
-    return [arch for arch, _ in discover_archs()]
+    return sorted([arch for arch, _ in discover_archs()])
 
 
 def list_arch_configs(arch: str) -> List[str]:

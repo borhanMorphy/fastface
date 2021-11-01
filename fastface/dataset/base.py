@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from ..adapter import download_object
+from ..utils.cache import get_data_cache_dir
+from ..utils import discover_versions
 
 logger = logging.getLogger("fastface.dataset")
 
@@ -35,6 +37,9 @@ def default_collate_fn(batch):
 
 
 class BaseDataset(Dataset):
+    __DATASET_NAME__ = "base"
+    __URLS__ = dict()
+
     def __init__(self, ids: List[str], targets: List[Dict], transforms=None, **kwargs):
         super().__init__()
         assert isinstance(ids, list), "given `ids` must be list"
@@ -43,7 +48,7 @@ class BaseDataset(Dataset):
 
         self.ids = ids
         self.targets = targets
-        self.transforms = _IdentitiyTransforms() if transforms is None else transforms
+        self.transforms = transforms or _IdentitiyTransforms()
 
         # set given kwargs to the dataset
         for key, value in kwargs.items():
@@ -180,29 +185,55 @@ class BaseDataset(Dataset):
 
         return np.histogram(np.sqrt(areas), bins=list(bins))
 
-    def download(self, urls: List, target_dir: str):
-        for k, v in urls.items():
 
-            keys = list(v["check"].items())
-            checked_keys = []
+    def _find_missing_requirements(self, source_dir: str) -> List[str]:
+        missing_reqs: List[str] = list()
 
-            for key, md5hash in keys:
-                target_sub_dir = os.path.join(target_dir, key)
-                if not os.path.exists(target_sub_dir):
-                    checked_keys.append(False)
-                else:
-                    checked_keys.append(
-                        checksumdir.dirhash(target_sub_dir, hashfunc="md5") == md5hash
-                    )
+        for req_name in self.__URLS__.keys():
+            if not self.__check_requirement(source_dir, req_name):
+                missing_reqs.append(req_name)
 
-            if sum(checked_keys) == len(keys):
-                logger.debug("found {} at {}".format(k, target_dir))
-                continue
+        return missing_reqs
 
+
+    def __check_requirement(self, source_dir: str, req_name: str) -> bool:
+        for key, expected_md5hash in self.__URLS__[req_name]["check"].items():
+            source_sub_dir = os.path.join(source_dir, key)
+            if not os.path.exists(source_sub_dir):
+                return False
+
+            md5hash = checksumdir.dirhash(source_sub_dir, hashfunc="md5")
+            if md5hash != expected_md5hash:
+                return False
+
+        return True
+
+    def download(self, target_dir: str = None) -> str:
+        if target_dir is None:
+            # find target directory
+            for version in discover_versions(include_current_version=True):
+                target_dir = get_data_cache_dir(
+                    suffix=self.__DATASET_NAME__,
+                    version=version
+                )
+
+                missing_reqs = self._find_missing_requirements(target_dir)
+                if len(missing_reqs) == 0:
+                    break
+            if len(missing_reqs) > 0:
+                # if missing requirements exist, then use current version
+                target_dir = get_data_cache_dir(suffix=self.__DATASET_NAME__)
+        else:
+            # use given directory
+            missing_reqs = self._find_missing_requirements(target_dir)
+
+        for requirement_name in missing_reqs:
             # download
-            adapter = v.get("adapter")
-            kwargs = v.get("kwargs", {})
+            adapter = self.__URLS__[requirement_name].get("adapter")
+            kwargs = self.__URLS__[requirement_name].get("kwargs", {})
             logger.warning(
-                "{} not found in the {}, downloading...".format(k, target_dir)
+                "{} not found in the {}, downloading...".format(requirement_name, target_dir)
             )
             download_object(adapter, dest_path=target_dir, **kwargs)
+
+        return target_dir

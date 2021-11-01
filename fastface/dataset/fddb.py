@@ -4,7 +4,6 @@ from typing import List
 
 import numpy as np
 
-from ..utils.cache import get_data_cache_dir
 from .base import BaseDataset
 
 
@@ -93,6 +92,8 @@ class FDDBDataset(BaseDataset):
 
     """
 
+    __DATASET_NAME__ = "fddb"
+
     __URLS__ = {
         "fddb-images": {
             "adapter": "http",
@@ -119,6 +120,7 @@ class FDDBDataset(BaseDataset):
     __folds__ = tuple((i + 1 for i in range(10)))
     __splits__ = ((1, 2, 4, 5, 7, 9, 10), (3, 6, 8), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 
+
     def __init__(
         self,
         source_dir: str = None,
@@ -128,12 +130,7 @@ class FDDBDataset(BaseDataset):
         **kwargs
     ):
 
-        source_dir = (
-            get_data_cache_dir(suffix="fddb") if source_dir is None else source_dir
-        )
-
-        # check if download
-        self.download(self.__URLS__, source_dir)
+        source_dir = self.download(target_dir=source_dir)
 
         assert os.path.exists(
             source_dir
