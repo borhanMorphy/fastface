@@ -1,15 +1,16 @@
+import math
 import os
 from typing import Dict, List, Union
-import math
 
-from PIL import Image
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import yaml
+from PIL import Image
 
 from . import api, utils
+
 
 class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection"""
@@ -32,8 +33,9 @@ class FaceDetector(pl.LightningModule):
         self.init_preprocess(mean=mean, std=std, normalized_input=normalized_input)
 
     def is_debug_step(self, batch_idx: int) -> bool:
-        return (self.current_epoch + 1) % self.every_n_epoch == 0 and \
-            (batch_idx + 1) % self.every_n_batch == 0
+        return (self.current_epoch + 1) % self.every_n_epoch == 0 and (
+            batch_idx + 1
+        ) % self.every_n_batch == 0
 
     def init_preprocess(
         self,
@@ -364,7 +366,6 @@ class FaceDetector(pl.LightningModule):
 
         for metric in self.__metrics.values():
             metric.update(batch_preds, batch_gt_boxes, **kwargs)
-
 
         return loss
 

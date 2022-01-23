@@ -13,7 +13,9 @@ class Padding:
         self.pad_value = pad_value
         self.target_size = target_size  # w,h
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         # TODO check image shape
         targets = dict() if targets is None else targets
 

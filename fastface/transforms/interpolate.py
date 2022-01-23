@@ -12,7 +12,9 @@ class Interpolate:
         super(Interpolate, self).__init__()
         self.target_size = target_size
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(
             len(img.shape)
         )
@@ -32,7 +34,9 @@ class ConditionalInterpolate:
         super(ConditionalInterpolate, self).__init__()
         self.max_size = max_size
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(
             len(img.shape)
         )

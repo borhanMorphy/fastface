@@ -11,7 +11,9 @@ class FaceDiscarder:
         self.min_face_size = min_face_size
         self.max_face_size = max_face_size
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         targets = dict() if targets is None else targets
 
         if "target_boxes" in targets:

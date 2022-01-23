@@ -22,7 +22,9 @@ class ColorJitter:
         self.contrast_range = (-contrast, contrast)
         self.saturation_range = (-saturation, saturation)
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(
             len(img.shape)
         )

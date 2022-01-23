@@ -1,12 +1,11 @@
-from typing import List
 import os
-from packaging.version import (
-    Version,
-    InvalidVersion,
-)
+from typing import List
 
-from . import box, cache, cluster, config, geo, kernel, preprocess, random, vis
+from packaging.version import InvalidVersion, Version
+
 from ..version import __version__
+from . import box, cache, cluster, config, geo, kernel, preprocess, random, vis
+
 
 def discover_versions(include_current_version: bool = True) -> List[str]:
     """Returns all versions stored in the `cache` directory
@@ -26,16 +25,14 @@ def discover_versions(include_current_version: bool = True) -> List[str]:
         except InvalidVersion:
             pass
 
-    versions = filter(
-        lambda version: isinstance(version, Version),
-        versions
-    )
+    versions = filter(lambda version: isinstance(version, Version), versions)
 
     return [
         str(version)
         for version in sorted(versions, reverse=True)
         if include_current_version or version != Version(__version__)
     ]
+
 
 __all__ = [
     "box",

@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from ..adapter import download_object
-from ..utils.cache import get_data_cache_dir
 from ..utils import discover_versions
+from ..utils.cache import get_data_cache_dir
 
 logger = logging.getLogger("fastface.dataset")
 
@@ -185,7 +185,6 @@ class BaseDataset(Dataset):
 
         return np.histogram(np.sqrt(areas), bins=list(bins))
 
-
     def _find_missing_requirements(self, source_dir: str) -> List[str]:
         missing_reqs: List[str] = list()
 
@@ -194,7 +193,6 @@ class BaseDataset(Dataset):
                 missing_reqs.append(req_name)
 
         return missing_reqs
-
 
     def __check_requirement(self, source_dir: str, req_name: str) -> bool:
         for key, expected_md5hash in self.__URLS__[req_name]["check"].items():
@@ -213,8 +211,7 @@ class BaseDataset(Dataset):
             # find target directory
             for version in discover_versions(include_current_version=True):
                 target_dir = get_data_cache_dir(
-                    suffix=self.__DATASET_NAME__,
-                    version=version
+                    suffix=self.__DATASET_NAME__, version=version
                 )
 
                 missing_reqs = self._find_missing_requirements(target_dir)
@@ -232,7 +229,9 @@ class BaseDataset(Dataset):
             adapter = self.__URLS__[requirement_name].get("adapter")
             kwargs = self.__URLS__[requirement_name].get("kwargs", {})
             logger.warning(
-                "{} not found in the {}, downloading...".format(requirement_name, target_dir)
+                "{} not found in the {}, downloading...".format(
+                    requirement_name, target_dir
+                )
             )
             download_object(adapter, dest_path=target_dir, **kwargs)
 

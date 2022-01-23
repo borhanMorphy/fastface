@@ -4,8 +4,8 @@ import gdown
 
 from .extract_handler import ExtractHandler
 
-class GoogleDriveAdapter:
 
+class GoogleDriveAdapter:
     @staticmethod
     def download(
         dest_path: str,

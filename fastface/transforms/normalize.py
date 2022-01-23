@@ -12,7 +12,9 @@ class Normalize:
         self.mean = mean
         self.std = std
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:        
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         targets = dict() if targets is None else targets
 
         img = img.astype(np.float32)

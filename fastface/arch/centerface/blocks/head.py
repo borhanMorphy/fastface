@@ -1,4 +1,5 @@
 from typing import Tuple
+
 import torch
 import torch.nn as nn
 
@@ -16,12 +17,12 @@ class CenterFaceHead(nn.Module):
         self.offset_head = nn.Conv2d(in_features, 2, kernel_size=1)
         self.wh_head = nn.Conv2d(in_features, 2, kernel_size=1)
 
-
-    def forward(self, fmap: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, fmap: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         logits = self.conv_block(fmap)
         cls_logits = self.cls_head(logits).squeeze(1).contiguous()
         offset_regs = self.offset_head(logits).permute(0, 2, 3, 1).contiguous()
         wh_regs = self.wh_head(logits).permute(0, 2, 3, 1).contiguous()
 
         return cls_logits, offset_regs, wh_regs
-

@@ -7,7 +7,6 @@ from .extract_handler import ExtractHandler
 
 
 class HttpAdapter:
-
     @staticmethod
     def download(
         dest_path: str,
@@ -30,17 +29,17 @@ class HttpAdapter:
             res.status_code, res.content
         )
 
-        total = int(res.headers.get('content-length', 0))
+        total = int(res.headers.get("content-length", 0))
 
         file_path = os.path.join(dest_path, file_name)
 
         if not os.path.exists(dest_path):
             os.makedirs(dest_path, exist_ok=True)
 
-        with open(file_path, 'wb') as foo, tqdm(
+        with open(file_path, "wb") as foo, tqdm(
             desc=file_path,
             total=total,
-            unit='iB',
+            unit="iB",
             unit_scale=True,
             unit_divisor=1024,
         ) as bar:

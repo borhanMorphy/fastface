@@ -14,7 +14,9 @@ class RandomRotate:
         self.p = p
         self.degree_range = degree_range
 
-    def __call__(self, img: np.ndarray, targets: Dict = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self, img: np.ndarray, targets: Dict = None
+    ) -> Tuple[np.ndarray, Dict]:
         assert len(img.shape) == 3, "image shape expected 3 but found: {}".format(
             len(img.shape)
         )

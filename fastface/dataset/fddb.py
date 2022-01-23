@@ -120,7 +120,6 @@ class FDDBDataset(BaseDataset):
     __folds__ = tuple((i + 1 for i in range(10)))
     __splits__ = ((1, 2, 4, 5, 7, 9, 10), (3, 6, 8), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 
-
     def __init__(
         self,
         source_dir: str = None,
