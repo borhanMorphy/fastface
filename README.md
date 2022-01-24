@@ -5,6 +5,7 @@
 [![Downloads](https://pepy.tech/badge/fastface)](https://pepy.tech/project/fastface)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fastface)
 ![PyPI - License](https://img.shields.io/pypi/l/fastface)
+[![black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 **Easy-to-use face detection framework, developed using [pytorch-lightning](https://www.pytorchlightning.ai/).**<br>
 **Checkout [documentation](https://fastface.readthedocs.io/en/latest/) for more.**

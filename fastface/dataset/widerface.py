@@ -1,10 +1,9 @@
 import os
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 from scipy.io import loadmat
 
-from ..utils.cache import get_data_cache_dir
 from .base import BaseDataset
 
 
@@ -76,8 +75,57 @@ def _get_validation_set(root_path: str, partition: str):
     return ids, targets
 
 
+def _get_landmark_annotations(ann_file_path: str) -> Dict[str, np.ndarray]:
+    # {root_path}/annotations/train/label.txt
+    mappings = dict()
+    """
+    {
+        <image_name>: np.ndarray(N, 5, 2)
+    }
+    """
+    assert os.path.isfile(
+        ann_file_path
+    ), "landmark annotation file is missing for widerface"
+
+    with open(ann_file_path, "r") as foo:
+        annotations = foo.read().split("\n")[:-1]
+
+    idx = None
+
+    for ann in annotations:
+        if ann.startswith("#"):
+            idx = os.path.basename(ann.replace("#", "").strip())
+            mappings[idx] = np.empty((0, 5, 2), dtype=np.float32)
+        else:
+            ann_splits = ann.split(" ")
+            landmarks = np.array(
+                [
+                    [float(ann_splits[4]), float(ann_splits[5])],  # l1_x l1_y
+                    [float(ann_splits[7]), float(ann_splits[8])],  # l2_x l2_y
+                    [float(ann_splits[10]), float(ann_splits[11])],  # l3_x l3_y
+                    [float(ann_splits[13]), float(ann_splits[14])],  # l4_x l4_y
+                    [float(ann_splits[16]), float(ann_splits[17])],  # l5_x l5_y
+                ],
+                dtype=np.float32,
+            ).reshape(1, 5, 2)
+
+            if float(ann_splits[4]) < 0:
+                # ignore
+                landmarks[:, :, :] = -1
+
+            mappings[idx] = np.concatenate(
+                [
+                    mappings[idx],
+                    landmarks,
+                ],
+                axis=0,
+            )
+
+    return mappings
+
+
 class WiderFaceDataset(BaseDataset):
-    """Widerface fastface.dataset.BaseDataset Instance"""
+    """Widerface fastface.dataset.WiderFaceDataset Instance"""
 
     __DATASET_NAME__ = "widerface"
 
@@ -115,6 +163,16 @@ class WiderFaceDataset(BaseDataset):
             "check": {"eval_tools": "2831a12876417f414fd6017ef1e531ec"},
             "kwargs": {
                 "url": "http://shuoyang1213.me/WIDERFACE/support/eval_script/eval_tools.zip",
+                "extract": True,
+            },
+        },
+        "widerface-landmark-annotations": {
+            "adapter": "gdrive",
+            "check": {"retinaface_gt_v1.1": "eec0580b14900d694653efece1474c8d"},
+            "kwargs": {
+                "file_id": "1tU_IjyOwGQfGNUvZGwWWM4SwxKp2PUQ8",
+                "file_name": "retinaface_gt_v1.1.zip",
+                "sub_dir": "landmark_annotations",
                 "extract": True,
             },
         },
@@ -193,6 +251,15 @@ class WiderFaceDataset(BaseDataset):
                     continue
                 targets.append({"target_boxes": target.astype(np.float32)})
                 ids.append(os.path.join(source_image_dir, idx))
+
+            landmark_anns = _get_landmark_annotations(
+                os.path.join(source_dir, "landmark_annotations", phase, "label.txt")
+            )
+
+            for i in range(len(ids)):
+                key = os.path.basename(ids[i])
+                if key in landmark_anns:
+                    targets[i]["target_landmarks"] = landmark_anns[key]
         else:
             # TODO each targets must be dict and handle hard parameter
             ids, raw_targets = _get_validation_set(source_dir, partitions[0])

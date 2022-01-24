@@ -83,7 +83,7 @@ def _load_single_annotation_fold(source_path: str, fold_idx: int):
 
 
 class FDDBDataset(BaseDataset):
-    """FDDB fastface.dataset.BaseDataset Instance
+    """FDDB fastface.dataset.FDDBDataset Instance
 
     paper: http://vis-www.cs.umass.edu/fddb/fddb.pdf
     specs:

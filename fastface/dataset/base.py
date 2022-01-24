@@ -70,7 +70,8 @@ class BaseDataset(Dataset):
         )
 
         # discard zero sized boxes
-        targets["target_boxes"] = self._discard_zero_size_boxes(targets["target_boxes"])
+        # TODO disabled this because of landmarks
+        # targets["target_boxes"] = self._discard_zero_size_boxes(targets["target_boxes"])
 
         return (img, targets)
 
