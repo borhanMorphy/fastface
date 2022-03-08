@@ -155,8 +155,13 @@ class FDDBDataset(BaseDataset):
             ), "given fold {} is not in the fold list".format(fold_idx)
             raw_ids, raw_targets = _load_single_annotation_fold(source_dir, fold_idx)
             ids += raw_ids
-            # TODO each targets must be dict
+
             for target in raw_targets:
-                targets.append({"target_boxes": target.astype(np.float32)})
+                target = target.astype(np.float32).tolist()
+                targets.append(dict(
+                    bboxes=target,
+                    labels=["face"] * len(target),
+                ))
             del raw_targets
+
         super().__init__(ids, targets, transforms=transforms, **kwargs)

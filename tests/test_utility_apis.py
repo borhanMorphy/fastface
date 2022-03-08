@@ -27,9 +27,6 @@ def test_cache_func_exists(func: str):
         "get_pkg_arch_path",
         "get_registry_path",
         "get_registry",
-        "discover_archs",
-        "get_arch_pkg",
-        "get_arch_cls",
     ],
 )
 def test_config_func_exists(func: str):

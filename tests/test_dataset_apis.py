@@ -4,15 +4,10 @@ import pytest
 import fastface as ff
 
 def get_dataset_names() -> List[str]:
-    dataset_names = [
-        dataset_name
-        for dataset_name in dir(ff.dataset)
-        if dataset_name.endswith("Dataset")
-    ]
-
-    dataset_names.pop(dataset_names.index("BaseDataset"))
-
-    return dataset_names
+    return list(
+        "FDDBDataset",
+        "WiderFaceDataset",
+    )
 
 
 @pytest.mark.parametrize("dataset_name", get_dataset_names())

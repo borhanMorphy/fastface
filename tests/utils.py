@@ -1,6 +1,7 @@
 import itertools
 import os
 from typing import List, Tuple
+import random
 
 import imageio
 import numpy as np
@@ -45,3 +46,8 @@ def load_image(img_file_path: str) -> np.ndarray:
 def load_image_as_tensor(img_file_path: str) -> torch.Tensor:
     img = load_image(img_file_path)
     return torch.from_numpy(img).float().permute(2, 0, 1).unsqueeze(0).contiguous()
+
+
+def generate_batch(shape: Tuple[int, int, int]) -> torch.Tensor:
+    batch_size = random.randint(1, 5)
+    return torch.rand(*(batch_size, *shape), dtype=torch.float32)

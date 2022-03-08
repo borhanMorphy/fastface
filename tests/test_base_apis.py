@@ -59,8 +59,8 @@ def test_get_arch_config(arch: str):
     for arch_config in arch_configs:
         config = ff.get_arch_config(arch, arch_config)
         assert isinstance(
-            config, dict
-        ), f"{arch}.{arch_config} must be dictionary but found: {type(config)}"
+            config, ff.config.ArchConfig
+        ), f"{arch}.{arch_config} must be `ArchConfig` instance but found: {type(config)}"
 
 
 @pytest.mark.parametrize("model_name", ff.list_pretrained_models())

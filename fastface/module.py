@@ -7,9 +7,10 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import yaml
-from PIL import Image
+from torchmetrics.metric import Metric
 
 from . import api, utils
+from .config import ArchConfig
 
 
 class FaceDetector(pl.LightningModule):
@@ -26,7 +27,7 @@ class FaceDetector(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(hparams)
         self.arch = arch
-        self.__metrics = {}
+        self.__metrics = dict()
         self.every_n_epoch = math.inf
         self.every_n_batch = math.inf
 
@@ -81,21 +82,21 @@ class FaceDetector(pl.LightningModule):
             persistent=False,
         )
 
-    def add_metric(self, name: str, metric: pl.metrics.Metric):
+    def add_metric(self, name: str, metric: Metric):
         """Adds given metric with name key
 
         Args:
                 name (str): name of the metric
-                metric (pl.metrics.Metric): Metric object
+                metric (Metric): Metric object
         """
         # TODO add warnings if override happens
         self.__metrics[name] = metric
 
-    def get_metrics(self) -> Dict[str, pl.metrics.Metric]:
+    def get_metrics(self) -> Dict[str, Metric]:
         """Return metrics defined in the `FaceDetector` instance
 
         Returns:
-                Dict[str, pl.metrics.Metric]: defined model metrics with names
+                Dict[str, Metric]: defined model metrics with names
         """
         return {k: v for k, v in self.__metrics.items()}
 
@@ -194,7 +195,7 @@ class FaceDetector(pl.LightningModule):
             logits = self.arch.forward(batch)
         # logits, any
 
-        preds = self.arch.logits_to_preds(logits)
+        preds = self.arch.compute_preds(logits)
         # preds: torch.Tensor(B, N, 5)
 
         batch_preds = self._postprocess(
@@ -252,51 +253,51 @@ class FaceDetector(pl.LightningModule):
         # batch_preds: N x 6
         return batch_preds
 
-    def training_step(self, batch, batch_idx):
-        batch, targets = batch
+    def _step(self, batch, batch_idx, phase: str = None):
+        inputs, raw_targets = batch
 
         # apply preprocess
-        batch = ((batch / self.normalizer) - self.mean) / self.std
+        inputs = ((inputs / self.normalizer) - self.mean) / self.std
 
-        # compute logits
-        logits = self.arch.forward(batch)
+        if phase == "train":
+            # compute logits
+            logits = self.arch.forward(inputs)
+        else:
+            with torch.no_grad():
+                # compute logits
+                logits = self.arch.forward(inputs)
+
+            batch_size = inputs.shape[0]
+
+            preds = self.arch.compute_preds(logits)
+            # preds: B x N x (5 + 2*l)
+            # xmin, ymin, xmax, ymax, score, *landmarks
+
+            preds = self._postprocess(preds)
+            # preds: N x 6
+
+            pred_boxes = [
+                preds[preds[:, 5] == batch_idx][:, :5].cpu()
+                for batch_idx in range(batch_size)
+            ]
+            target_boxes = [target["bboxes"].cpu() for target in raw_targets]
+            labels = [target["labels"] for target in raw_targets]
+
+            for metric in self.__metrics.values():
+                metric.update(pred_boxes, target_boxes, labels)
+
+        target_logits = self.arch.build_targets(inputs, raw_targets)
 
         # compute loss
-        loss = self.arch.compute_loss(logits, targets, hparams=self.hparams["hparams"])
         # loss: dict of losses or loss
+        return self.arch.compute_loss(logits, target_logits, hparams=self.hparams["hparams"])
 
-        if self.is_debug_step(batch_idx):
-            batch_size = batch.size(0)
-            batch_gt_boxes = []
-            for target in targets:
-                for k, v in target.items():
-                    if isinstance(v, torch.Tensor):
-                        v = v.cpu()
-                    if k == "target_boxes":
-                        batch_gt_boxes.append(v.cpu())
+    def _on_epoch_start(self, phase: str = None):
+        for metric in self.__metrics.values():
+            metric.reset()
 
-            with torch.no_grad():
-                # logits to preds
-                preds = self.arch.logits_to_preds(logits)
-                # preds: torch.Tensor(B, N, 5)
-
-                # postprocess predictions
-                preds = self._postprocess(
-                    preds, det_threshold=0.3, iou_threshold=0.4, keep_n=500
-                )
-                # preds: N,6 as x1,y1,x2,y2,score,batch_idx
-
-                batch_preds = [
-                    preds[preds[:, 5] == batch_idx][:, :5].cpu()
-                    for batch_idx in range(batch_size)
-                ]
-
-                self.debug_step(batch, batch_preds, batch_gt_boxes)
-
-        return loss
-
-    def training_epoch_end(self, outputs):
-        losses = {}
+    def _epoch_end(self, outputs, phase: str = None):
+        losses = dict()
         for output in outputs:
             if isinstance(output, dict):
                 for k, v in output.items():
@@ -310,136 +311,32 @@ class FaceDetector(pl.LightningModule):
                 losses["loss"].append(output)
 
         for name, loss in losses.items():
-            self.log("{}/training".format(name), sum(loss) / len(loss))
+            self.log("{}/{}".format(name, phase), sum(loss) / len(loss))
+
+        if phase != "train":
+            for name, metric in self.__metrics.items():
+                self.log("{}/{}".format(name, phase), metric.compute())
+
+    def training_step(self, batch, batch_idx):
+        return self._step(batch, batch_idx, phase="train")
 
     def on_validation_epoch_start(self):
-        for metric in self.__metrics.values():
-            metric.reset()
+        self._on_epoch_start(phase="validation")
 
-    def validation_step(self, batch, batch_idx, *args):
-        batch, targets = batch
-        batch_size = batch.size(0)
-
-        # apply preprocess
-        batch = ((batch / self.normalizer) - self.mean) / self.std
-
-        with torch.no_grad():
-            # compute logits
-            logits = self.arch.forward(batch)
-
-            # compute loss
-            loss = self.arch.compute_loss(
-                logits, targets, hparams=self.hparams["hparams"]
-            )
-            # loss: dict of losses or loss
-
-        # logits to preds
-        preds = self.arch.logits_to_preds(logits)
-        # preds: torch.Tensor(B, N, 5)
-
-        # postprocess predictions
-        preds = self._postprocess(
-            preds, det_threshold=0.3, iou_threshold=0.4, keep_n=500
-        )
-        # preds: N,6 as x1,y1,x2,y2,score,batch_idx
-
-        batch_preds = [
-            preds[preds[:, 5] == batch_idx][:, :5].cpu()
-            for batch_idx in range(batch_size)
-        ]
-
-        kwargs = {}
-        batch_gt_boxes = []
-        for target in targets:
-            for k, v in target.items():
-                if isinstance(v, torch.Tensor):
-                    v = v.cpu()
-                if k == "target_boxes":
-                    batch_gt_boxes.append(v.cpu())
-                else:
-                    if k not in kwargs:
-                        kwargs[k] = []
-                    kwargs[k].append(v)
-
-        if self.is_debug_step(batch_idx):
-            self.debug_step(batch, batch_preds, batch_gt_boxes)
-
-        for metric in self.__metrics.values():
-            metric.update(batch_preds, batch_gt_boxes, **kwargs)
-
-        return loss
-
-    def debug_step(self, batch, batch_preds, batch_gt_boxes):
-        imgs = (batch * self.std + self.mean) * self.normalizer
-
-        for img, preds, gt_boxes in zip(imgs, batch_preds, batch_gt_boxes):
-            img = (img.permute(1, 2, 0).cpu()).numpy().astype(np.uint8)
-            preds = preds.cpu().long().numpy()
-            gt_boxes = gt_boxes.cpu().long().numpy()
-            img = utils.vis.draw_rects(img, preds[:, :4], color=(255, 0, 0))
-            img = utils.vis.draw_rects(img, gt_boxes[:, :4], color=(0, 255, 0))
-            pil_img = Image.fromarray(img)
-            pil_img.show()
-            if input("press `q` to exit") == "q":
-                exit(0)
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch, batch_idx, phase="validation")
 
     def validation_epoch_end(self, outputs):
-        losses = {}
-        for output in outputs:
-            if isinstance(output, dict):
-                for k, v in output.items():
-                    if k not in losses:
-                        losses[k] = []
-                    losses[k].append(v)
-            else:
-                # only contains `loss`
-                if "loss" not in losses:
-                    losses["loss"] = []
-                losses["loss"].append(output)
-
-        for name, loss in losses.items():
-            self.log("{}/validation".format(name), sum(loss) / len(loss))
-
-        for name, metric in self.__metrics.items():
-            self.log("metrics/{}".format(name), metric.compute())
+        return self._epoch_end(outputs, phase="validation")
 
     def on_test_epoch_start(self):
-        for metric in self.__metrics.values():
-            metric.reset()
+        self._on_epoch_start(phase="test")
 
     def test_step(self, batch, batch_idx):
-        batch, targets = batch
-        batch_size = batch.size(0)
+        return self._step(batch, batch_idx, phase="test")
 
-        # compute preds
-        preds = self.forward(batch, det_threshold=0.1, iou_threshold=0.4, keep_n=10000)
-        # preds: N,6 as x1,y1,x2,y2,score,batch_idx
-
-        batch_preds = [
-            preds[preds[:, 5] == batch_idx][:, :5].cpu()
-            for batch_idx in range(batch_size)
-        ]
-        kwargs = {}
-        batch_gt_boxes = []
-        for target in targets:
-            for k, v in target.items():
-                if isinstance(v, torch.Tensor):
-                    v = v.cpu()
-                if k == "target_boxes":
-                    batch_gt_boxes.append(v.cpu())
-                else:
-                    if k not in kwargs:
-                        kwargs[k] = []
-                    kwargs[k].append(v)
-
-        for metric in self.__metrics.values():
-            metric.update(batch_preds, batch_gt_boxes, **kwargs)
-
-    def test_epoch_end(self, _):
-        metric_results = {}
-        for name, metric in self.__metrics.items():
-            metric_results[name] = metric.compute()
-        return metric_results
+    def test_epoch_end(self, outputs):
+        return self._epoch_end(outputs, phase="test")
 
     def configure_optimizers(self):
         return self.arch.configure_optimizers(hparams=self.hparams["hparams"])
@@ -477,7 +374,7 @@ class FaceDetector(pl.LightningModule):
     def build(
         cls,
         arch: str,
-        config: Union[str, Dict],
+        config: Union[str, ArchConfig],
         preprocess: Dict = {"mean": 0.0, "std": 1.0, "normalized_input": True},
         hparams: Dict = {},
         **kwargs,
@@ -497,15 +394,8 @@ class FaceDetector(pl.LightningModule):
             type(preprocess)
         )
 
-        # get architecture nn.Module class
-        arch_cls = utils.config.get_arch_cls(arch)
-
-        # check config
-        if isinstance(config, str):
-            config = api.get_arch_config(arch, config)
-
         # build nn.Module with given configuration
-        arch_module = arch_cls(config=config, **kwargs)
+        arch_module = api.build_arch(arch, config)
 
         module_params = {}
 
@@ -561,11 +451,10 @@ class FaceDetector(pl.LightningModule):
 
         kwargs = checkpoint["hyper_parameters"]["kwargs"]
 
-        # get architecture nn.Module class
-        arch_cls = utils.config.get_arch_cls(arch)
+        print("kwargs:::", kwargs)
 
         # build nn.Module with given configuration
-        self.arch = arch_cls(config=config, **kwargs)
+        self.arch = api.build_arch(arch, config)
 
         # initialize preprocess with given arguments
         self.init_preprocess(**preprocess)

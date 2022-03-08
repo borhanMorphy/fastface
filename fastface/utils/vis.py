@@ -1,67 +1,48 @@
-import random
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
-from PIL import Image, ImageColor, ImageDraw
+from cv2 import cv2
 
+def draw_faces(data: Dict, box_color=(0, 255, 0), keypoint_color=(0, 255, 0)) -> np.ndarray:
+    assert "image" in data
+    keypoint_exists = "keypoints" in data
 
-def render_predictions(
-    img: np.ndarray, preds: Dict, color: Tuple[int, int, int] = None
-) -> Image:
-    """Returns Rendered PIL Image using given predictions
-    Args:
-        img (np.ndarray): 3 channeled image
-        preds (Dict): predictions as {'boxes':[[x1,y1,x2,y2], ...], 'scores':[<float>, ..]}
-        color (Tuple[int,int,int], optional): color of the boundaries. if None that it will be random color.
+    img = data["image"].copy()
+    bboxes = data["bboxes"]
 
-    Returns:
-        Image: 3 channeled pil image
-    """
-    if color is None:
-        color = random.choice(list(ImageColor.colormap.keys()))
-    pil_img = Image.fromarray(img)
+    if len(bboxes) == 0:
+        return img
 
-    # TODO use score
-    for (x1, y1, x2, y2), score in zip(preds["boxes"], preds["scores"]):
-        ImageDraw.Draw(pil_img).rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
-    return pil_img
+    num_of_keypoints = -1
+    if keypoint_exists:
+        num_of_keypoints = len(data["keypoints"]) // len(bboxes)
 
+    for person_idx in range(len(bboxes)):
+        box = bboxes[person_idx]
+        keypoints = None
+        if keypoint_exists:
+            keypoints = data["keypoints"][person_idx*num_of_keypoints: (person_idx + 1)*num_of_keypoints]
 
-def render_targets(
-    img: np.ndarray, targets: Dict, color: Tuple[int, int, int] = None
-) -> Image:
-    """Returns Rendered PIL Image using given targets
-    Args:
-        img (np.ndarray): 3 channeled image
-        targets (Dict): {'target_boxes':[[x1,y1,x2,y2], ...], ...}
-        color (Tuple[int,int,int], optional): color of the boundaries. if None that it will be random color.
+        img = draw_face(
+            img, box, keypoints=keypoints,
+            box_color=box_color, keypoint_color=keypoint_color
+        )
 
-    Returns:
-        Image: 3 channeled pil image
-    """
-    if color is None:
-        color = random.choice(list(ImageColor.colormap.keys()))
-    pil_img = Image.fromarray(img)
-    for x1, y1, x2, y2 in targets["target_boxes"].astype(np.int32):
-        ImageDraw.Draw(pil_img).rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
-    return pil_img
+    return img
 
+def draw_face(img, box: List[float],
+    keypoints: List[Tuple[float, float]] = None,
+    box_color=(0, 255, 0), keypoint_color=(0, 255, 0)
+):
 
-def draw_rects(
-    img: np.ndarray, boxes: np.ndarray, color: Tuple[int, int, int] = None
-) -> np.ndarray:
-    """Returns Rendered numpy image using given boxes
-    Args:
-        img (np.ndarray): 3 channeled image
-        boxes (np.ndarray): with shape N,4 as xmin,ymin,xmax,ymax
-        color (Tuple[int,int,int], optional): color of the boundaries. if None that it will be random color.
+    x1, y1, x2, y2 = [int(b) for b in box]
+    img = cv2.rectangle(img, (x1, y1), (x2, y2), box_color)
 
-    Returns:
-        Image: 3 channeled pil image
-    """
-    if color is None:
-        color = random.choice(list(ImageColor.colormap.keys()))
-    pil_img = Image.fromarray(img)
-    for x1, y1, x2, y2 in boxes.astype(np.int32):
-        ImageDraw.Draw(pil_img).rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
-    return np.array(pil_img)
+    key_radius = max((y2 - y1), (x2 - x1)) // 20
+
+    for kx, ky in keypoints or list():
+        kx = int(kx)
+        ky = int(ky)
+        img = cv2.circle(img, (kx, ky), key_radius, keypoint_color)
+
+    return img

@@ -2,7 +2,7 @@ from typing import Tuple
 
 import numpy as np
 
-from ..transforms import functional as F
+# TODO from ..transforms import functional as F
 
 
 def apply_conv2d(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:

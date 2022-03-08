@@ -17,17 +17,27 @@ from ..utils.cache import get_data_cache_dir
 logger = logging.getLogger("fastface.dataset")
 
 
-class _IdentitiyTransforms:
-    """Dummy tranforms"""
-
-    def __call__(self, img: np.ndarray, targets: Dict) -> Tuple:
-        return img, targets
-
-
 def default_collate_fn(batch):
-    batch, targets = zip(*batch)
-    batch = np.stack(batch, axis=0).astype(np.float32)
+    images = list()
+    targets = list()
+    for data in batch:
+        target = dict()
+        for key, val in data.items():
+            if key == "image":
+                images.append(val)
+            else:
+                if key not in target:
+                    target[key] = list()
+                target[key] += val
+        if "bboxes" in target:
+            target["bboxes"] = np.array(target["bboxes"], dtype=np.float32).reshape(-1, 4)
+        if "keypoints" in target:
+            target["keypoints"] = np.array(target["keypoints"], dtype=np.float32).reshape(-1, 5, 2)
+        targets.append(target)
+
+    batch = np.stack(images, axis=0).astype(np.float32)
     batch = torch.from_numpy(batch).permute(0, 3, 1, 2).contiguous()
+
     for i, target in enumerate(targets):
         for k, v in target.items():
             if isinstance(v, np.ndarray):
@@ -40,15 +50,22 @@ class BaseDataset(Dataset):
     __DATASET_NAME__ = "base"
     __URLS__ = dict()
 
-    def __init__(self, ids: List[str], targets: List[Dict], transforms=None, **kwargs):
+    def __init__(self,
+        ids: List[str],
+        targets: List[Dict],
+        transforms=None,
+        drop_keys: List[str] = None,
+        **kwargs
+    ):
         super().__init__()
         assert isinstance(ids, list), "given `ids` must be list"
         assert isinstance(targets, list), "given `targets must be list"
-        assert len(ids) == len(targets), "lenght of both lists must be equal"
+        assert len(ids) == len(targets), "length of both lists must be equal"
 
         self.ids = ids
         self.targets = targets
-        self.transforms = transforms or _IdentitiyTransforms()
+        self.transforms = transforms
+        self._drop_keys = drop_keys or list()
 
         # set given kwargs to the dataset
         for key, value in kwargs.items():
@@ -57,44 +74,43 @@ class BaseDataset(Dataset):
                 continue
             setattr(self, key, value)
 
-    def __getitem__(self, idx: int) -> Tuple:
+    def __getitem__(self, idx: int) -> Dict:
         img = self._load_image(self.ids[idx])
         targets = copy.deepcopy(self.targets[idx])
 
-        # apply transforms
-        img, targets = self.transforms(img, targets)
+        for drop_key in self._drop_keys:
+            if drop_key in targets:
+                targets.pop(drop_key)
 
         # clip boxes
-        targets["target_boxes"] = self._clip_boxes(
-            targets["target_boxes"], img.shape[:2]
-        )
+        max_h, max_w = img.shape[:2]
+        for i in range(len(targets["bboxes"])):
+            x1, y1, x2, y2 = targets["bboxes"][i]
+            x1 = max(x1, 0)
+            y1 = max(y1, 0)
+            x2 = min(x2, max_w)
+            y2 = min(y2, max_h)
+            targets["bboxes"][i] = [x1, y1, x2, y2]
 
-        # discard zero sized boxes
-        # TODO disabled this because of landmarks
-        # targets["target_boxes"] = self._discard_zero_size_boxes(targets["target_boxes"])
+        if self.transforms:
+            # apply transforms
+            data = self.transforms(
+                image=img,
+                **targets
+            )
+        else:
+            data = dict(
+                image=img,
+                **targets
+            )
 
-        return (img, targets)
+        return data
 
     def __len__(self) -> int:
         return len(self.ids)
 
     @staticmethod
-    def _clip_boxes(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
-        # TODO pydoc
-        height, width = shape
-        boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(min=0, max=width - 1)
-        boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(min=0, max=height - 1)
-
-        return boxes
-
-    @staticmethod
-    def _discard_zero_size_boxes(boxes: np.ndarray) -> np.ndarray:
-        # TODO pydoc
-        scale = (boxes[:, [2, 3]] - boxes[:, [0, 1]]).min(axis=1)
-        return boxes[scale > 0]
-
-    @staticmethod
-    def _load_image(img_file_path: str):
+    def _load_image(img_file_path: str) -> np.ndarray:
         """loads rgb image using given file path
 
         Args:

@@ -168,7 +168,7 @@ class WiderFaceDataset(BaseDataset):
         },
         "widerface-landmark-annotations": {
             "adapter": "gdrive",
-            "check": {"retinaface_gt_v1.1": "eec0580b14900d694653efece1474c8d"},
+            "check": {"landmark_annotations": "eec0580b14900d694653efece1474c8d"},
             "kwargs": {
                 "file_id": "1tU_IjyOwGQfGNUvZGwWWM4SwxKp2PUQ8",
                 "file_name": "retinaface_gt_v1.1.zip",
@@ -249,7 +249,13 @@ class WiderFaceDataset(BaseDataset):
                 target = target[~mask, :]
                 if len(target) == 0:
                     continue
-                targets.append({"target_boxes": target.astype(np.float32)})
+                bboxes = target.astype(np.float32).tolist()
+                targets.append(
+                    dict(
+                        bboxes=bboxes,
+                        labels=["face"] * len(bboxes)
+                    )
+                )
                 ids.append(os.path.join(source_image_dir, idx))
 
             landmark_anns = _get_landmark_annotations(
@@ -258,18 +264,27 @@ class WiderFaceDataset(BaseDataset):
 
             for i in range(len(ids)):
                 key = os.path.basename(ids[i])
-                if key in landmark_anns:
-                    targets[i]["target_landmarks"] = landmark_anns[key]
+                targets[i]["keypoints"] = list()
+                targets[i]["keypoint_ids"] = list()
+                for j, points in enumerate(landmark_anns[key].flatten().reshape(-1, 2).tolist()):
+                    keypoint_id = str(j//5) + "_" + str(j % 5)
+                    if points[0] == -1 or points[1] == -1:
+                        targets[i]["keypoints"].append([0, 0])
+                        targets[i]["keypoint_ids"].append(keypoint_id + "_ignore")
+                    else:
+                        targets[i]["keypoints"].append(points)
+                        targets[i]["keypoint_ids"].append(keypoint_id)
         else:
-            # TODO each targets must be dict and handle hard parameter
-            ids, raw_targets = _get_validation_set(source_dir, partitions[0])
+            assert len(partitions) == 1, "for validation set, only 1 partition is allowed"
+            partition = partitions[0]
+            ids, raw_targets = _get_validation_set(source_dir, partition)
             targets = []
             for target in raw_targets:
                 targets.append(
-                    {
-                        "target_boxes": target[:, :4].astype(np.float32),
-                        "ignore_flags": target[:, 4].astype(np.int32),
-                    }
+                    dict(
+                        bboxes=target[:, :4].astype(np.float32).tolist(),
+                        labels=["face_ignore" if ignore else "face" for ignore in target[:, 4].astype(np.int32).tolist()]
+                    )
                 )
             del raw_targets
 

@@ -1,10 +1,13 @@
 import os
-from typing import Dict, List
+from typing import List, Union
 
+from ..arch.base import ArchInterface
+from ..config import ArchConfig
 from ..adapter import download_object
 from ..utils import discover_versions
 from ..utils.cache import get_model_cache_dir
-from ..utils.config import discover_archs, get_arch_cls, get_registry
+from ..utils.config import get_registry
+from ..factory import _Factory
 
 
 def list_pretrained_models() -> List[str]:
@@ -72,7 +75,7 @@ def list_archs() -> List[str]:
     ['centerface', 'lffd']
 
     """
-    return sorted([arch for arch, _ in discover_archs()])
+    return _Factory.get_arch_names()
 
 
 def list_arch_configs(arch: str) -> List[str]:
@@ -89,23 +92,35 @@ def list_arch_configs(arch: str) -> List[str]:
     ['original', 'slim']
 
     """
-    return list(get_arch_cls(arch).__CONFIGS__.keys())
+    return _Factory.get_arch_config_names(arch)
 
 
-def get_arch_config(arch: str, config: str) -> Dict:
-    """Returns configuration dictionary for given arch and config names
+def get_arch_config(arch: str, config: str) -> ArchConfig:
+    """Returns configuration object for given arch's named config
 
     Args:
         arch (str): architecture name
         config (str): configuration name
 
     Returns:
-        Dict: configuration details as dictionary
+        ArchConfig: configuration details as `ArchConfig` object
 
     >>> import fastface as ff
     >>> ff.get_arch_config('lffd', 'slim')
     {'input_shape': (-1, 3, 480, 480), 'backbone_name': 'lffd-v2', 'head_infeatures': [64, 64, 64, 128, 128], 'head_outfeatures': [128, 128, 128, 128, 128], 'rf_sizes': [20, 40, 80, 160, 320], 'rf_start_offsets': [3, 7, 15, 31, 63], 'rf_strides': [4, 8, 16, 32, 64], 'scales': [(10, 20), (20, 40), (40, 80), (80, 160), (160, 320)]}
 
     """
-    arch_cls = get_arch_cls(arch)
-    return arch_cls.__CONFIGS__[config].copy()
+    return _Factory.get_arch_config(arch, config)
+
+def build_arch(arch: str, config: Union[str, ArchConfig]) -> ArchInterface:
+    """Returns configuration object for given arch's named config
+
+    Args:
+        arch (str): architecture name
+        config (str): configuration name as string or `ArchConfig`
+
+    Returns:
+        ArchInterface: torch.nn.Module with `ArchInterface` functionality
+
+    """
+    return _Factory.build_arch(arch, config)
