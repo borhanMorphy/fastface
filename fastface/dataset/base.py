@@ -177,30 +177,38 @@ class BaseDataset(Dataset):
     def get_normalized_boxes(self) -> np.ndarray:
         # TODO pydoc
         normalized_boxes = []
-        for img, targets in tqdm(
+        for data in tqdm(
             self, total=len(self), desc="computing normalized target boxes"
         ):
-            if targets["target_boxes"].shape[0] == 0:
+            if len(data["bboxes"]) == 0:
                 continue
-            max_size = max(img.shape)
-            normalized_boxes.append(targets["target_boxes"] / max_size)
 
-        return np.concatenate(normalized_boxes, axis=0)
+            max_size = max(data["image"].shape)
+            for xmin, ymin, xmax, ymax in data["bboxes"]:
+                normalized_boxes.append(
+                    [
+                        xmin / max_size,
+                        ymin / max_size,
+                        xmax / max_size,
+                        ymax / max_size,
+                    ]
+                )
 
-    def get_box_scale_histogram(self) -> Tuple[np.ndarray, np.ndarray]:
-        bins = map(lambda x: 2 ** x, range(10))
+        return np.array(normalized_boxes, dtype=np.float32)
+
+    def get_box_scales(self) -> np.ndarray:
         total_boxes = []
-        for _, targets in tqdm(self, total=len(self), desc="getting box sizes"):
-            if targets["target_boxes"].shape[0] == 0:
+        for data in tqdm(self, total=len(self), desc="getting box sizes"):
+            if len(data["bboxes"]) == 0:
                 continue
-            total_boxes.append(targets["target_boxes"])
+            total_boxes += data["bboxes"]
 
-        total_boxes = np.concatenate(total_boxes, axis=0)
+        total_boxes = np.array(total_boxes, dtype=np.float32)
         areas = (total_boxes[:, 2] - total_boxes[:, 0]) * (
             total_boxes[:, 3] - total_boxes[:, 1]
         )
 
-        return np.histogram(np.sqrt(areas), bins=list(bins))
+        return np.sqrt(areas)
 
     def _find_missing_requirements(self, source_dir: str) -> List[str]:
         missing_reqs: List[str] = list()

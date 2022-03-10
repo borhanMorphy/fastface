@@ -2,6 +2,7 @@ import abc
 from typing import Any, Dict, Tuple
 
 import torch
+from albumentations.core.composition import BaseCompose
 
 class ArchInterface(metaclass=abc.ABCMeta):
     @classmethod
@@ -19,6 +20,8 @@ class ArchInterface(metaclass=abc.ABCMeta):
             and hasattr(subclass, "configure_optimizers")
             and callable(subclass.configure_optimizers)
             and hasattr(subclass, "input_shape")
+            and hasattr(subclass, "train_transforms")
+            and hasattr(subclass, "transforms")
             or NotImplemented
         )
 
@@ -49,13 +52,12 @@ class ArchInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def compute_loss(self, logits: Any, target_logits: Any, hparams: Dict = None) -> Dict[str, torch.Tensor]:
+    def compute_loss(self, logits: Any, target_logits: Any) -> Dict[str, torch.Tensor]:
         """Compute losses with given logits
 
         Args:
             logits (Any): logits with architecture spesific shape or type (`forward` output)
             target_logits (Any): target logits with architecture spesific shape or type (`build_targets` output)
-            hparams (Dict, optional): model hyperparameter dict. Defaults to None.
 
         Returns:
             Dict[str, torch.Tensor]: loss values with key names. Must always contain `loss` key
@@ -76,14 +78,11 @@ class ArchInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def configure_optimizers(self, hparams: Dict = None):
+    def configure_optimizers(self):
         """Returns optimizers using given optimizer configurations
 
-        Args:
-            hparams (Dict, optional): Optimizer configurations captured from hyperparameters. Defaults to None.
-
         Returns:
-            Any: Defined optimizers for the model
+            Any: Defined optimizers and schedulers for the model
         """
         raise NotImplementedError
 
@@ -93,5 +92,23 @@ class ArchInterface(metaclass=abc.ABCMeta):
 
         Returns:
             Tuple[int, int, int]: input shape with order of (channel, height, width)
+        """
+        raise NotImplementedError
+
+    @abc.abstractproperty
+    def train_transforms(self) -> BaseCompose:
+        """Architecture spesific training transforms with augmentations as `BaseCompose`
+
+        Returns:
+            BaseCompose: composed transformation functions
+        """
+        raise NotImplementedError
+
+    @abc.abstractproperty
+    def transforms(self) -> BaseCompose:
+        """Architecture spesific transforms without augmentations as `BaseCompose`
+
+        Returns:
+            BaseCompose: composed transformation functions
         """
         raise NotImplementedError

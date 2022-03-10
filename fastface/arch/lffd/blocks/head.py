@@ -126,10 +126,7 @@ class LFFDHead(nn.Module):
         return torch.cat([target_regs, target_cls, target_assignment], dim=3)
 
 
-    def compute_loss(self, logits: torch.Tensor, target_logits: torch.Tensor, hparams = None) -> torch.Tensor:
-
-        hparams = hparams or dict()
-
+    def compute_loss(self, logits: torch.Tensor, target_logits: torch.Tensor) -> torch.Tensor:
         pos_mask = target_logits[..., 5] == 1
         neg_mask = target_logits[..., 5] == 0
 

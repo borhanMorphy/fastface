@@ -16,22 +16,18 @@ from .config import ArchConfig
 class FaceDetector(pl.LightningModule):
     """Generic pl.LightningModule definition for face detection"""
 
-    def __init__(
-        self,
-        arch: nn.Module = None,
-        normalized_input: bool = False,
-        mean: Union[float, List] = 0.0,
-        std: Union[float, List] = 1.0,
-        hparams: Dict = None,
-    ):
+    def __init__(self, arch: nn.Module = None):
         super().__init__()
-        self.save_hyperparameters(hparams)
         self.arch = arch
         self.__metrics = dict()
         self.every_n_epoch = math.inf
         self.every_n_batch = math.inf
 
-        self.init_preprocess(mean=mean, std=std, normalized_input=normalized_input)
+        self.init_preprocess(
+            mean=arch.config.mean,
+            std=arch.config.std,
+            normalized_input=arch.config.normalized_input,
+        )
 
     def is_debug_step(self, batch_idx: int) -> bool:
         return (self.current_epoch + 1) % self.every_n_epoch == 0 and (
@@ -92,13 +88,14 @@ class FaceDetector(pl.LightningModule):
         # TODO add warnings if override happens
         self.__metrics[name] = metric
 
-    def get_metrics(self) -> Dict[str, Metric]:
+    def get_metric(self, name: str) -> Dict[str, Metric]:
         """Return metrics defined in the `FaceDetector` instance
 
         Returns:
                 Dict[str, Metric]: defined model metrics with names
         """
-        return {k: v for k, v in self.__metrics.items()}
+        # TODO
+        return self.__metrics[name]
 
     @torch.jit.unused
     def predict(
@@ -290,7 +287,7 @@ class FaceDetector(pl.LightningModule):
 
         # compute loss
         # loss: dict of losses or loss
-        return self.arch.compute_loss(logits, target_logits, hparams=self.hparams["hparams"])
+        return self.arch.compute_loss(logits, target_logits)
 
     def _on_epoch_start(self, phase: str = None):
         for metric in self.__metrics.values():
@@ -339,7 +336,7 @@ class FaceDetector(pl.LightningModule):
         return self._epoch_end(outputs, phase="test")
 
     def configure_optimizers(self):
-        return self.arch.configure_optimizers(hparams=self.hparams["hparams"])
+        return self.arch.configure_optimizers()
 
     @classmethod
     def build_from_yaml(cls, yaml_file_path: str) -> pl.LightningModule:
@@ -363,56 +360,33 @@ class FaceDetector(pl.LightningModule):
 
         arch = yaml_config["arch"]
         config = yaml_config["config"]
-        preprocess = yaml_config.get(
-            "preprocess", {"mean": 0.0, "std": 1.0, "normalized_input": True}
-        )
-        hparams = yaml_config.get("hparams", {})
+        # TODO manage here
 
-        return cls.build(arch, config, **preprocess, hparams=hparams)
+        return cls.build(arch, config)
 
     @classmethod
     def build(
         cls,
         arch: str,
         config: Union[str, ArchConfig],
-        preprocess: Dict = {"mean": 0.0, "std": 1.0, "normalized_input": True},
-        hparams: Dict = {},
-        **kwargs,
     ) -> pl.LightningModule:
         """Classmethod for creating `fastface.FaceDetector` instance from scratch
 
         Args:
                 arch (str): architecture name
                 config (Union[str, Dict]): configuration name or configuration dictionary
-                preprocess (Dict, optional): preprocess arguments of the module. Defaults to {"mean": 0, "std": 1, "normalized_input": True}.
-                hparams (Dict, optional): hyper parameters for the model. Defaults to {}.
 
         Returns:
                 pl.LightningModule: fastface.FaceDetector instance with random weights initialization
         """
-        assert isinstance(preprocess, dict), "preprocess must be dict, not {}".format(
-            type(preprocess)
-        )
 
         # build nn.Module with given configuration
         arch_module = api.build_arch(arch, config)
 
         module_params = {}
 
-        # add hparams
-        module_params.update({"hparams": hparams})
-
-        # add preprocess to the hparams
-        module_params.update({"preprocess": preprocess})
-
-        # add config and arch information to the hparams
-        module_params.update({"config": config, "arch": arch})
-
-        # add kwargs to the hparams
-        module_params.update({"kwargs": kwargs})
-
         # build pl.LightninModule with given architecture
-        return cls(arch=arch_module, **preprocess, hparams=module_params)
+        return cls(arch=arch_module)
 
     @classmethod
     def from_checkpoint(cls, ckpt_path: str, **kwargs) -> pl.LightningModule:
@@ -447,17 +421,16 @@ class FaceDetector(pl.LightningModule):
     def on_load_checkpoint(self, checkpoint: Dict):
         arch = checkpoint["hyper_parameters"]["arch"]
         config = checkpoint["hyper_parameters"]["config"]
-        preprocess = checkpoint["hyper_parameters"]["preprocess"]
-
-        kwargs = checkpoint["hyper_parameters"]["kwargs"]
-
-        print("kwargs:::", kwargs)
 
         # build nn.Module with given configuration
         self.arch = api.build_arch(arch, config)
 
         # initialize preprocess with given arguments
-        self.init_preprocess(**preprocess)
+        self.init_preprocess(
+            mean=self.arch.config.mean,
+            std=self.arch.config.std,
+            normalized_input=self.arch.config.normalized_input,
+        )
 
     def to_tensor(self, images: Union[np.ndarray, List]) -> List[torch.Tensor]:
         """Converts given image or list of images to list of tensors

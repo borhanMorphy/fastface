@@ -26,6 +26,8 @@ class WiderFaceAP(Metric):
         self.add_state("targets", default=[], dist_reduce_fx=None)
         self.add_state("labels", default=[], dist_reduce_fx=None)
 
+        self._curve = None
+
     def update(
         self,
         preds: List[torch.Tensor],
@@ -92,6 +94,9 @@ class WiderFaceAP(Metric):
         for i in range(self.threshold_steps):
             curve[i, 0] = curve[i, 1] / curve[i, 0]
             curve[i, 1] = curve[i, 1] / total_faces
+
+        # cache curve
+        self._curve = curve
 
         propose = curve[:, 0]
         recall = curve[:, 1]
@@ -186,3 +191,7 @@ class WiderFaceAP(Metric):
                 pr[i, 0] = len(p_index)
                 pr[i, 1] = match_counts[pos_ids]
         return pr
+
+    def reset(self):
+        self._curve = None
+        return super().reset()

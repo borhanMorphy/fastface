@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List, Union
 from ...config import ArchConfig
 
 
@@ -6,6 +6,11 @@ class LFFDConfig(ArchConfig):
     """LFFD architecture configuration
     default configuration is `original`
     """
+
+    # preprocess
+    mean: Union[float, List] = 127.5
+    std: Union[float, List] = 127.5
+    normalized_input: bool = False
 
     # main configs
     input_width: int = 640
@@ -19,3 +24,13 @@ class LFFDConfig(ArchConfig):
     rf_sizes: Tuple = (15, 20, 40, 70, 110, 250, 400, 560)
     rf_strides: Tuple = (4, 4, 8, 8, 16, 32, 32, 32)
     min_face_size: int = 10
+
+    # training hparams
+    batch_size: int = 32
+    max_epochs: int = 800
+    learning_rate: float = 0.1
+    momentum: float = 0.9
+    weight_decay: float = 0.00001
+    scheduler_milestones: List[int] = [200, 400, 600]
+    scheduler_gamma: float = 0.1
+    hard_neg_mining_ratio = 5

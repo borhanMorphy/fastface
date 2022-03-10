@@ -189,7 +189,7 @@ class WiderFaceDataset(BaseDataset):
     def __init__(
         self,
         source_dir: str = None,
-        phase: str = None,
+        phase: str = 'train',
         partitions: List = None,
         transforms=None,
         **kwargs,
