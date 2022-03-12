@@ -1,4 +1,5 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
+import numpy as np
 
 import torch
 import torchvision.ops.boxes as box_ops
@@ -45,25 +46,43 @@ class WiderFaceAP(Metric):
         self.targets += targets
         self.labels += labels
 
-    def compute(self) -> torch.Tensor:
-        curve = torch.zeros((self.threshold_steps, 2), dtype=torch.float32)
+    def compute(self) -> Dict[str, torch.Tensor]:
+        stages = ["easy", "medium", "hard"]
+        curve = dict()
+
+        for stage in stages:
+            curve[stage] = np.zeros((self.threshold_steps, 2), dtype=np.float32)
 
         normalized_preds = self.normalize_scores(
-            [pred.cpu().float() for pred in self.preds]
+            [pred.cpu().numpy().astype(np.float32) for pred in self.preds]
         )
 
-        gt_boxes = [gt_boxes.cpu().float() for gt_boxes in self.targets]
+        gt_boxes = [gt_boxes.cpu().numpy().astype(np.float32) for gt_boxes in self.targets]
 
-        # TODO convert this into str => tensor
         ignore_flags = list()
         for labels in self.labels:
-            flags = torch.zeros((len(labels),), dtype=torch.int32)
+            i_flags = dict(
+                easy=np.zeros((len(labels),), dtype=np.int32),
+                medium=np.zeros((len(labels),), dtype=np.int32),
+                hard=np.zeros((len(labels),), dtype=np.int32),
+            )
+
             for i, label in enumerate(labels):
                 if label == "face_ignore":
-                    flags[i] = 1
-            ignore_flags.append(flags)
+                    i_flags["easy"][i] = 1
+                    i_flags["medium"][i] = 1
+                    i_flags["hard"][i] = 1
+                if label == "face_hard":
+                    i_flags["easy"][i] = 1
+                    i_flags["medium"][i] = 1
+                if label == "face_medium":
+                    i_flags["easy"][i] = 1
 
-        total_faces = 0
+            ignore_flags.append(i_flags)
+
+        total_faces = dict()
+        for stage in stages:
+            total_faces[stage] = 0
 
         for preds, gts, i_flags in zip(normalized_preds, gt_boxes, ignore_flags):
             # skip if no gts
@@ -71,56 +90,72 @@ class WiderFaceAP(Metric):
                 continue
 
             # count keeped gts
-            total_faces += (i_flags == 0).sum()
+            for stage in stages:
+                total_faces[stage] += (i_flags[stage] == 0).sum()
 
             if preds.shape[0] == 0:
                 continue
-            # gts: M,4 as x1,y1,x2,y2
-            # preds: N,5 as x1,y1,x2,y2,norm_score
+
+            # gts: M, 4 as x1, y1, x2, y2
+            # preds: N, 5 as x1, y1, x2, y2, normalized_score
 
             # sort preds by descending order
-            preds = preds[preds[:, -1].argsort(descending=True), :]
+            preds = preds[(-preds[:, -1]).argsort(), :]
 
-            # evaluate single image
-            match_counts, ignore_pred_mask = self.evaluate_single_image(
-                preds, gts, i_flags
-            )
-            # match_counts: N,
-            # ignore_pred_mask: N,
+            # evaluate single image per each stage
+            for stage in stages:
+                match_counts, ignore_pred_mask = self.evaluate_single_image(
+                    preds, gts, i_flags[stage]
+                )
+                # match_counts: N,
+                # ignore_pred_mask: N,
 
-            # calculate image pr
-            curve += self.calculate_image_pr(preds, ignore_pred_mask, match_counts)
+                # calculate image pr
+                curve[stage] += self.calculate_image_pr(preds, ignore_pred_mask, match_counts)
 
         for i in range(self.threshold_steps):
-            curve[i, 0] = curve[i, 1] / curve[i, 0]
-            curve[i, 1] = curve[i, 1] / total_faces
+            for stage in stages:
+                curve[stage][i, 0] = curve[stage][i, 1] / curve[stage][i, 0]
+                curve[stage][i, 1] = curve[stage][i, 1] / total_faces[stage]
 
         # cache curve
         self._curve = curve
 
-        propose = curve[:, 0]
-        recall = curve[:, 1]
+        scores = dict()
+        for stage in stages:
+            propose = curve[stage][:, 0]
+            recall = curve[stage][:, 1]
 
-        # add sentinel values at the end
-        # [0] + propose + [0]
-        propose = torch.cat([torch.tensor([0.0]), propose, torch.tensor([0.0])])
+            # add sentinel values at the end
+            # [0] + propose + [0]
+            propose = np.concatenate([[0.0], propose, [0.0]])
 
-        # [0] + propose + [1]
-        recall = torch.cat([torch.tensor([0.0]), recall, torch.tensor([1.0])])
+            # [0] + propose + [1]
+            recall = np.concatenate([[0.0], recall, [1.0]])
 
-        # compute the precision envelope
-        for i in range(propose.shape[0] - 1, 0, -1):
-            propose[i - 1] = max(propose[i - 1], propose[i])
+            # compute the precision envelope
+            for i in range(propose.shape[0] - 1, 0, -1):
+                propose[i - 1] = max(propose[i - 1], propose[i])
 
-        # to calculate area under PR curve, look for points
-        # where X axis (recall) changes value
-        (points,) = torch.where(recall[1:] != recall[:-1])
+            # to calculate area under PR curve, look for points
+            # where X axis (recall) changes value
+            (points,) = np.where(recall[1:] != recall[:-1])
 
-        # and sum (\Delta recall) * prec
-        return ((recall[points + 1] - recall[points]) * propose[points + 1]).sum()
+            # and sum (\Delta recall) * prec
+            scores[stage] = torch.tensor(
+                ((recall[points + 1] - recall[points]) * propose[points + 1]).sum()
+            )
+
+        return scores
 
     @staticmethod
-    def normalize_scores(batch_preds: List[torch.Tensor]) -> List[torch.Tensor]:
+    def normalize_scores(batch_preds: List[np.ndarray]) -> List[np.ndarray]:
+        """[summary]
+        Args:
+                preds (List[np.ndarray]): [description]
+        Returns:
+                List[np.ndarray]: [description]
+        """
         norm_preds = []
         max_score = 0
         min_score = 1
@@ -134,7 +169,7 @@ class WiderFaceAP(Metric):
         d = max_score - min_score
 
         for preds in batch_preds:
-            n_preds = preds.clone()
+            n_preds = preds.copy()
             if preds.shape[0] == 0:
                 norm_preds.append(n_preds)
                 continue
@@ -143,18 +178,24 @@ class WiderFaceAP(Metric):
         return norm_preds
 
     def evaluate_single_image(
-        self, preds: torch.Tensor, gts: torch.Tensor, ignore: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, preds: np.ndarray, gts: np.ndarray, ignore: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
 
         N = preds.shape[0]
         M = gts.shape[0]
 
-        ious = box_ops.box_iou(preds[:, :4], gts)
+        # TODO implement numpy version
+        ious = box_ops.box_iou(
+            # pylint: disable=not-callable
+            torch.tensor(preds[:, :4], dtype=torch.float32),
+            # pylint: disable=not-callable
+            torch.tensor(gts, dtype=torch.float32),
+        ).numpy()
         # ious: N,M
 
-        ignore_pred_mask = torch.zeros((N,), dtype=torch.float32)
-        gt_match_mask = torch.zeros((M,), dtype=torch.float32)
-        match_counts = torch.zeros((N,), dtype=torch.float32)
+        ignore_pred_mask = np.zeros((N,), dtype=np.float32)
+        gt_match_mask = np.zeros((M,), dtype=np.float32)
+        match_counts = np.zeros((N,), dtype=np.float32)
 
         for i in range(N):
             max_iou, max_iou_idx = ious[i, :].max(), ious[i, :].argmax()
@@ -172,22 +213,22 @@ class WiderFaceAP(Metric):
         return match_counts, ignore_pred_mask
 
     def calculate_image_pr(
-        self, preds: torch.Tensor, ignore_pred_mask: torch.Tensor, match_counts: torch.Tensor
-    ) -> torch.Tensor:
+        self, preds: np.ndarray, ignore_pred_mask: np.ndarray, match_counts: np.ndarray
+    ) -> np.ndarray:
 
-        pr = torch.zeros((self.threshold_steps, 2), dtype=torch.float32)
-        thresholds = torch.arange(0, self.threshold_steps, dtype=torch.float32)
+        pr = np.zeros((self.threshold_steps, 2), dtype=np.float32)
+        thresholds = np.arange(0, self.threshold_steps, dtype=np.float32)
         thresholds = 1 - (thresholds + 1) / self.threshold_steps
 
         for i, threshold in enumerate(thresholds):
 
-            (pos_ids,) = torch.where(preds[:, 4] >= threshold)
+            (pos_ids,) = np.where(preds[:, 4] >= threshold)
             if len(pos_ids) == 0:
                 pr[i, 0] = 0
                 pr[i, 1] = 0
             else:
                 pos_ids = pos_ids[-1]
-                (p_index,) = torch.where(ignore_pred_mask[: pos_ids + 1] == 0)
+                (p_index,) = np.where(ignore_pred_mask[: pos_ids + 1] == 0)
                 pr[i, 0] = len(p_index)
                 pr[i, 1] = match_counts[pos_ids]
         return pr

@@ -196,19 +196,14 @@ class BaseDataset(Dataset):
 
         return np.array(normalized_boxes, dtype=np.float32)
 
-    def get_box_scales(self) -> np.ndarray:
+    def get_boxes(self) -> np.ndarray:
         total_boxes = []
         for data in tqdm(self, total=len(self), desc="getting box sizes"):
             if len(data["bboxes"]) == 0:
                 continue
             total_boxes += data["bboxes"]
 
-        total_boxes = np.array(total_boxes, dtype=np.float32)
-        areas = (total_boxes[:, 2] - total_boxes[:, 0]) * (
-            total_boxes[:, 3] - total_boxes[:, 1]
-        )
-
-        return np.sqrt(areas)
+        return np.array(total_boxes, dtype=np.float32)
 
     def _find_missing_requirements(self, source_dir: str) -> List[str]:
         missing_reqs: List[str] = list()

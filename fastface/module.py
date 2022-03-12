@@ -207,9 +207,9 @@ class FaceDetector(pl.LightningModule):
     def _postprocess(
         self,
         preds: torch.Tensor,
-        det_threshold: float = 0.3,
+        det_threshold: float = 0.1,
         iou_threshold: float = 0.4,
-        keep_n: int = 200,
+        keep_n: int = 50,
     ) -> torch.Tensor:
 
         # TODO pydoc
@@ -287,32 +287,29 @@ class FaceDetector(pl.LightningModule):
 
         # compute loss
         # loss: dict of losses or loss
-        return self.arch.compute_loss(logits, target_logits)
+        loss = self.arch.compute_loss(logits, target_logits)
+
+        if isinstance(loss, dict):
+            for key, value in loss.items():
+                self.log("{}/{}".format(key, phase), value.item())
+        else:
+            self.log("loss/{}".format(phase), loss.item())
+
+        return loss
 
     def _on_epoch_start(self, phase: str = None):
         for metric in self.__metrics.values():
             metric.reset()
 
-    def _epoch_end(self, outputs, phase: str = None):
-        losses = dict()
-        for output in outputs:
-            if isinstance(output, dict):
-                for k, v in output.items():
-                    if k not in losses:
-                        losses[k] = []
-                    losses[k].append(v)
-            else:
-                # only contains `loss`
-                if "loss" not in losses:
-                    losses["loss"] = []
-                losses["loss"].append(output)
-
-        for name, loss in losses.items():
-            self.log("{}/{}".format(name, phase), sum(loss) / len(loss))
-
+    def _epoch_end(self, _, phase: str = None):
         if phase != "train":
             for name, metric in self.__metrics.items():
-                self.log("{}/{}".format(name, phase), metric.compute())
+                res = metric.compute()
+                if isinstance(res, dict):
+                    for k, v in res.items():
+                        self.log("{}/{}/{}".format(name, phase, k), v)
+                else:
+                    self.log("{}/{}".format(name, phase), res)
 
     def training_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, phase="train")
@@ -323,8 +320,8 @@ class FaceDetector(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, phase="validation")
 
-    def validation_epoch_end(self, outputs):
-        return self._epoch_end(outputs, phase="validation")
+    def validation_epoch_end(self, _):
+        return self._epoch_end(_, phase="validation")
 
     def on_test_epoch_start(self):
         self._on_epoch_start(phase="test")
@@ -332,8 +329,8 @@ class FaceDetector(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, phase="test")
 
-    def test_epoch_end(self, outputs):
-        return self._epoch_end(outputs, phase="test")
+    def test_epoch_end(self, _):
+        return self._epoch_end(_, phase="test")
 
     def configure_optimizers(self):
         return self.arch.configure_optimizers()
@@ -381,12 +378,10 @@ class FaceDetector(pl.LightningModule):
         """
 
         # build nn.Module with given configuration
-        arch_module = api.build_arch(arch, config)
-
-        module_params = {}
+        arch = api.build_arch(arch, config)
 
         # build pl.LightninModule with given architecture
-        return cls(arch=arch_module)
+        return cls(arch=arch)
 
     @classmethod
     def from_checkpoint(cls, ckpt_path: str, **kwargs) -> pl.LightningModule:
@@ -419,11 +414,12 @@ class FaceDetector(pl.LightningModule):
         return cls.from_checkpoint(model, **kwargs)
 
     def on_load_checkpoint(self, checkpoint: Dict):
-        arch = checkpoint["hyper_parameters"]["arch"]
-        config = checkpoint["hyper_parameters"]["config"]
+        config = ArchConfig.construct(
+            **checkpoint["configuration"]
+        )
 
         # build nn.Module with given configuration
-        self.arch = api.build_arch(arch, config)
+        self.arch = api.build_arch(config.arch, config)
 
         # initialize preprocess with given arguments
         self.init_preprocess(
@@ -431,6 +427,9 @@ class FaceDetector(pl.LightningModule):
             std=self.arch.config.std,
             normalized_input=self.arch.config.normalized_input,
         )
+
+    def on_save_checkpoint(self, checkpoint: Dict):
+        checkpoint["configuration"] = dict(self.arch.config)
 
     def to_tensor(self, images: Union[np.ndarray, List]) -> List[torch.Tensor]:
         """Converts given image or list of images to list of tensors

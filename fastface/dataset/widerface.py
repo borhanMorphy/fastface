@@ -190,8 +190,8 @@ class WiderFaceDataset(BaseDataset):
         self,
         source_dir: str = None,
         phase: str = 'train',
-        partitions: List = None,
         transforms=None,
+        drop_keys: List[str] = None,
         **kwargs,
     ):
 
@@ -208,25 +208,7 @@ class WiderFaceDataset(BaseDataset):
             phase, WiderFaceDataset.__phases__
         )
 
-        if not partitions:
-            partitions = WiderFaceDataset.__partitions__
-
-        for partition in partitions:
-            assert (
-                partition in WiderFaceDataset.__partitions__
-            ), "given partition {} is \
-                not in the defined list: {}".format(
-                partition, self.__partitions__
-            )
-
-        # TODO handle phase
-
         if phase == "train":
-            ranges = []
-            for partition in partitions:
-                ranges += WiderFaceDataset.__partition_ranges__[
-                    WiderFaceDataset.__partitions__.index(partition)
-                ]
             source_image_dir = os.path.join(
                 source_dir, f"WIDER_{phase}/images"
             )  # TODO add assertion
@@ -235,7 +217,16 @@ class WiderFaceDataset(BaseDataset):
             )
             with open(annotation_path, "r") as foo:
                 annotations = foo.read().split("\n")
-            raw_ids, raw_targets = _parse_annotation_file(annotations, ranges)
+            
+            ranges = list()
+            for partition_range in self.__partition_ranges__:
+                ranges += list(partition_range)
+
+            raw_ids, raw_targets = _parse_annotation_file(
+                annotations,
+                ranges
+            )
+
             del annotations
             ids = []
             targets = []
@@ -275,17 +266,46 @@ class WiderFaceDataset(BaseDataset):
                         targets[i]["keypoints"].append(points)
                         targets[i]["keypoint_ids"].append(keypoint_id)
         else:
-            assert len(partitions) == 1, "for validation set, only 1 partition is allowed"
-            partition = partitions[0]
-            ids, raw_targets = _get_validation_set(source_dir, partition)
+
+            ids, e_raw_targets = _get_validation_set(source_dir, "easy")
+            _, m_raw_targets = _get_validation_set(source_dir, "medium")
+            _, h_raw_targets = _get_validation_set(source_dir, "hard")
+
             targets = []
-            for target in raw_targets:
+            for (e_target, m_target, h_target) in zip(e_raw_targets, m_raw_targets, h_raw_targets):
+                # make sure boxes are match
+                assert (e_target[:, :4] == m_target[:, :4]).all()
+                assert (m_target[:, :4] == h_target[:, :4]).all()
+                bboxes = e_target[:, :4].astype(np.float32).tolist()
+                e_labels = e_target[:, 4].astype(np.int32).tolist()
+                m_labels = m_target[:, 4].astype(np.int32).tolist()
+                h_labels = h_target[:, 4].astype(np.int32).tolist()
+                labels = list()
+
+                for e_label, m_label, h_label in zip(e_labels, m_labels, h_labels):
+                    # label: 1 means ignore 0 otherwise
+                    # h_label: 1 => face_ignore
+                    # h_label: 0 & m_label: 1 => face_hard
+                    # h_label: 0 & m_label: 0 & e_label: 1 =>face_medium
+                    # h_lable: 0 & m_label: 0 & e_label: 0 => face_easy
+                    label = "face_easy"
+                    if e_label:
+                        label = "face_medium"
+                    if m_label:
+                        label = "face_hard"
+                    if h_label:
+                        label = "face_ignore"
+
+                    labels.append(label)
+
                 targets.append(
                     dict(
-                        bboxes=target[:, :4].astype(np.float32).tolist(),
-                        labels=["face_ignore" if ignore else "face" for ignore in target[:, 4].astype(np.int32).tolist()]
+                        bboxes=bboxes,
+                        labels=labels
                     )
                 )
-            del raw_targets
+            del e_raw_targets
+            del m_raw_targets
+            del h_raw_targets
 
-        super().__init__(ids, targets, transforms=transforms, **kwargs)
+        super().__init__(ids, targets, transforms=transforms, drop_keys=drop_keys, **kwargs)

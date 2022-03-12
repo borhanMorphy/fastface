@@ -123,9 +123,10 @@ class FDDBDataset(BaseDataset):
     def __init__(
         self,
         source_dir: str = None,
-        phase: str = None,
+        phase: str = "train",
         folds: List[int] = None,
         transforms=None,
+        drop_keys: List[str] = None,
         **kwargs
     ):
 
@@ -164,4 +165,4 @@ class FDDBDataset(BaseDataset):
                 ))
             del raw_targets
 
-        super().__init__(ids, targets, transforms=transforms, **kwargs)
+        super().__init__(ids, targets, transforms=transforms, drop_keys=drop_keys, **kwargs)
