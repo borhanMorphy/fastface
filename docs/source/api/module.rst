@@ -3,8 +3,6 @@ fastface.FaceDetector
 
 .. automethod:: fastface.FaceDetector.build
 
-.. automethod:: fastface.FaceDetector.build_from_yaml
-
 .. automethod:: fastface.FaceDetector.from_checkpoint
 
 .. automethod:: fastface.FaceDetector.from_pretrained
