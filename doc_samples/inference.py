@@ -1,4 +1,4 @@
-import imageio
+from cv2 import cv2
 
 import fastface as ff
 
@@ -13,7 +13,7 @@ model = ff.FaceDetector.from_pretrained("lffd_slim")
 model.eval()
 
 # load image
-img = imageio.imread("<your_img_file_path>")[:, :, :3]
+img = cv2.imread("<your_img_file_path>")[..., [2, 1, 0]]
 
 # find faces
 (preds,) = model.predict(img)

@@ -1,6 +1,6 @@
 import argparse
 
-import imageio
+from cv2 import cv2
 import numpy as np
 import torch
 
@@ -60,16 +60,13 @@ def load_image(img_path: str) -> np.ndarray:
     Returns:
         np.ndarray: rgb image as np.ndarray
     """
-    img = imageio.imread(img_path)
-    if not img.flags["C_CONTIGUOUS"]:
-        # if img is not contiguous than fix it
-        img = np.ascontiguousarray(img, dtype=img.dtype)
+    img = cv2.imread(img_path)
 
     if img.shape[2] == 4:
         # found RGBA
         img = img[:, :, :3]
 
-    return img
+    return img[..., [2, 1, 0]]
 
 
 def main(

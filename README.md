@@ -50,10 +50,10 @@ Name|Architecture|Configuration|Parameters|Model Size|Link
 Using package
 ```python
 import fastface as ff
-import imageio
+from cv2 import cv2
 
 # load image as RGB
-img = imageio.imread("<your_image_file_path>")[:,:,:3]
+img = cv2.imread("<your_image_file_path>")[..., [2, 1, 0]]
 
 # build model with pretrained weights
 model = ff.FaceDetector.from_pretrained("lffd_original")
