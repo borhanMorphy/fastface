@@ -3,7 +3,7 @@ import os
 from typing import List, Tuple
 import random
 
-import imageio
+from cv2 import cv2
 import numpy as np
 import torch
 
@@ -40,7 +40,7 @@ def get_img_paths() -> List:
 
 
 def load_image(img_file_path: str) -> np.ndarray:
-    return imageio.imread(img_file_path)[:, :, :3]
+    return cv2.imread(img_file_path)[..., [2, 1, 0]]
 
 
 def load_image_as_tensor(img_file_path: str) -> torch.Tensor:

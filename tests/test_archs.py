@@ -36,7 +36,7 @@ def test_arch_forward(arch_name: str, config_name: str):
 @pytest.mark.parametrize("arch_name, config_name", utils.build_module_args())
 def test_arch_config(arch_name: str, config_name: str):
     model = ff.build_arch(arch_name, config_name)
-    assert hasattr(model, "_config")
+    assert hasattr(model, "config")
 
 
 @pytest.mark.parametrize("arch_name, config_name", utils.build_module_args())

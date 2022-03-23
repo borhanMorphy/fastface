@@ -2,9 +2,6 @@ import pytest
 
 import fastface as ff
 
-# TODO expand here
-
-
 @pytest.mark.parametrize(
     "func",
     [

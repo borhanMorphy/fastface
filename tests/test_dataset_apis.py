@@ -4,10 +4,10 @@ import pytest
 import fastface as ff
 
 def get_dataset_names() -> List[str]:
-    return list(
+    return [
         "FDDBDataset",
         "WiderFaceDataset",
-    )
+    ]
 
 
 @pytest.mark.parametrize("dataset_name", get_dataset_names())
