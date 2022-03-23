@@ -6,3 +6,4 @@ gdown>=4.*.*
 requests>=2.*.*
 PyYAML~=5.3.1
 checksumdir==1.2.*
+pydantic>=1.5.*
