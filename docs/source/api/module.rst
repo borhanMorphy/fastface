@@ -13,4 +13,4 @@ fastface.FaceDetector
 
 .. automethod:: fastface.FaceDetector.add_metric
 
-.. automethod:: fastface.FaceDetector.get_metrics
+.. automethod:: fastface.FaceDetector.get_metric
