@@ -159,10 +159,14 @@ class FDDBDataset(BaseDataset):
 
             for target in raw_targets:
                 target = target.astype(np.float32).tolist()
-                targets.append(dict(
-                    bboxes=target,
-                    labels=["face"] * len(target),
-                ))
+                targets.append(
+                    dict(
+                        bboxes=target,
+                        labels=["face"] * len(target),
+                    )
+                )
             del raw_targets
 
-        super().__init__(ids, targets, transforms=transforms, drop_keys=drop_keys, **kwargs)
+        super().__init__(
+            ids, targets, transforms=transforms, drop_keys=drop_keys, **kwargs
+        )

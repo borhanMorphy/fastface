@@ -6,7 +6,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import yaml
+from cv2 import cv2
 from torchmetrics.metric import Metric
 
 from . import api, utils
@@ -78,7 +78,7 @@ class FaceDetector(pl.LightningModule):
             persistent=False,
         )
 
-    def add_metric(self, name: str, metric: Metric):
+    def metrics(self, name: str, metric: Metric):
         """Adds given metric with name key
 
         Args:
@@ -88,11 +88,11 @@ class FaceDetector(pl.LightningModule):
         # TODO add warnings if override happens
         self.__metrics[name] = metric
 
-    def get_metric(self, name: str) -> Dict[str, Metric]:
+    def get_metric(self, name: str) -> Metric:
         """Return metrics defined in the `FaceDetector` instance
 
         Returns:
-                Dict[str, Metric]: defined model metrics with names
+                Metric: defined model metrics with names
         """
         # TODO
         return self.__metrics[name]
@@ -126,19 +126,19 @@ class FaceDetector(pl.LightningModule):
                         ...
                 ]
         >>> import fastface as ff
-        >>> import imageio
+        >>> from cv2 import cv2
         >>> model = ff.FaceDetector.from_pretrained('lffd_original').eval()
-        >>> img = imageio.imread('resources/friends.jpg')[:,:,:3]
+        >>> img = cv2.imread('resources/friends.jpg')[..., [2, 1, 0]]
         >>> model.predict(img, target_size=640)
         [{'boxes': [[1057, 180, 1187, 352], [571, 212, 697, 393], [140, 218, 270, 382], [864, 271, 979, 406], [327, 252, 442, 392]], 'scores': [0.9992133378982544, 0.9971852898597717, 0.9246336817741394, 0.8549349308013916, 0.8072562217712402]}]
         """
 
-        batch = self.to_tensor(data)
+        batch = utils.process.to_tensor(data)
         # batch: list of tensors
 
         batch_size = len(batch)
 
-        batch, scales, paddings = utils.preprocess.prepare_batch(
+        batch, scales, paddings = utils.process.prepare_batch(
             batch, target_size=target_size, adaptive_batch=target_size is None
         )
         # batch: torch.Tensor(B,C,T,T)
@@ -156,13 +156,10 @@ class FaceDetector(pl.LightningModule):
         preds = [preds[preds[:, 5] == batch_idx, :5] for batch_idx in range(batch_size)]
         # preds: list of torch.Tensor(N, 5) as x1,y1,x2,y2,score
 
-        preds = utils.preprocess.adjust_results(preds, scales, paddings)
+        preds = utils.process.adjust_results(preds, scales, paddings)
         # preds: list of torch.Tensor(N, 5) as x1,y1,x2,y2,score
 
-        preds = self.to_json(preds)
-        # preds: list of {"boxes": [(x1,y1,x2,y2), ...], "score": [<float>, ...]}
-
-        return preds
+        return utils.process.to_json(preds)
 
     # ! use forward only for inference not training
     def forward(
@@ -175,13 +172,14 @@ class FaceDetector(pl.LightningModule):
         """batch of images with float and B x C x H x W shape
 
         Args:
-                batch (torch.Tensor): torch.FloatTensor(B x C x H x W)
+            batch (torch.Tensor): torch.FloatTensor(B x C x H x W)
 
         Returns:
-                torch.Tensor: preds with shape (N, 6);
-                        (1:4) xmin, ymin, xmax, ymax
-                        (4:5) score
-                        (5:6) batch idx
+            torch.Tensor: preds with shape (N, 5 + num_landmarks*2 + 1);
+                    (1:4) xmin, ymin, xmax, ymax
+                    (4:5) score
+                    (5:5+num_landmarks*2)
+                    (5+num_landmarks*2:) batch idx
         """
 
         # apply preprocess
@@ -195,24 +193,31 @@ class FaceDetector(pl.LightningModule):
         preds = self.arch.compute_preds(logits)
         # preds: torch.Tensor(B, N, 5)
 
-        batch_preds = self._postprocess(
+        return self._postprocess(
             preds,
-            det_threshold=det_threshold,
-            iou_threshold=iou_threshold,
-            keep_n=keep_n,
+            det_threshold,
+            iou_threshold,
+            keep_n,
         )
-
-        return batch_preds
 
     def _postprocess(
         self,
         preds: torch.Tensor,
-        det_threshold: float = 0.1,
-        iou_threshold: float = 0.4,
-        keep_n: int = 50,
+        det_threshold: float,
+        iou_threshold: float,
+        keep_n: int,
     ) -> torch.Tensor:
+        """Applies postprocess to given predictions
 
-        # TODO pydoc
+        Args:
+            preds (torch.Tensor): predictions as B x N x (5 + num_landmarks*2)
+            det_threshold (float): detection score threshold
+            iou_threshold (float): iou score threshold for NMS
+            keep_n (int): keep number of predictions
+
+        Returns:
+            torch.Tensor: predictions as N x (5 + 1)
+        """
         batch_size = preds.size(0)
 
         # filter out some predictions using score
@@ -220,22 +225,22 @@ class FaceDetector(pl.LightningModule):
 
         # add batch_idx dim to preds
         preds = torch.cat(
-            [preds[pick_b, pick_n, :], pick_b.to(preds.dtype).unsqueeze(1)], dim=1
+            [preds[pick_b, pick_n, :5], pick_b.to(preds.dtype).unsqueeze(1)], dim=1
         )
-        # preds: N x 6
+        # preds: N x (5 + 1)
 
         batch_preds: List[torch.Tensor] = []
         for batch_idx in range(batch_size):
-            (pick_n,) = torch.where(batch_idx == preds[:, 5])
+            (pick_n,) = torch.where(batch_idx == preds[:, -1])
             order = preds[pick_n, 4].sort(descending=True)[1]
 
             batch_preds.append(
-                # preds: n, 6
+                # preds: N, 6
                 preds[pick_n, :][order][:keep_n, :]
             )
 
         batch_preds = torch.cat(batch_preds, dim=0)
-        # batch_preds: N x 6
+        # batch_preds: N' x (5 + 1)
 
         # filter with nms
         pick = utils.box.batched_nms(
@@ -244,11 +249,7 @@ class FaceDetector(pl.LightningModule):
             batch_preds[:, 5],  # id of the batch that prediction belongs to
             iou_threshold=iou_threshold,
         )
-
-        # select picked preds
-        batch_preds = batch_preds[pick, :]
-        # batch_preds: N x 6
-        return batch_preds
+        return batch_preds[pick, :]
 
     def _step(self, batch, batch_idx, phase: str = None):
         inputs, raw_targets = batch
@@ -282,6 +283,22 @@ class FaceDetector(pl.LightningModule):
 
             for metric in self.__metrics.values():
                 metric.update(pred_boxes, target_boxes, labels)
+
+            if self.is_debug_step(batch_idx):
+                for img, preds, gt_boxes in zip(batch[0], pred_boxes, target_boxes):
+                    img = (img.permute(1, 2, 0).cpu()).numpy().astype(np.uint8).copy()
+                    preds = preds.cpu().long().numpy()
+                    gt_boxes = gt_boxes.cpu().long().numpy()
+
+                    for x1, y1, x2, y2 in preds[:, :4]:
+                        img = cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0))
+                    for x1, y1, x2, y2 in gt_boxes[:, :4]:
+                        img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0))
+
+                    cv2.imshow("", img[..., [2, 1, 0]])
+
+                    if cv2.waitKey(0) == 27:
+                        exit(0)
 
         target_logits = self.arch.build_targets(inputs, raw_targets)
 
@@ -336,32 +353,6 @@ class FaceDetector(pl.LightningModule):
         return self.arch.configure_optimizers()
 
     @classmethod
-    def build_from_yaml(cls, yaml_file_path: str) -> pl.LightningModule:
-        """Classmethod for creating `fastface.FaceDetector` instance from scratch using yaml file
-
-        Args:
-                yaml_file_path (str): yaml file path
-
-        Returns:
-                pl.LightningModule: fastface.FaceDetector instance with random weights initialization
-        """
-
-        assert os.path.isfile(
-            yaml_file_path
-        ), "could not find the yaml file given {}".format(yaml_file_path)
-        with open(yaml_file_path, "r") as foo:
-            yaml_config = yaml.load(foo, Loader=yaml.FullLoader)
-
-        assert "arch" in yaml_config, "yaml file must contain `arch` key"
-        assert "config" in yaml_config, "yaml file must contain `config` key"
-
-        arch = yaml_config["arch"]
-        config = yaml_config["config"]
-        # TODO manage here
-
-        return cls.build(arch, config)
-
-    @classmethod
     def build(
         cls,
         arch: str,
@@ -414,9 +405,7 @@ class FaceDetector(pl.LightningModule):
         return cls.from_checkpoint(model, **kwargs)
 
     def on_load_checkpoint(self, checkpoint: Dict):
-        config = ArchConfig.construct(
-            **checkpoint["configuration"]
-        )
+        config = ArchConfig.construct(**checkpoint["configuration"])
 
         # build nn.Module with given configuration
         self.arch = api.build_arch(config.arch, config)
@@ -430,67 +419,3 @@ class FaceDetector(pl.LightningModule):
 
     def on_save_checkpoint(self, checkpoint: Dict):
         checkpoint["configuration"] = dict(self.arch.config)
-
-    def to_tensor(self, images: Union[np.ndarray, List]) -> List[torch.Tensor]:
-        """Converts given image or list of images to list of tensors
-        Args:
-                images (Union[np.ndarray, List]): RGB image or list of RGB images
-        Returns:
-                List[torch.Tensor]: list of torch.Tensor(C x H x W)
-        """
-        assert isinstance(
-            images, (list, np.ndarray)
-        ), "give images must be eather list of numpy arrays or numpy array"
-
-        if isinstance(images, np.ndarray):
-            images = [images]
-
-        batch: List[torch.Tensor] = []
-
-        for img in images:
-            assert (
-                len(img.shape) == 3
-            ), "image shape must be channel, height\
-                , with length of 3 but found {}".format(
-                len(img.shape)
-            )
-            assert (
-                img.shape[2] == 3
-            ), "channel size of the image must be 3 but found {}".format(img.shape[2])
-
-            batch.append(
-                # h,w,c => c,h,w
-                # pylint: disable=not-callable
-                torch.tensor(img, dtype=self.dtype, device=self.device).permute(2, 0, 1)
-            )
-
-        return batch
-
-    def to_json(self, preds: List[torch.Tensor]) -> List[Dict]:
-        """Converts given list of tensor predictions to json serializable format
-        Args:
-                preds (List[torch.Tensor]): list of torch.Tensor(N,5) as xmin, ymin, xmax, ymax, score
-        Returns:
-                List[Dict]: [
-                        # single image results
-                        {
-                                "boxes": <array>,  # List[List[xmin, ymin, xmax, ymax]]
-                                "scores": <array>  # List[float]
-                        },
-                        ...
-                ]
-        """
-        results: List[Dict] = []
-
-        for pred in preds:
-            if pred.size(0) != 0:
-                pred = pred.cpu().numpy()
-                boxes = pred[:, :4].astype(np.int32).tolist()
-                scores = pred[:, 4].tolist()
-            else:
-                boxes = []
-                scores = []
-
-            results.append({"boxes": boxes, "scores": scores})
-
-        return results

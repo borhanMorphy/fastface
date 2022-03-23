@@ -1,4 +1,5 @@
-from typing import Tuple, List, Union
+from typing import List, Tuple, Union
+
 from ...config import ArchConfig
 
 
@@ -6,6 +7,11 @@ class LFFDConfig(ArchConfig):
     """LFFD architecture configuration
     default configuration is `original`
     """
+
+    # name of the architecture in the factory
+    arch: str = "lffd"
+    # name of the configuration in the factory
+    name: str = "original"
 
     # preprocess
     mean: Union[float, List] = 127.5
@@ -33,4 +39,4 @@ class LFFDConfig(ArchConfig):
     weight_decay: float = 0.00001
     scheduler_milestones: List[int] = [200, 400, 600]
     scheduler_gamma: float = 0.1
-    hard_neg_mining_ratio = 5
+    hard_neg_mining_ratio: int = 5

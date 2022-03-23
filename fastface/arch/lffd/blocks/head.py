@@ -1,5 +1,5 @@
-from typing import Tuple, List, Dict
 import math
+from typing import Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -64,7 +64,9 @@ class LFFDHead(nn.Module):
 
         return rf_centers - reg_logits * self.anchor.rf_normalizer
 
-    def build_targets(self, batch: torch.Tensor, raw_targets: List[Dict]) -> torch.Tensor:
+    def build_targets(
+        self, batch: torch.Tensor, raw_targets: List[Dict]
+    ) -> torch.Tensor:
         batch_size, _, height, width = batch.shape
         dtype = batch.dtype
         device = batch.device
@@ -77,7 +79,9 @@ class LFFDHead(nn.Module):
         # target_regs: batch_size, fh, fw, 4
         target_cls = torch.zeros((batch_size, fh, fw, 1), dtype=dtype, device=device)
 
-        target_assignment = torch.zeros((batch_size, fh, fw, 1), dtype=dtype, device=device)
+        target_assignment = torch.zeros(
+            (batch_size, fh, fw, 1), dtype=dtype, device=device
+        )
         # 0: negative
         # 1: positive
         # -1: ignore
@@ -93,31 +97,49 @@ class LFFDHead(nn.Module):
             # -1: ignore
 
             # find positive boxes
-            pos_box_mask = (face_scales > self.min_face_size) & (face_scales < self.max_face_size)
+            pos_box_mask = (face_scales > self.min_face_size) & (
+                face_scales < self.max_face_size
+            )
             box_assignments[pos_box_mask] = 1
 
             # find ignore boxes
-            ignore_box_mask = (~pos_box_mask) & ((face_scales >= self.min_gray_face_scale) & (face_scales <= self.max_gray_face_scale))
+            ignore_box_mask = (~pos_box_mask) & (
+                (face_scales >= self.min_gray_face_scale)
+                & (face_scales <= self.max_gray_face_scale)
+            )
             box_assignments[ignore_box_mask] = -1
 
             # ground truth assignment
             for box_id, (xmin, ymin, xmax, ymax) in enumerate(bboxes):
-                matches = ((rf_centers[..., 0] >= xmin) & (rf_centers[..., 0] <= xmax))\
-                    & ((rf_centers[..., 1] >= ymin) & (rf_centers[..., 1] <= ymax))
+                matches = (
+                    (rf_centers[..., 0] >= xmin) & (rf_centers[..., 0] <= xmax)
+                ) & ((rf_centers[..., 1] >= ymin) & (rf_centers[..., 1] <= ymax))
 
                 matched_fh, matched_fw = torch.where(matches)
 
                 # matches: fh x fw
                 # assignment
-                target_assignment[batch_idx, matched_fh, matched_fw, :] = box_assignments[box_id]
+                target_assignment[
+                    batch_idx, matched_fh, matched_fw, :
+                ] = box_assignments[box_id]
                 # inc cls +1 if matched
                 if box_assignments[box_id] == 1:
                     target_cls[batch_idx, matched_fh, matched_fw, 0] += 1
-                    target_regs[batch_idx, matched_fh, matched_fw, 0] = rf_centers[matched_fh, matched_fw, 0] - xmin
-                    target_regs[batch_idx, matched_fh, matched_fw, 1] = rf_centers[matched_fh, matched_fw, 1] - ymin
-                    target_regs[batch_idx, matched_fh, matched_fw, 2] = rf_centers[matched_fh, matched_fw, 0] - xmax
-                    target_regs[batch_idx, matched_fh, matched_fw, 3] = rf_centers[matched_fh, matched_fw, 1] - ymax
-                    target_regs[batch_idx, matched_fh, matched_fw, :] /= self.anchor.rf_normalizer
+                    target_regs[batch_idx, matched_fh, matched_fw, 0] = (
+                        rf_centers[matched_fh, matched_fw, 0] - xmin
+                    )
+                    target_regs[batch_idx, matched_fh, matched_fw, 1] = (
+                        rf_centers[matched_fh, matched_fw, 1] - ymin
+                    )
+                    target_regs[batch_idx, matched_fh, matched_fw, 2] = (
+                        rf_centers[matched_fh, matched_fw, 0] - xmax
+                    )
+                    target_regs[batch_idx, matched_fh, matched_fw, 3] = (
+                        rf_centers[matched_fh, matched_fw, 1] - ymax
+                    )
+                    target_regs[
+                        batch_idx, matched_fh, matched_fw, :
+                    ] /= self.anchor.rf_normalizer
 
             # check for double matched rfs and ignore it
             ignore_fh, ignore_fw = torch.where(target_cls[batch_idx, :, :, 0] > 1)
@@ -125,8 +147,12 @@ class LFFDHead(nn.Module):
 
         return torch.cat([target_regs, target_cls, target_assignment], dim=3)
 
-
-    def compute_loss(self, logits: torch.Tensor, target_logits: torch.Tensor) -> torch.Tensor:
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        target_logits: torch.Tensor,
+        hard_neg_mining_ratio: int,
+    ) -> torch.Tensor:
         pos_mask = target_logits[..., 5] == 1
         neg_mask = target_logits[..., 5] == 0
 
@@ -139,13 +165,26 @@ class LFFDHead(nn.Module):
             target_logits[..., 4][neg_mask],
         )
 
+        num_of_positives = pos_cls_loss.shape[0]
+        num_of_negatives = neg_cls_loss.shape[0]
+
+        order = neg_cls_loss.argsort(descending=True)
+        keep_cls = max(
+            min(num_of_positives * hard_neg_mining_ratio, num_of_negatives), 100
+        )
+
+        cls_loss = torch.cat([pos_cls_loss, neg_cls_loss[order][:keep_cls]])
+
         if pos_mask.sum() > 0:
             reg_loss = self.reg_loss_fn(
                 logits[..., :4][pos_mask], target_logits[..., :4][pos_mask]
             )
         else:
             reg_loss = torch.tensor(
-                [[0, 0, 0, 0]], dtype=logits.dtype, device=logits.device, requires_grad=True
+                [[0, 0, 0, 0]],
+                dtype=logits.dtype,
+                device=logits.device,
+                requires_grad=True,
             )  # pylint: disable=not-callable
 
-        return pos_cls_loss, neg_cls_loss, reg_loss
+        return cls_loss.mean(), reg_loss.mean()

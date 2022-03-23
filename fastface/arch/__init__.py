@@ -1,1 +1,1 @@
-from . import lffd
+from . import centerface, lffd

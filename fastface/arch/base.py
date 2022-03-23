@@ -4,6 +4,7 @@ from typing import Any, Dict, Tuple
 import torch
 from albumentations.core.composition import BaseCompose
 
+
 class ArchInterface(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):

@@ -1,6 +1,8 @@
 from typing import List, Union
-from .config import ArchConfig
+
 from .arch.base import ArchInterface
+from .config import ArchConfig
+
 
 class _Factory:
     """Factory for different types of face detection architectures"""
@@ -11,19 +13,16 @@ class _Factory:
         raise AssertionError("Do not create instance of this class")
 
     @staticmethod
-    def register(cls = None, configs: List[ArchConfig] = None):
+    def register(cls=None, configs: List[ArchConfig] = None):
         assert len(configs) > 0, "configuration list is empty"
 
         arch_names = set([config.arch for config in configs])
         assert len(arch_names) == 1, "arch names does not match with given configs"
 
-        arch_name, = arch_names
+        (arch_name,) = arch_names
 
         if arch_name not in _Factory.archs:
-            _Factory.archs[arch_name] = dict(
-                cls=cls,
-                configs=list()
-            )
+            _Factory.archs[arch_name] = dict(cls=cls, configs=list())
 
         _Factory.archs[arch_name]["configs"] += configs
 
@@ -33,18 +32,18 @@ class _Factory:
 
     @staticmethod
     def get_arch_config_names(arch: str) -> List[str]:
-        assert arch in _Factory.archs, "given architecture {} is not found in the registry".format(arch)
+        assert (
+            arch in _Factory.archs
+        ), "given architecture {} is not found in the registry".format(arch)
         return sorted(
-            list(
-                set(
-                    map(lambda config: config.name, _Factory.archs[arch]["configs"])
-                )
-            )
+            list(set(map(lambda config: config.name, _Factory.archs[arch]["configs"])))
         )
 
     @staticmethod
     def get_arch_config(arch: str, config: str) -> ArchConfig:
-        assert config in _Factory.get_arch_config_names(arch), "given configuration {} is not found in the {}".format(config, arch)
+        assert config in _Factory.get_arch_config_names(
+            arch
+        ), "given configuration {} is not found in the {}".format(config, arch)
         for arch_config in _Factory.archs[arch]["configs"]:
             if arch_config.name == config:
                 return arch_config.copy()
@@ -53,6 +52,10 @@ class _Factory:
 
     @staticmethod
     def build_arch(arch: str, config: Union[str, ArchConfig]) -> ArchInterface:
-        config = _Factory.get_arch_config(arch, config) if isinstance(config, str) else config
+        config = (
+            _Factory.get_arch_config(arch, config)
+            if isinstance(config, str)
+            else config
+        )
 
         return _Factory.archs[arch]["cls"](config)

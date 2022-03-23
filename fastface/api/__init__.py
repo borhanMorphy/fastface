@@ -1,13 +1,13 @@
 import os
 from typing import List, Union
 
+from ..adapter import download_object
 from ..arch.base import ArchInterface
 from ..config import ArchConfig
-from ..adapter import download_object
+from ..factory import _Factory
 from ..utils import discover_versions
 from ..utils.cache import get_model_cache_dir
 from ..utils.config import get_registry
-from ..factory import _Factory
 
 
 def list_pretrained_models() -> List[str]:
@@ -111,6 +111,7 @@ def get_arch_config(arch: str, config: str) -> ArchConfig:
 
     """
     return _Factory.get_arch_config(arch, config)
+
 
 def build_arch(arch: str, config: Union[str, ArchConfig]) -> ArchInterface:
     """Returns configuration object for given arch's named config

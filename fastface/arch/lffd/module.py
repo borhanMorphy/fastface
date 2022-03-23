@@ -1,14 +1,14 @@
 from typing import Dict, List, Tuple
 
+import albumentations as A
 import torch
 import torch.nn as nn
-import albumentations as A
 from cv2 import cv2
 
+from ..base import ArchInterface
 from .blocks import LFFDBackboneV1, LFFDBackboneV2, LFFDHead
 from .config import LFFDConfig
 from .transform import RandomScaleSample
-from ..base import ArchInterface
 
 
 class LFFD(nn.Module, ArchInterface):
@@ -24,7 +24,9 @@ class LFFD(nn.Module, ArchInterface):
         elif config.backbone == "lffd-v2":
             self.backbone = LFFDBackboneV2(config.input_channel)
         else:
-            raise ValueError("given backbone name: {} is not valid".format(config.backbone))
+            raise ValueError(
+                "given backbone name: {} is not valid".format(config.backbone)
+            )
 
         min_face_sizes = [config.min_face_size] + list(config.rf_sizes[:-1])
         max_face_sizes = list(config.rf_sizes)
@@ -59,7 +61,7 @@ class LFFD(nn.Module, ArchInterface):
 
         self.loss_fn = {
             "cls": nn.BCEWithLogitsLoss(reduction="none"),
-            "reg": nn.MSELoss(reduction="none")
+            "reg": nn.MSELoss(reduction="none"),
         }
 
         self.initialize_weights()
@@ -71,6 +73,7 @@ class LFFD(nn.Module, ArchInterface):
 
                 if m.bias is not None:
                     m.bias.data.fill_(0)
+
         self.apply(conv_xavier_init)
 
     def forward(self, batch: torch.Tensor) -> List[torch.Tensor]:
@@ -152,34 +155,25 @@ class LFFD(nn.Module, ArchInterface):
 
         """
 
-        pos_cls_loss = list()
-        neg_cls_loss = list()
-        reg_loss = list()
+        cls_loss = 0
+        reg_loss = 0
         for head_idx in range(len(self.heads)):
-            h_pos_cls_loss, h_neg_cls_loss, h_reg_loss = self.heads[head_idx].compute_loss(
-                logits[head_idx], target_logits[head_idx]
+            h_cls_loss, h_reg_loss = self.heads[head_idx].compute_loss(
+                logits[head_idx],
+                target_logits[head_idx],
+                self.config.hard_neg_mining_ratio,
             )
 
-            pos_cls_loss.append(h_pos_cls_loss)
-            neg_cls_loss.append(h_neg_cls_loss)
-            reg_loss.append(h_reg_loss)
-
-        pos_cls_loss = torch.cat(pos_cls_loss, dim=0)
-        neg_cls_loss = torch.cat(neg_cls_loss, dim=0)
-        reg_loss = torch.cat(reg_loss, dim=0)
-
-        num_of_positives = pos_cls_loss.shape[0]
-        num_of_negatives = neg_cls_loss.shape[0]
-        
-        order = neg_cls_loss.argsort(descending=True)
-        keep_cls = max(min(num_of_positives * self.config.hard_neg_mining_ratio, num_of_negatives), 1)
-
-        cls_loss = torch.cat([pos_cls_loss, neg_cls_loss[order][:keep_cls]]).mean()
-        reg_loss = reg_loss.mean()
+            cls_loss += h_cls_loss
+            reg_loss += h_reg_loss
 
         loss = cls_loss + reg_loss
 
-        return {"loss": loss, "cls_loss": cls_loss, "reg_loss": reg_loss}
+        return {
+            "loss": loss,
+            "cls_loss": cls_loss.detach(),
+            "reg_loss": reg_loss.detach(),
+        }
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(
@@ -189,23 +183,23 @@ class LFFD(nn.Module, ArchInterface):
             weight_decay=self.config.weight_decay,
         )
 
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer,
-            milestones=self.config.scheduler_milestones,
-            gamma=self.config.scheduler_gamma,
-            verbose=True,
-        )
+        # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        #    optimizer,
+        #    milestones=self.config.scheduler_milestones,
+        #    gamma=self.config.scheduler_gamma,
+        #    verbose=True,
+        # )
 
-        return [optimizer], [lr_scheduler]
+        return optimizer  # [optimizer], [lr_scheduler]
 
-    def build_targets(self, batch: torch.Tensor, raw_targets: List[Dict]) -> List[torch.Tensor]:
+    def build_targets(
+        self, batch: torch.Tensor, raw_targets: List[Dict]
+    ) -> List[torch.Tensor]:
         # include input images in here
         head_target_logits = list()
 
         for head in self.heads:
-            head_target_logits.append(
-                head.build_targets(batch, raw_targets)
-            )
+            head_target_logits.append(head.build_targets(batch, raw_targets))
 
         return head_target_logits
 
@@ -222,7 +216,7 @@ class LFFD(nn.Module, ArchInterface):
         sizes = [self.config.min_face_size] + list(self.config.rf_sizes)
         scales = list(zip(sizes[:-1], sizes[1:]))
         ref_size = max(self.config.input_width, self.config.input_height)
-        min_area = (self.config.min_face_size - 1)**2
+        min_area = (self.config.min_face_size - 1) ** 2
         return A.Compose(
             [
                 # TODO parameterize by config
@@ -231,30 +225,47 @@ class LFFD(nn.Module, ArchInterface):
                     saturation=(0.5, 1.5),
                     contrast=(0.5, 1.5),
                     hue=0,
-                    p=0.5
+                    p=0.5,
                 ),
-                RandomScaleSample(
-                    scales,
-                    ref_size=ref_size
+                A.LongestMaxSize(max_size=ref_size),
+                # RandomScaleSample(
+                #    scales,
+                #    ref_size=ref_size
+                # ),
+                A.PadIfNeeded(
+                    min_width=ref_size,
+                    min_height=ref_size,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    value=0,
                 ),
-                A.PadIfNeeded(min_width=ref_size, min_height=ref_size, border_mode=cv2.BORDER_CONSTANT, value=0),
                 A.HorizontalFlip(p=0.5),
             ],
             bbox_params=A.BboxParams(
-                format='pascal_voc', label_fields=['labels'], min_visibility=0.3, min_area=min_area
-            )
+                format="pascal_voc",
+                label_fields=["labels"],
+                min_visibility=0.3,
+                min_area=min_area,
+            ),
         )
 
     @property
     def transforms(self):
         ref_size = max(self.config.input_width, self.config.input_height)
-        min_area = (self.config.min_face_size - 1)**2
+        min_area = (self.config.min_face_size - 1) ** 2
         return A.Compose(
             [
                 A.LongestMaxSize(max_size=ref_size),
-                A.PadIfNeeded(min_width=ref_size, min_height=ref_size, border_mode=cv2.BORDER_CONSTANT, value=0),
+                A.PadIfNeeded(
+                    min_width=ref_size,
+                    min_height=ref_size,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    value=0,
+                ),
             ],
             bbox_params=A.BboxParams(
-                format='pascal_voc', label_fields=['labels'], min_visibility=0.3, min_area=min_area
-            )
+                format="pascal_voc",
+                label_fields=["labels"],
+                min_visibility=0.3,
+                min_area=min_area,
+            ),
         )

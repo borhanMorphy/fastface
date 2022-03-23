@@ -1,5 +1,3 @@
 from .widerface import WiderFaceAP
 
-__all__ = [
-    "WiderFaceAP"
-]
+__all__ = ["WiderFaceAP"]

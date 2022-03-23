@@ -1,6 +1,6 @@
-from typing import List, Tuple, Dict
-import numpy as np
+from typing import Dict, List, Tuple
 
+import numpy as np
 import torch
 import torchvision.ops.boxes as box_ops
 from torchmetrics.metric import Metric
@@ -12,6 +12,7 @@ class WiderFaceAP(Metric):
     Args:
         iou_threshold (float): widerface AP score IoU threshold, default is 0.5 (used value in paper)
     """
+
     # this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
 
     is_differentiable = False
@@ -33,7 +34,7 @@ class WiderFaceAP(Metric):
         self,
         preds: List[torch.Tensor],
         targets: List[torch.Tensor],
-		labels: List[List[str]],
+        labels: List[List[str]],
     ):
         """_summary_
 
@@ -57,7 +58,9 @@ class WiderFaceAP(Metric):
             [pred.cpu().numpy().astype(np.float32) for pred in self.preds]
         )
 
-        gt_boxes = [gt_boxes.cpu().numpy().astype(np.float32) for gt_boxes in self.targets]
+        gt_boxes = [
+            gt_boxes.cpu().numpy().astype(np.float32) for gt_boxes in self.targets
+        ]
 
         ignore_flags = list()
         for labels in self.labels:
@@ -111,7 +114,9 @@ class WiderFaceAP(Metric):
                 # ignore_pred_mask: N,
 
                 # calculate image pr
-                curve[stage] += self.calculate_image_pr(preds, ignore_pred_mask, match_counts)
+                curve[stage] += self.calculate_image_pr(
+                    preds, ignore_pred_mask, match_counts
+                )
 
         for i in range(self.threshold_steps):
             for stage in stages:

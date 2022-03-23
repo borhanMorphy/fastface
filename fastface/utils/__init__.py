@@ -4,7 +4,7 @@ from typing import List
 from packaging.version import InvalidVersion, Version
 
 from ..version import __version__
-from . import box, cache, cluster, config, geo, kernel, preprocess, random, vis
+from . import box, cache, config, process, vis
 
 
 def discover_versions(include_current_version: bool = True) -> List[str]:
@@ -37,12 +37,8 @@ def discover_versions(include_current_version: bool = True) -> List[str]:
 __all__ = [
     "box",
     "cache",
-    "cluster",
     "config",
-    "geo",
-    "kernel",
-    "preprocess",
-    "random",
+    "process",
     "vis",
     "discover_versions",
 ]

@@ -189,7 +189,7 @@ class WiderFaceDataset(BaseDataset):
     def __init__(
         self,
         source_dir: str = None,
-        phase: str = 'train',
+        phase: str = "train",
         transforms=None,
         drop_keys: List[str] = None,
         **kwargs,
@@ -217,15 +217,12 @@ class WiderFaceDataset(BaseDataset):
             )
             with open(annotation_path, "r") as foo:
                 annotations = foo.read().split("\n")
-            
+
             ranges = list()
             for partition_range in self.__partition_ranges__:
                 ranges += list(partition_range)
 
-            raw_ids, raw_targets = _parse_annotation_file(
-                annotations,
-                ranges
-            )
+            raw_ids, raw_targets = _parse_annotation_file(annotations, ranges)
 
             del annotations
             ids = []
@@ -241,12 +238,7 @@ class WiderFaceDataset(BaseDataset):
                 if len(target) == 0:
                     continue
                 bboxes = target.astype(np.float32).tolist()
-                targets.append(
-                    dict(
-                        bboxes=bboxes,
-                        labels=["face"] * len(bboxes)
-                    )
-                )
+                targets.append(dict(bboxes=bboxes, labels=["face"] * len(bboxes)))
                 ids.append(os.path.join(source_image_dir, idx))
 
             landmark_anns = _get_landmark_annotations(
@@ -257,8 +249,10 @@ class WiderFaceDataset(BaseDataset):
                 key = os.path.basename(ids[i])
                 targets[i]["keypoints"] = list()
                 targets[i]["keypoint_ids"] = list()
-                for j, points in enumerate(landmark_anns[key].flatten().reshape(-1, 2).tolist()):
-                    keypoint_id = str(j//5) + "_" + str(j % 5)
+                for j, points in enumerate(
+                    landmark_anns[key].flatten().reshape(-1, 2).tolist()
+                ):
+                    keypoint_id = str(j // 5) + "_" + str(j % 5)
                     if points[0] == -1 or points[1] == -1:
                         targets[i]["keypoints"].append([0, 0])
                         targets[i]["keypoint_ids"].append(keypoint_id + "_ignore")
@@ -272,7 +266,9 @@ class WiderFaceDataset(BaseDataset):
             _, h_raw_targets = _get_validation_set(source_dir, "hard")
 
             targets = []
-            for (e_target, m_target, h_target) in zip(e_raw_targets, m_raw_targets, h_raw_targets):
+            for (e_target, m_target, h_target) in zip(
+                e_raw_targets, m_raw_targets, h_raw_targets
+            ):
                 # make sure boxes are match
                 assert (e_target[:, :4] == m_target[:, :4]).all()
                 assert (m_target[:, :4] == h_target[:, :4]).all()
@@ -298,14 +294,11 @@ class WiderFaceDataset(BaseDataset):
 
                     labels.append(label)
 
-                targets.append(
-                    dict(
-                        bboxes=bboxes,
-                        labels=labels
-                    )
-                )
+                targets.append(dict(bboxes=bboxes, labels=labels))
             del e_raw_targets
             del m_raw_targets
             del h_raw_targets
 
-        super().__init__(ids, targets, transforms=transforms, drop_keys=drop_keys, **kwargs)
+        super().__init__(
+            ids, targets, transforms=transforms, drop_keys=drop_keys, **kwargs
+        )

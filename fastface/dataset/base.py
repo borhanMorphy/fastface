@@ -1,12 +1,12 @@
 import copy
 import logging
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import checksumdir
-import imageio
 import numpy as np
 import torch
+from cv2 import cv2
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -30,9 +30,13 @@ def default_collate_fn(batch):
                     target[key] = list()
                 target[key] += val
         if "bboxes" in target:
-            target["bboxes"] = np.array(target["bboxes"], dtype=np.float32).reshape(-1, 4)
+            target["bboxes"] = np.array(target["bboxes"], dtype=np.float32).reshape(
+                -1, 4
+            )
         if "keypoints" in target:
-            target["keypoints"] = np.array(target["keypoints"], dtype=np.float32).reshape(-1, 5, 2)
+            target["keypoints"] = np.array(
+                target["keypoints"], dtype=np.float32
+            ).reshape(-1, 5, 2)
         targets.append(target)
 
     batch = np.stack(images, axis=0).astype(np.float32)
@@ -50,7 +54,8 @@ class BaseDataset(Dataset):
     __DATASET_NAME__ = "base"
     __URLS__ = dict()
 
-    def __init__(self,
+    def __init__(
+        self,
         ids: List[str],
         targets: List[Dict],
         transforms=None,
@@ -94,15 +99,9 @@ class BaseDataset(Dataset):
 
         if self.transforms:
             # apply transforms
-            data = self.transforms(
-                image=img,
-                **targets
-            )
+            data = self.transforms(image=img, **targets)
         else:
-            data = dict(
-                image=img,
-                **targets
-            )
+            data = dict(image=img, **targets)
 
         return data
 
@@ -119,19 +118,7 @@ class BaseDataset(Dataset):
         Returns:
             np.ndarray: rgb image as np.ndarray
         """
-        img = imageio.imread(img_file_path)
-        if not img.flags["C_CONTIGUOUS"]:
-            # if img is not contiguous than fix it
-            img = np.ascontiguousarray(img, dtype=img.dtype)
-
-        if len(img.shape) == 4:
-            # found RGBA, converting to => RGB
-            img = img[:, :, :3]
-        elif len(img.shape) == 2:
-            # found GRAYSCALE, converting to => RGB
-            img = np.stack([img, img, img], axis=-1)
-
-        return np.array(img, dtype=np.uint8)
+        return cv2.imread(img_file_path)[..., [2, 1, 0]]
 
     def get_dataloader(
         self,

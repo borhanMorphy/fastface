@@ -3,7 +3,10 @@ from typing import Dict, List, Tuple
 import numpy as np
 from cv2 import cv2
 
-def draw_faces(data: Dict, box_color=(0, 255, 0), keypoint_color=(0, 255, 0)) -> np.ndarray:
+
+def draw_faces(
+    data: Dict, box_color=(0, 255, 0), keypoint_color=(0, 255, 0)
+) -> np.ndarray:
     assert "image" in data
     keypoint_exists = "keypoints" in data
 
@@ -21,18 +24,27 @@ def draw_faces(data: Dict, box_color=(0, 255, 0), keypoint_color=(0, 255, 0)) ->
         box = bboxes[person_idx]
         keypoints = None
         if keypoint_exists:
-            keypoints = data["keypoints"][person_idx*num_of_keypoints: (person_idx + 1)*num_of_keypoints]
+            keypoints = data["keypoints"][
+                person_idx * num_of_keypoints : (person_idx + 1) * num_of_keypoints
+            ]
 
         img = draw_face(
-            img, box, keypoints=keypoints,
-            box_color=box_color, keypoint_color=keypoint_color
+            img,
+            box,
+            keypoints=keypoints,
+            box_color=box_color,
+            keypoint_color=keypoint_color,
         )
 
     return img
 
-def draw_face(img, box: List[float],
+
+def draw_face(
+    img,
+    box: List[float],
     keypoints: List[Tuple[float, float]] = None,
-    box_color=(0, 255, 0), keypoint_color=(0, 255, 0)
+    box_color=(0, 255, 0),
+    keypoint_color=(0, 255, 0),
 ):
 
     x1, y1, x2, y2 = [int(b) for b in box]

@@ -1,5 +1,7 @@
 from typing import List, Union
+
 from pydantic import BaseModel
+
 
 class ArchConfig(BaseModel):
     """Generic base configuration for face detection architectures"""
@@ -23,3 +25,4 @@ class ArchConfig(BaseModel):
     # training hparams
     batch_size: int
     learning_rate: float
+    max_epochs: int

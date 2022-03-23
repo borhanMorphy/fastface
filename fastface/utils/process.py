@@ -1,7 +1,78 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
+
+
+def to_tensor(
+    images: Union[np.ndarray, List], dtype: str, device: str
+) -> List[torch.Tensor]:
+    """Converts given image or list of images to list of tensors
+    Args:
+        images (Union[np.ndarray, List]): RGB image or list of RGB images
+        dtype (str): target dtype as string
+        device (str): target device as string
+    Returns:
+        List[torch.Tensor]: list of torch.Tensor(C x H x W)
+    """
+    assert isinstance(
+        images, (list, np.ndarray)
+    ), "give images must be eather list of numpy arrays or numpy array"
+
+    if isinstance(images, np.ndarray):
+        images = [images]
+
+    batch: List[torch.Tensor] = []
+
+    for img in images:
+        assert (
+            len(img.shape) == 3
+        ), "image shape must be channel, height\
+            , with length of 3 but found {}".format(
+            len(img.shape)
+        )
+        assert (
+            img.shape[2] == 3
+        ), "channel size of the image must be 3 but found {}".format(img.shape[2])
+
+        batch.append(
+            # h,w,c => c,h,w
+            # pylint: disable=not-callable
+            torch.tensor(img, dtype=dtype, device=device).permute(2, 0, 1)
+        )
+
+    return batch
+
+
+def to_json(preds: List[torch.Tensor]) -> List[Dict]:
+    """Converts given list of tensor predictions to json serializable format
+    Args:
+        preds (List[torch.Tensor]): list of torch.Tensor(N,5) as xmin, ymin, xmax, ymax, score
+    Returns:
+        List[Dict]: [
+            # single image results
+            {
+                    "boxes": <array>,  # List[List[xmin, ymin, xmax, ymax]]
+                    "scores": <array>  # List[float]
+            },
+            ...
+        ]
+    """
+    results: List[Dict] = []
+
+    for pred in preds:
+        if pred.size(0) != 0:
+            pred = pred.cpu().numpy()
+            boxes = pred[:, :4].astype(np.int32).tolist()
+            scores = pred[:, 4].tolist()
+        else:
+            boxes = []
+            scores = []
+
+        results.append({"boxes": boxes, "scores": scores})
+
+    return results
 
 
 def prepare_batch(
