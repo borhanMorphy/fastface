@@ -20,9 +20,6 @@ def test_cache_func_exists(func: str):
 @pytest.mark.parametrize(
     "func",
     [
-        "get_pkg_root_path",
-        "get_pkg_arch_path",
-        "get_registry_path",
         "get_registry",
     ],
 )
