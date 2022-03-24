@@ -292,9 +292,10 @@ class CenterFace(nn.Module, ArchInterface):
                 format="pascal_voc",
                 label_fields=["labels"],
                 min_area=self.config.min_face_area,
+                min_visibility=0.7,
             ),
             keypoint_params=A.KeypointParams(
-                format="xy", label_fields=["keypoint_ids"]
+                format="xy", label_fields=["keypoint_ids"], remove_invisible=False
             ),
         )
 
@@ -311,7 +312,4 @@ class CenterFace(nn.Module, ArchInterface):
                 ),
             ],
             bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]),
-            keypoint_params=A.KeypointParams(
-                format="xy", label_fields=["keypoint_ids"]
-            ),
         )

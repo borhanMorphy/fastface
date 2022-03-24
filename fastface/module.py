@@ -78,7 +78,7 @@ class FaceDetector(pl.LightningModule):
             persistent=False,
         )
 
-    def metrics(self, name: str, metric: Metric):
+    def add_metric(self, name: str, metric: Metric):
         """Adds given metric with name key
 
         Args:
@@ -94,7 +94,6 @@ class FaceDetector(pl.LightningModule):
         Returns:
                 Metric: defined model metrics with names
         """
-        # TODO
         return self.__metrics[name]
 
     @torch.jit.unused
@@ -271,7 +270,12 @@ class FaceDetector(pl.LightningModule):
             # preds: B x N x (5 + 2*l)
             # xmin, ymin, xmax, ymax, score, *landmarks
 
-            preds = self._postprocess(preds)
+            preds = self._postprocess(
+                preds,
+                0.1,
+                0.1,
+                50,
+            )
             # preds: N x 6
 
             pred_boxes = [
