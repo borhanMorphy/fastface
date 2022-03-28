@@ -12,6 +12,7 @@ from .blocks import FPN, CenterFaceHead, MobileNetV2
 from .config import CenterFaceConfig
 from .loss import SoftBinaryFocalLossWithLogits
 from .utils import gaussian_radius, get_gaussian_kernel
+from .transform import KeypointOrderAwareHFlip
 
 
 class CenterFace(nn.Module, ArchInterface):
@@ -277,8 +278,10 @@ class CenterFace(nn.Module, ArchInterface):
     def train_transforms(self):
         return A.Compose(
             [
-                A.HorizontalFlip(p=0.5),
-                A.RandomResizedCrop(self.config.img_size, self.config.img_size, p=0.5),
+                # designed for 5 points landmark with order of
+                # eye_left, eye_right, nose, mouth_left, mouth_right
+                KeypointOrderAwareHFlip(flip_order=(1, 0, 2, 4, 3), p=0.5),
+                A.RandomScale(scale_limit=(0.6, 1.3), p=0.5),
                 A.ColorJitter(p=0.5),
                 A.LongestMaxSize(max_size=self.config.img_size),
                 A.PadIfNeeded(

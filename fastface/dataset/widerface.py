@@ -100,11 +100,11 @@ def _get_landmark_annotations(ann_file_path: str) -> Dict[str, np.ndarray]:
             ann_splits = ann.split(" ")
             landmarks = np.array(
                 [
-                    [float(ann_splits[4]), float(ann_splits[5])],  # l1_x l1_y
-                    [float(ann_splits[7]), float(ann_splits[8])],  # l2_x l2_y
-                    [float(ann_splits[10]), float(ann_splits[11])],  # l3_x l3_y
-                    [float(ann_splits[13]), float(ann_splits[14])],  # l4_x l4_y
-                    [float(ann_splits[16]), float(ann_splits[17])],  # l5_x l5_y
+                    [float(ann_splits[4]), float(ann_splits[5])],  # l1_x l1_y  (eye left)
+                    [float(ann_splits[7]), float(ann_splits[8])],  # l2_x l2_y  (eye right)
+                    [float(ann_splits[10]), float(ann_splits[11])],  # l3_x l3_y (nose)
+                    [float(ann_splits[13]), float(ann_splits[14])],  # l4_x l4_y (mouth left)
+                    [float(ann_splits[16]), float(ann_splits[17])],  # l5_x l5_y (mouth right)
                 ],
                 dtype=np.float32,
             ).reshape(1, 5, 2)
@@ -244,6 +244,7 @@ class WiderFaceDataset(BaseDataset):
             landmark_anns = _get_landmark_annotations(
                 os.path.join(source_dir, "landmark_annotations", phase, "label.txt")
             )
+            keypoint_labels = ("eye_left", "eye_right", "nose", "mouth_left", "mouth_right")
 
             for i in range(len(ids)):
                 key = os.path.basename(ids[i])
@@ -252,7 +253,7 @@ class WiderFaceDataset(BaseDataset):
                 for j, points in enumerate(
                     landmark_anns[key].flatten().reshape(-1, 2).tolist()
                 ):
-                    keypoint_id = str(j // 5) + "_" + str(j % 5)
+                    keypoint_id = str(j // 5) + "_" + keypoint_labels[j % 5]
                     if points[0] == -1 or points[1] == -1:
                         targets[i]["keypoints"].append([0, 0])
                         targets[i]["keypoint_ids"].append(keypoint_id + "_ignore")
