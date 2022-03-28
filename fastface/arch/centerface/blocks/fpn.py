@@ -32,7 +32,7 @@ class FPN(nn.Module):
         if upsample_method == "deconv":
             upsample_layer = nn.Sequential(
                 nn.ConvTranspose2d(out_feature, out_feature, kernel_size=2, stride=2),
-                nn.BatchNorm2d(out_feature),
+                nn.BatchNorm2d(out_feature, track_running_stats=False),
                 nn.ReLU(),
             )
         elif upsample_method == "nearest":
