@@ -48,29 +48,39 @@ def to_tensor(
 def to_json(preds: List[torch.Tensor]) -> List[Dict]:
     """Converts given list of tensor predictions to json serializable format
     Args:
-        preds (List[torch.Tensor]): list of torch.Tensor(N,5) as xmin, ymin, xmax, ymax, score
+        preds (List[torch.Tensor]): list of torch.Tensor(N, 5 + num_landmarks*2) as xmin, ymin, xmax, ymax, score, *landmarks
     Returns:
         List[Dict]: [
             # single image results
             {
-                    "boxes": <array>,  # List[List[xmin, ymin, xmax, ymax]]
-                    "scores": <array>  # List[float]
+                    "boxes": <array>,       # List[List[xmin, ymin, xmax, ymax]]
+                    "scores": <array>,      # List[float]
+                    "landmarks": <array>,   # List[List[List[x, y]]]
             },
             ...
         ]
     """
     results: List[Dict] = []
-
+    keypoints_exists = False
     for pred in preds:
-        if pred.size(0) != 0:
-            pred = pred.cpu().numpy()
+        pred = pred.cpu().numpy()
+        num_faces = pred.shape[0]
+        keypoints_exists = pred.shape[1] > 5
+
+        if num_faces > 0:
             boxes = pred[:, :4].astype(np.int32).tolist()
             scores = pred[:, 4].tolist()
+            if keypoints_exists:
+                landmarks = pred[:, 5:].reshape(num_faces, -1, 2).astype(np.int32).tolist()
         else:
             boxes = []
             scores = []
+            landmarks = []
 
-        results.append({"boxes": boxes, "scores": scores})
+        res = {"boxes": boxes, "scores": scores}
+        if keypoints_exists:
+            res["landmarks"] = landmarks
+        results.append(res)
 
     return results
 

@@ -3,8 +3,6 @@ fastface.FaceDetector
 
 .. automethod:: fastface.FaceDetector.build
 
-.. automethod:: fastface.FaceDetector.from_checkpoint
-
 .. automethod:: fastface.FaceDetector.from_pretrained
 
 .. automethod:: fastface.FaceDetector.predict

@@ -23,11 +23,12 @@ class FaceDetector(pl.LightningModule):
         self.every_n_epoch = math.inf
         self.every_n_batch = math.inf
 
-        self.init_preprocess(
-            mean=arch.config.mean,
-            std=arch.config.std,
-            normalized_input=arch.config.normalized_input,
-        )
+        if arch:
+            self.init_preprocess(
+                mean=arch.config.mean,
+                std=arch.config.std,
+                normalized_input=arch.config.normalized_input,
+            )
 
     def is_debug_step(self, batch_idx: int) -> bool:
         return (self.current_epoch + 1) % self.every_n_epoch == 0 and (
@@ -132,7 +133,7 @@ class FaceDetector(pl.LightningModule):
         [{'boxes': [[1057, 180, 1187, 352], [571, 212, 697, 393], [140, 218, 270, 382], [864, 271, 979, 406], [327, 252, 442, 392]], 'scores': [0.9992133378982544, 0.9971852898597717, 0.9246336817741394, 0.8549349308013916, 0.8072562217712402]}]
         """
 
-        batch = utils.process.to_tensor(data)
+        batch = utils.process.to_tensor(data, self.dtype, self.device)
         # batch: list of tensors
 
         batch_size = len(batch)
@@ -150,13 +151,13 @@ class FaceDetector(pl.LightningModule):
             iou_threshold=iou_threshold,
             keep_n=keep_n,
         )
-        # preds: torch.Tensor(B, N, 6) as x1,y1,x2,y2,score,batch_idx
+        # preds: torch.Tensor(B, N, 5 + num_landmarks*2 + 1) as x1,y1,x2,y2,score,*landmarks,batch_idx
 
-        preds = [preds[preds[:, 5] == batch_idx, :5] for batch_idx in range(batch_size)]
-        # preds: list of torch.Tensor(N, 5) as x1,y1,x2,y2,score
+        preds = [preds[preds[:, -1] == batch_idx, :-1] for batch_idx in range(batch_size)]
+        # preds: list of torch.Tensor(N, 5 + num_landmarks*2) as x1,y1,x2,y2,score,*landmarks
 
         preds = utils.process.adjust_results(preds, scales, paddings)
-        # preds: list of torch.Tensor(N, 5) as x1,y1,x2,y2,score
+        # preds: list of torch.Tensor(N, 5 + num_landmarks*2) as x1,y1,x2,y2,score,*landmarks
 
         return utils.process.to_json(preds)
 
@@ -175,10 +176,10 @@ class FaceDetector(pl.LightningModule):
 
         Returns:
             torch.Tensor: preds with shape (N, 5 + num_landmarks*2 + 1);
-                    (1:4) xmin, ymin, xmax, ymax
-                    (4:5) score
-                    (5:5+num_landmarks*2)
-                    (5+num_landmarks*2:) batch idx
+                (1:4) xmin, ymin, xmax, ymax
+                (4:5) score
+                (5:5+num_landmarks*2)
+                (5+num_landmarks*2:) batch idx
         """
 
         # apply preprocess
@@ -190,7 +191,7 @@ class FaceDetector(pl.LightningModule):
         # logits, any
 
         preds = self.arch.compute_preds(logits)
-        # preds: torch.Tensor(B, N, 5)
+        # preds: torch.Tensor(B, N, 5+num_landmarks*2)
 
         return self._postprocess(
             preds,
@@ -215,7 +216,7 @@ class FaceDetector(pl.LightningModule):
             keep_n (int): keep number of predictions
 
         Returns:
-            torch.Tensor: predictions as N x (5 + 1)
+            torch.Tensor: predictions as N x (5 + num_landmarks*2 + 1)
         """
         batch_size = preds.size(0)
 
@@ -224,9 +225,9 @@ class FaceDetector(pl.LightningModule):
 
         # add batch_idx dim to preds
         preds = torch.cat(
-            [preds[pick_b, pick_n, :5], pick_b.to(preds.dtype).unsqueeze(1)], dim=1
+            [preds[pick_b, pick_n, :], pick_b.to(preds.dtype).unsqueeze(1)], dim=1
         )
-        # preds: N x (5 + 1)
+        # preds: N x (5 + num_landmarks*2 + 1)
 
         batch_preds: List[torch.Tensor] = []
         for batch_idx in range(batch_size):
@@ -234,18 +235,18 @@ class FaceDetector(pl.LightningModule):
             order = preds[pick_n, 4].sort(descending=True)[1]
 
             batch_preds.append(
-                # preds: N, 6
+                # preds: N, 5 + num_landmarks*2 + 1
                 preds[pick_n, :][order][:keep_n, :]
             )
 
         batch_preds = torch.cat(batch_preds, dim=0)
-        # batch_preds: N' x (5 + 1)
+        # batch_preds: N' x (5 + num_landmarks*2 + 1)
 
         # filter with nms
         pick = utils.box.batched_nms(
             batch_preds[:, :4],  # boxes as x1,y1,x2,y2
             batch_preds[:, 4],  # det score between [0, 1]
-            batch_preds[:, 5],  # id of the batch that prediction belongs to
+            batch_preds[:, -1],  # id of the batch that prediction belongs to
             iou_threshold=iou_threshold,
         )
         return batch_preds[pick, :]
@@ -254,17 +255,16 @@ class FaceDetector(pl.LightningModule):
         inputs, raw_targets = batch
 
         # apply preprocess
-        inputs = ((inputs / self.normalizer) - self.mean) / self.std
+        data = ((inputs / self.normalizer) - self.mean) / self.std
+        batch_size = data.shape[0]
 
         if phase == "train":
             # compute logits
-            logits = self.arch.forward(inputs)
+            logits = self.arch.forward(data)
         else:
             with torch.no_grad():
                 # compute logits
-                logits = self.arch.forward(inputs)
-
-            batch_size = inputs.shape[0]
+                logits = self.arch.forward(data)
 
             preds = self.arch.compute_preds(logits)
             # preds: B x N x (5 + 2*l)
@@ -273,13 +273,13 @@ class FaceDetector(pl.LightningModule):
             preds = self._postprocess(
                 preds,
                 0.1,
-                0.1,
-                50,
+                0.4,
+                200,
             )
-            # preds: N x 6
+            # preds: N x 5 + num_landmarks*2 + 1
 
             pred_boxes = [
-                preds[preds[:, 5] == batch_idx][:, :5].cpu()
+                preds[preds[:, -1] == batch_idx][:, :5].cpu()
                 for batch_idx in range(batch_size)
             ]
             target_boxes = [target["bboxes"].cpu() for target in raw_targets]
@@ -289,12 +289,12 @@ class FaceDetector(pl.LightningModule):
                 metric.update(pred_boxes, target_boxes, labels)
 
             if self.is_debug_step(batch_idx):
-                for img, preds, gt_boxes in zip(batch[0], pred_boxes, target_boxes):
+                for img, p_boxes, gt_boxes in zip(batch[0], pred_boxes, target_boxes):
                     img = (img.permute(1, 2, 0).cpu()).numpy().astype(np.uint8).copy()
-                    preds = preds.cpu().long().numpy()
+                    p_boxes = p_boxes.cpu().long().numpy()
                     gt_boxes = gt_boxes.cpu().long().numpy()
 
-                    for x1, y1, x2, y2 in preds[:, :4]:
+                    for x1, y1, x2, y2 in p_boxes[:, :4]:
                         img = cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0))
                     for x1, y1, x2, y2 in gt_boxes[:, :4]:
                         img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0))
@@ -304,7 +304,7 @@ class FaceDetector(pl.LightningModule):
                     if cv2.waitKey(0) == 27:
                         exit(0)
 
-        target_logits = self.arch.build_targets(inputs, raw_targets)
+        target_logits = self.arch.build_targets(data, raw_targets)
 
         # compute loss
         # loss: dict of losses or loss
@@ -312,40 +312,36 @@ class FaceDetector(pl.LightningModule):
 
         if isinstance(loss, dict):
             for key, value in loss.items():
-                self.log("{}/{}".format(key, phase), value.item())
+                self.log("{}/{}".format(key, phase), value.item(), batch_size=batch_size)
         else:
-            self.log("loss/{}".format(phase), loss.item())
+            self.log("loss/{}".format(phase), loss.item(), batch_size=batch_size)
 
         return loss
 
-    def _on_epoch_start(self, phase: str = None):
-        for metric in self.__metrics.values():
-            metric.reset()
-
     def _epoch_end(self, _, phase: str = None):
+        metric_results = dict()
         if phase != "train":
             for name, metric in self.__metrics.items():
                 res = metric.compute()
+                print(name, res)
+                #metric.reset()
                 if isinstance(res, dict):
                     for k, v in res.items():
                         self.log("{}/{}/{}".format(name, phase, k), v)
+                        metric_results[f"{name}/{phase}/{k}"] = v
                 else:
                     self.log("{}/{}".format(name, phase), res)
+                    metric_results[f"{name}/{phase}"] = res
+        return metric_results
 
     def training_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, phase="train")
-
-    def on_validation_epoch_start(self):
-        self._on_epoch_start(phase="validation")
 
     def validation_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, phase="validation")
 
     def validation_epoch_end(self, _):
         return self._epoch_end(_, phase="validation")
-
-    def on_test_epoch_start(self):
-        self._on_epoch_start(phase="test")
 
     def test_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, phase="test")
@@ -379,18 +375,6 @@ class FaceDetector(pl.LightningModule):
         return cls(arch=arch)
 
     @classmethod
-    def from_checkpoint(cls, ckpt_path: str, **kwargs) -> pl.LightningModule:
-        """Classmethod for creating `fastface.FaceDetector` instance, using checkpoint file path
-
-        Args:
-                ckpt_path (str): file path of the checkpoint
-
-        Returns:
-                pl.LightningModule: fastface.FaceDetector instance with checkpoint weights
-        """
-        return cls.load_from_checkpoint(ckpt_path, map_location="cpu", **kwargs)
-
-    @classmethod
     def from_pretrained(
         cls, model: str, target_path: str = None, **kwargs
     ) -> pl.LightningModule:
@@ -406,7 +390,7 @@ class FaceDetector(pl.LightningModule):
         if model in api.list_pretrained_models():
             model = api.download_pretrained_model(model, target_path=target_path)
         assert os.path.isfile(model), f"given {model} not found in the disk"
-        return cls.from_checkpoint(model, **kwargs)
+        return cls.load_from_checkpoint(model, **kwargs)
 
     def on_load_checkpoint(self, checkpoint: Dict):
         config = ArchConfig.construct(**checkpoint["configuration"])

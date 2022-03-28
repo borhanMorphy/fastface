@@ -11,7 +11,7 @@ from . import utils
 
 
 @pytest.mark.parametrize(
-    "api", ["build", "from_checkpoint", "from_pretrained"]
+    "api", ["build", "from_pretrained"]
 )
 def test_api_exists(api):
     assert api in dir(
