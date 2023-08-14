@@ -3,6 +3,7 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pytorch_lightning as pl
+import torchmetrics
 import torch
 import torch.nn as nn
 import yaml
@@ -72,21 +73,21 @@ class FaceDetector(pl.LightningModule):
             persistent=False,
         )
 
-    def add_metric(self, name: str, metric: pl.metrics.Metric):
+    def add_metric(self, name: str, metric: torchmetrics.Metric):
         """Adds given metric with name key
 
         Args:
                 name (str): name of the metric
-                metric (pl.metrics.Metric): Metric object
+                metric (torchmetrics.Metric): Metric object
         """
         # TODO add warnings if override happens
         self.__metrics[name] = metric
 
-    def get_metrics(self) -> Dict[str, pl.metrics.Metric]:
+    def get_metrics(self) -> Dict[str, torchmetrics.Metric]:
         """Return metrics defined in the `FaceDetector` instance
 
         Returns:
-                Dict[str, pl.metrics.Metric]: defined model metrics with names
+                Dict[str, torchmetrics.Metric]: defined model metrics with names
         """
         return {k: v for k, v in self.__metrics.items()}
 

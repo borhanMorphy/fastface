@@ -2,7 +2,7 @@ import math
 from typing import List, Tuple, Union
 
 import torch
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 
 from .functional import average_precision
 from .utils import generate_prediction_table

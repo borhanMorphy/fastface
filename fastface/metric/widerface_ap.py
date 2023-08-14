@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 import torchvision.ops.boxes as box_ops
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 
 
 class WiderFaceAP(Metric):

@@ -3,6 +3,7 @@ import argparse
 import imageio
 import numpy as np
 import torch
+from pytorch_lightning.utilities.model_summary import ModelSummary
 
 import fastface as ff
 
@@ -88,7 +89,8 @@ def main(
     model = ff.FaceDetector.from_pretrained(model)
 
     # get model summary
-    model.summarize()
+    max_depth = 1 # 1: top-level summary, -1: print all levels
+    print(ModelSummary(model, max_depth = 1))
 
     # set model to eval mode
     model.eval()
