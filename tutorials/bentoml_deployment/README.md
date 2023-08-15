@@ -1,16 +1,21 @@
 # FastFace BentoML Deployment
+
 **[BentoML](https://www.bentoml.ai/) is a model serving framework, enabling to deliver prediction services in a fast, repeatable and scalable way.<br>**
 
-**This tutorial will explain how to export [fastface]((https://github.com/borhanMorphy/light-face-detection)) models as [ONNX](https://onnx.ai/) and deploy to bentoml prediction service.**
+**This tutorial will explain how to export [fastface](<(https://github.com/borhanMorphy/light-face-detection)>) models as [ONNX](https://onnx.ai/) and deploy to bentoml prediction service.**
 
 ## Installation
+
 **install latest fastface and bentoml via pip**
+
 ```
-pip install fastface==0.1.3 BentoML==0.12.1 -U
+pip install fastface==0.1.4 BentoML==0.12.1 -U
 ```
 
 ## BentoService Definition
-define BentoService as [service.py](./service.py)  
+
+define BentoService as [service.py](./service.py)
+
 ```python
 from bentoml import env, artifacts, api, BentoService
 from bentoml.adapters import ImageInput
@@ -49,7 +54,9 @@ class FaceDetectionService(BentoService):
 ```
 
 ## Build And Pack BentoService
+
 define operations as [build.py](./build.py)
+
 ```python
 # import fastface package to get pretrained model
 import fastface as ff
@@ -108,6 +115,7 @@ print("saved path: {}".format(saved_path))
 ```
 
 run `build.py` with the following
+
 ```
 python build.py
 ```
@@ -115,6 +123,7 @@ python build.py
 ## Serving The Model In Production Mode
 
 To serve model in production mode run the following (model will be served from http://0.0.0.0:5000).
+
 ```
 bentoml serve-gunicorn FaceDetectionService:latest -w 1
 ```
@@ -122,6 +131,7 @@ bentoml serve-gunicorn FaceDetectionService:latest -w 1
 ## Test Rest API
 
 test rest api with [test.py](./test.py)
+
 ```python
 import requests
 from fastface.utils.vis import render_predictions
@@ -147,18 +157,20 @@ pretty_img.show()
 
 Output should look like this<br>
 
-
 ![alt text](../../resources/friends2.jpg)
 
 ## Build And Deploy Using Docker
+
 BentoML also provides docker support for distributing services.<br>
 
 Run following to build docker image
+
 ```
-docker build --tag face-detection-service $HOME/bentoml/repository/FaceDetectionService/v0.1.3/
+docker build --tag face-detection-service $HOME/bentoml/repository/FaceDetectionService/v0.1.4/
 ```
 
 After docker image build is done, run docker container with the following
+
 ```
 docker run -p 5000:5000 -e BENTOML__APISERVER__DEFAULT_GUNICORN_WORKER_COUNTS=1 --name face_detection_service face-detection-service
 ```
