@@ -1,22 +1,28 @@
 import pytest
-import torch
+from torchmetrics import Metric
 
 import fastface as ff
 
 # TODO expand this
 
 
-@pytest.mark.parametrize("loss_name", ["DIoULoss", "BinaryFocalLoss"])
-def test_loss_api_exists(loss_name: str):
-    assert hasattr(ff.loss, loss_name), "{} not found in the fastface.loss".format(
-        loss_name
-    )
+@pytest.mark.parametrize(
+    "metric_name", ["AveragePrecision", "AverageRecall", "WiderFaceAP"]
+)
+def test_api_exists(metric_name: str):
+    assert hasattr(
+        ff.metric, metric_name
+    ), "{} not found in the fastface.metric".format(metric_name)
 
 
-@pytest.mark.parametrize("loss_name", ["DIoULoss", "BinaryFocalLoss"])
-def test_loss_build(loss_name: str):
-    loss_cls = getattr(ff.loss, loss_name)
-    loss_fn = loss_cls()
+@pytest.mark.parametrize(
+    "metric_name", ["AveragePrecision", "AverageRecall", "WiderFaceAP"]
+)
+def test_get_available_metrics(metric_name: str):
+    metric_cls = getattr(ff.metric, metric_name)
+    metric = metric_cls()
     assert isinstance(
-        loss_fn, torch.nn.Module
-    ), "loss must contain name as string but found:{}".format(type(loss_fn))
+        metric, Metric
+    ), "returned value must be `torchmetrics.Metric` but found:{}".format(
+        type(metric)
+    )

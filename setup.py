@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 def get_version() -> str:
     with open("fastface/version.py", "r") as foo:
-        version = foo.read().split("=")[-1].replace("'", "").replace('"', '').strip()
+        version = foo.read().split("=")[-1].replace("'", "").replace('"', "").strip()
     return version
 
 
@@ -91,6 +91,6 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
 )

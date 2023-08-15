@@ -7,7 +7,7 @@ from torchmetrics import Metric
 
 
 class WiderFaceAP(Metric):
-    """pytorch_lightning.metrics.Metric instance to calculate widerface average precision
+    """torchmetrics.Metric instance to calculate widerface average precision
 
     Args:
             iou_threshold (float): widerface AP score IoU threshold, default is 0.5
@@ -17,7 +17,7 @@ class WiderFaceAP(Metric):
     # this implementation heavily inspired by: https://github.com/wondervictor/WiderFace-Evaluation
 
     def __init__(self, iou_threshold: float = 0.5):
-        super().__init__(dist_sync_on_step=False, compute_on_step=False)
+        super().__init__(dist_sync_on_step=False)
 
         self.iou_threshold = iou_threshold
         self.threshold_steps = 1000

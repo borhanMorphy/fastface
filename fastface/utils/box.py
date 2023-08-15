@@ -12,9 +12,9 @@ def generate_grids(fh: int, fw: int) -> torch.Tensor:
     Returns:
         torch.Tensor: fh x fw x 2 as x1,y1
     """
-    # y: fh x fw
     # x: fh x fw
-    y, x = torch.meshgrid(torch.arange(fh), torch.arange(fw))
+    # y: fh x fw
+    x, y = torch.meshgrid(torch.arange(fh), torch.arange(fw), indexing="xy")
 
     # grids: fh x fw x 2
     return torch.stack([x, y], dim=2).float()

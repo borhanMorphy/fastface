@@ -81,7 +81,6 @@ def main(
     iou_threshold: float,
     target_size: int,
 ):
-
     # load image
     img = load_image(img_path)
 
@@ -89,8 +88,8 @@ def main(
     model = ff.FaceDetector.from_pretrained(model)
 
     # get model summary
-    max_depth = 1 # 1: top-level summary, -1: print all levels
-    print(ModelSummary(model, max_depth = 1))
+    max_depth = 1  # 1: top-level summary, -1: print all levels
+    print(ModelSummary(model, max_depth=max_depth))
 
     # set model to eval mode
     model.eval()

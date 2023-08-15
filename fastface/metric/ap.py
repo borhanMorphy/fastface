@@ -9,7 +9,7 @@ from .utils import generate_prediction_table
 
 
 class AveragePrecision(Metric):
-    """pytorch_lightning.metrics.Metric instance to calculate binary average precision
+    """torchmetrics.Metric instance to calculate binary average precision
 
     Args:
             iou_threshold (Union[List, float]): iou threshold or list of iou thresholds
@@ -26,7 +26,7 @@ class AveragePrecision(Metric):
     }
 
     def __init__(self, iou_threshold: Union[List, float] = 0.5, area: str = None):
-        super().__init__(dist_sync_on_step=False, compute_on_step=False)
+        super().__init__(dist_sync_on_step=False)
         if area is None:
             area_range = (0, math.inf)
             area_name = ""

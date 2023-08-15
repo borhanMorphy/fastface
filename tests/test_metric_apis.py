@@ -1,5 +1,5 @@
 import pytest
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 
 import fastface as ff
 
@@ -23,6 +23,6 @@ def test_get_available_metrics(metric_name: str):
     metric = metric_cls()
     assert isinstance(
         metric, Metric
-    ), "returned value must be `pytorch_lightning.metrics.Metric` but found:{}".format(
+    ), "returned value must be `torchmetrics.Metric` but found:{}".format(
         type(metric)
     )

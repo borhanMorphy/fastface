@@ -8,7 +8,7 @@ from ..utils.box import jaccard_vectorized
 
 
 class AverageRecall(Metric):
-    r"""pytorch_lightning.metrics.Metric instance to calculate average recall
+    r"""torchmetrics.Metric instance to calculate average recall
 
     .. math::
             AR = 2 \times \int_\text{iou_threshold_min}^\text{iou_threshold_max} recall(o)do
@@ -22,7 +22,7 @@ class AverageRecall(Metric):
     """
 
     def __init__(self, iou_threshold_min: float = 0.5, iou_threshold_max: float = 1.0):
-        super().__init__(dist_sync_on_step=False, compute_on_step=False)
+        super().__init__(dist_sync_on_step=False)
 
         assert (
             iou_threshold_max >= iou_threshold_min
